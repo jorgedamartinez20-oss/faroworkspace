@@ -673,13 +673,13 @@ summary{transition:color .18s}
 <main class="wrap">
   <section id="v-login" class="card login">
     <p class="welcome">Te damos la bienvenida</p><h1>Faro Workspace</h1><p class="muted">Espacio de trabajo de Faro Studios y Faro Academy.</p>
-    <div id="lstep1">
+    <form id="lstep1" autocomplete="on" novalidate>
     <div class="field"><label for="em">Correo o usuario</label><input id="em" type="text" autocomplete="username" autocapitalize="none" spellcheck="false"></div>
     <div class="field"><label for="pw">Contraseña</label><input id="pw" type="password" autocomplete="current-password"><label style="font-weight:400;display:flex;gap:8px;align-items:center;margin-top:4px"><input type="checkbox" id="spw" style="width:auto"> Mostrar contraseña</label></div>
     <label style="font-weight:400;display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="rec" style="width:auto"> Recordarme en este dispositivo</label>
     <div class="msg" id="lerr" hidden></div>
-    <button class="btn btn-gold" id="lgo" type="button" style="margin-top:18px;width:100%;justify-content:center">Entrar</button>
-    </div>
+    <button class="btn btn-gold" id="lgo" type="submit" style="margin-top:18px;width:100%;justify-content:center">Entrar</button>
+    </form>
     <div id="mfa-box" hidden>
       <p class="muted" style="margin-top:6px">Abre la app de autenticación en tu teléfono (Google Authenticator, Microsoft Authenticator, Authy…) y escribe el código de 6 dígitos de “Faro Admin”.</p>
       <div class="field"><label for="mfa">Código de 6 dígitos</label><input id="mfa" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]*" style="letter-spacing:.4em;font-size:1.4rem;text-align:center"></div>
@@ -957,14 +957,15 @@ async function doLogin(){
   finally{b.disabled=false;b.textContent='Entrar'}
 }
 try{$('#rec').checked=recOn();const u=localStorage.getItem('faro_adm_u');if(u&&recOn())$('#em').value=u}catch(e){}
-$('#lgo').addEventListener('click',doLogin);
-/* entrada automática: si el gestor de contraseñas rellena (o pegas) la contraseña de golpe, entra solo y pide el código */
-{let ant=0,tec=0;const pw=$('#pw'),em=$('#em');
- const auto=()=>{if(!$('#v-login').hidden&&!$('#lstep1').hidden&&em.value.trim()&&pw.value.length>=6&&!$('#lgo').disabled)doLogin()};
- pw.addEventListener('keydown',e=>{tec=Date.now();if(e.key==='Enter')doLogin()});
- pw.addEventListener('input',()=>{const n=pw.value.length,salto=n-ant>=6&&Date.now()-tec>400;ant=n;if(salto)setTimeout(auto,120)});
- pw.addEventListener('change',()=>{if(Date.now()-tec>400)setTimeout(auto,120)});
- let t=0;const iv=setInterval(()=>{if(++t>12||!$('#lerr').hidden){clearInterval(iv);return}if(pw.value.length>=6&&tec===0){clearInterval(iv);auto()}},400);}
+/* entrada automática: si el gestor de contraseñas rellena la contraseña (sin que la escribas), entra solo y pide el código */
+{let ant=0,tec=0,firma='';const pw=$('#pw'),em=$('#em'),f1=$('#lstep1');
+ f1.addEventListener('submit',e=>{e.preventDefault();doLogin()});
+ const auto=()=>{if($('#v-login').hidden||f1.hidden||$('#lgo').disabled||tec||!em.value.trim()||pw.value.length<6)return;
+   const f=em.value.trim()+'\u0001'+pw.value;if(f===firma)return;firma=f;doLogin()};
+ pw.addEventListener('keydown',()=>{tec=Date.now()});
+ pw.addEventListener('input',()=>{const n=pw.value.length;if(n-ant>=6)setTimeout(auto,150);ant=n});
+ pw.addEventListener('change',()=>setTimeout(auto,150));
+ setInterval(auto,600);}
 ['pointerdown','keydown','touchstart','scroll'].forEach(ev=>addEventListener(ev,()=>{if(S)actMarca()},{passive:true,capture:true}));
 function vigilaInact(){if(S&&Date.now()-actGet()>INACT){logAcceso('inactividad',true,'');logout();const e=$('#lerr');e.hidden=false;e.textContent='Cerramos tu sesión por inactividad. Entra de nuevo.'}}
 ['gesturestart','gesturechange','gestureend'].forEach(g=>document.addEventListener(g,e=>e.preventDefault()));
