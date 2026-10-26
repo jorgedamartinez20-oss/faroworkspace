@@ -957,17 +957,17 @@ $('#out').addEventListener('click',logout);
 /* registro de accesos (fallos y entradas): se guarda en la tabla acceso_log y se lee en Ajustes › Accesos */
 function dispositivoCorto(){const u=navigator.userAgent||'';const so=/iPhone|iPad/.test(u)?'iPhone/iPad':/Android/.test(u)?'Android':/Mac/.test(u)?'Mac':/Windows/.test(u)?'Windows':'Otro';const nv=/Edg\//.test(u)?'Edge':/Chrome\//.test(u)?'Chrome':/Safari\//.test(u)?'Safari':/Firefox\//.test(u)?'Firefox':'Navegador';return so+' · '+nv}
 function logAcceso(evento,ok,usuario){try{fetch(SB.url+'/rest/v1/rpc/acceso_registrar',{method:'POST',keepalive:true,headers:{apikey:SB.key,'Content-Type':'application/json'},body:JSON.stringify({p_evento:evento,p_ok:!!ok,p_usuario:usuario||'',p_dispositivo:dispositivoCorto()})}).catch(()=>{})}catch(e){}}
-async function doLogin(){
+async function doLogin(quiet){
   const e=$('#lerr');e.hidden=true;const b=$('#lgo');if(b.disabled)return;b.disabled=true;b.textContent='Entrando…';
   try{
     try{localStorage.setItem('faro_rec',$('#rec').checked?'1':'0');if($('#rec').checked)localStorage.setItem('faro_adm_u',$('#em').value.trim());else localStorage.removeItem('faro_adm_u')}catch(x){}
     const r=await fetch(SB.url+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:SB.key,'Content-Type':'application/json'},body:JSON.stringify({email:loginEmail($('#em').value),password:$('#pw').value})});
-    if(!r.ok){logAcceso('login_fallo',false,$('#em').value.trim());e.hidden=false;let m='';try{const j=await r.json();m=(j.error_description||j.msg||j.message||'')}catch(x){}
+    if(!r.ok){if(quiet)return false;logAcceso('login_fallo',false,$('#em').value.trim());e.hidden=false;let m='';try{const j=await r.json();m=(j.error_description||j.msg||j.message||'')}catch(x){}
       e.textContent=/not confirmed/i.test(m)?'Ese usuario existe pero su correo no está confirmado. En Supabase > Authentication > Users, abre el usuario y confirma el correo (o créalo con “Auto Confirm User”).':
         /invalid login|invalid_credentials/i.test(m)||r.status===400?'Correo o contraseña incorrectos. Si no recuerdas la contraseña o el usuario no existe, créalo o cámbiala en Supabase > Authentication > Users.':
         'No se pudo entrar ('+r.status+'). '+m;return}
-    logAcceso('login_ok',true,$('#em').value.trim());saveS(await r.json());$('#pw').value='';await start();
-  }catch(x){e.hidden=false;e.textContent='No hay conexión con el servidor. Abre este archivo desde tu navegador (no desde una vista previa).'}
+    logAcceso('login_ok',true,$('#em').value.trim());saveS(await r.json());$('#pw').value='';await start();return true;
+  }catch(x){if(quiet)return false;e.hidden=false;e.textContent='No hay conexión con el servidor. Abre este archivo desde tu navegador (no desde una vista previa).'}
   finally{b.disabled=false;b.textContent='Entrar'}
 }
 try{$('#rec').checked=recOn();let u=localStorage.getItem('faro_adm_u');if(u==='reservas@farostudios.net'){u='david.martinez@farostudios.net';localStorage.setItem('faro_adm_u',u)}if(u&&recOn())$('#em').value=u}catch(e){}
@@ -986,7 +986,7 @@ try{$('#rec').checked=recOn();let u=localStorage.getItem('faro_adm_u');if(u==='r
    tecleo=false;
    if($('#v-login').hidden||f1.hidden||$('#lgo').disabled)return;  // espera: se vuelve a revisar en 300 ms
    if(!em.value.trim()||v.length<6)return;                         // el correo aún no se rellena
-   prev=v;doLogin()};                                              // rellenado automático → entra y pide el código
+   prev=v;doLogin(true).then(ok=>{if(ok===false)setTimeout(()=>{if(!S&&!f1.hidden)doLogin()},900)})};                                              // rellenado automático → entra y pide el código
  pw.addEventListener('input',()=>setTimeout(auto,120));
  pw.addEventListener('change',()=>setTimeout(auto,120));
  em.addEventListener('change',()=>setTimeout(auto,120));
