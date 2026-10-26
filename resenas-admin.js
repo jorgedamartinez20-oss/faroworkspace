@@ -104,6 +104,8 @@
     try {
       const [b, c] = await Promise.all([get('rs_resenas', 'creado.desc'), get('rs_config')]);
       S.res = b; S.cfg = {}; c.forEach(x => { S.cfg[x.clave] = x.valor; }); S.falta = false;
+      /* la config del sitio (espacios de la web y contador) puede no haber llegado aún al abrir esta pestaña: se vuelve a leer antes de pintar */
+      try { await ctx.recargar(); } catch (e) { }
       if (S.sel && !S.res.some(x => x.id === S.sel)) { S.sel = null; S.ed = null; }
     } catch (e) { S.falta = true; S.error = e.message; }
     S.cargando = false; badge(); pintar();
