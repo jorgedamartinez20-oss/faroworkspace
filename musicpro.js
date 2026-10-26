@@ -343,7 +343,7 @@
     [ef, ta, de].forEach((v, j) => AC(v, R[j], yy + rowH / 2, 26, '700', CL.navy));
     /* caja del día */
     const CX = 50 + DW + 30, CWd = 2550 - CX; box(CX, y1, CWd, ch, '#fff'); T('Caja del día', CX + 30, y1 + 40, 32, '700', CL.navy);
-    [['Saldo inicial', d.saldo, ''], ['Efectivo vendido', ef, ''], ['Depósitos/egresos', d.t.eg, '− ']].forEach((l, i) => { const y = y1 + 115 + i * 80; if (i === 0) { box(CX + 16, y - 34, CWd - 32, 68, '#FFF1B8', 14, 0); } T(l[0], CX + 30, y, 26, i === 0 ? '700' : '400', i === 0 ? '#7A5A00' : CL.mut); T(l[2] + QQ(l[1]), CX + CWd - 30, y, 36, '700', CL.ink, 'right', 300); });
+    [['Saldo inicial', d.saldo, ''], ['Efectivo', ef, ''], ['Depósitos/egresos', d.t.eg, '− ']].forEach((l, i) => { const y = y1 + 115 + i * 80; if (i === 0) { box(CX + 16, y - 34, CWd - 32, 68, '#FFF1B8', 14, 0); } T(l[0], CX + 30, y, 26, i === 0 ? '700' : '400', i === 0 ? '#7A5A00' : CL.mut); T(l[2] + QQ(l[1]), CX + CWd - 30, y, 36, '700', CL.ink, 'right', 300); });
     c.fillStyle = CL.line; c.fillRect(CX + 30, y1 + 115 + 3 * 80 - 30, CWd - 60, 2);
     const by = y1 + 115 + 3 * 80 + 4; box(CX + 30, by, CWd - 60, 140, CL.ok, 20, 0); T('TOTAL EN CAJA', CX + 60, by + 38, 24, '700', '#fff'); T(QQ(d.t.total), CX + CWd - 60, by + 95, 56, '700', '#fff', 'right', CWd - 120);
     /* detalle de depósitos (referencia · banco · monto · autorización); vacío si no hay */
@@ -443,7 +443,7 @@
           el('span', {}, 'Ventas del día ', el('b', {}, Q(t.ventas))),
           el('div', { class: 'mp-dmef' },
             el('span', {}, 'Saldo inicial ', el('b', {}, Q(t.saldo))),
-            el('span', {}, 'Efectivo vendido ', el('b', {}, '+ ' + Q(t.ef))),
+            el('span', {}, 'Efectivo ', el('b', {}, '+ ' + Q(t.ef))),
             el('span', {}, 'Depósitos/egresos ', el('b', {}, '− ' + Q(t.eg))),
             el('span', { class: 'mp-dmf' }, 'Final de caja ', el('b', {}, Q(t.total))))) : null);
     });
@@ -659,7 +659,7 @@
     const tmp = document.createElement('canvas'); dibujar(tmp, d, Math.max(0.4, 0.72 * px));
     { const bw = 1440, bh = 941.6, ar = tmp.height / tmp.width; let dw = bw, dh2 = bw * ar; if (dh2 > bh) { dh2 = bh; dw = bh / ar; } const dx = 60 + (bw - dw) / 2, dy2 = 244 + (bh - dh2) / 2; caja(dx, dy2, dw, dh2, '#fff', null, 6, true); c.drawImage(tmp, dx, dy2, dw, dh2); }
     /* resumen de efectivo */
-    const mini = [['SALDO INICIAL', d.t.saldo, '#E2B100'], ['EFECTIVO VENDIDO', d.t.ef, '#5E9E6B'], ['DEPÓSITOS/EGRESOS', d.t.eg, '#2F6F7E'], ['TOTAL EN CAJA', d.t.total, CL.ok]];
+    const mini = [['SALDO INICIAL', d.t.saldo, '#E2B100'], ['EFECTIVO', d.t.ef, '#5E9E6B'], ['DEPÓSITOS/EGRESOS', d.t.eg, '#2F6F7E'], ['TOTAL EN CAJA', d.t.total, CL.ok]];
     mini.forEach((m, i) => { const x = 60 + i * 365; caja(x, 1218, 345, 150, '#fff', null, 16, true); c.fillStyle = m[2]; rr(x, 1218, 345, 10, 5); c.fill(); T(m[0], x + 22, 1262, { s: 21, w: '700', c: CL.mut, mw: 300 }); T(Q(m[1]), x + 22, 1322, { s: 44, w: '700', c: i === 3 ? CL.ok : CL.ink, mw: 300 }); });
     /* gráfica: ventas por forma de pago */
     caja(60, 1400, 1440, 240, '#fff', null, 16, true);
