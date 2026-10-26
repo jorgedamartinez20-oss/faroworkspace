@@ -213,6 +213,24 @@ input:not([type=checkbox]):not([type=radio]):not([type=file]):focus,select:focus
   .toast{animation:toastin .3s var(--ease) backwards,toastout .3s ease 2.65s forwards}
   .est.rev i{animation:estp 2s ease-out infinite}
 }
+
+/* contrato: se acepta antes de ver el material */
+.ct-card{width:min(780px,100%)}
+.ct-in{font-size:.95rem;color:var(--ink);text-align:center}
+.ct-box{max-height:46vh;overflow:auto;padding:16px 18px;border:1px solid var(--line);border-radius:12px;background:#fff;color:#222;-webkit-overflow-scrolling:touch}
+.ct-box:focus{outline:none;border-color:var(--oro)}
+.ct-hint{font-size:.82rem;color:var(--muted);text-align:center;margin:0}
+.ct-f{display:grid;gap:12px}
+.ct-f .g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.lg-body label.ck{display:flex;gap:10px;align-items:flex-start;text-transform:none;letter-spacing:0;font-size:.92rem;color:var(--ink);line-height:1.35}
+.lg-body label.ck input{width:20px;height:20px;margin-top:2px;flex:none}
+.ct-ok{text-align:center;display:grid;gap:12px;justify-items:center}
+.ct-ok .big{width:64px;height:64px;border-radius:50%;background:var(--ok);color:#fff;display:grid;place-items:center}
+.ct-ok .big .ico{width:34px;height:34px}
+.ct-strip{margin-top:18px;display:grid;gap:8px}
+.ct-line{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:12px 16px;background:var(--card);border:1px solid var(--line);border-radius:14px}
+.ct-line b{display:block}.ct-line small{color:var(--muted)}
+@media (max-width:560px){.ct-f .g2{grid-template-columns:1fr}.ct-box{max-height:40vh}}
 </style>
 <link rel="stylesheet" href="portada.css?v=20261018b">
 <link rel="stylesheet" href="galeria.css?v=20261018b">
@@ -318,9 +336,72 @@ async function arrancar(){
   let perfil=null;
   try{const r=await api('/rest/v1/rpc/en_mi_perfil',{method:'POST',body:{}});perfil=r.ok?await r.json():null}catch(e){if(!SES)return}
   if(!perfil||!perfil.tipo){salir('Tu acceso no está activo. Escríbenos por WhatsApp y lo revisamos.');return}
-  ST.perfil=perfil;ST.proyectos=await rows('en_proyectos','select=*&order=creado.desc');
+  ST.perfil=perfil;
+  /* contrato pendiente: primero se lee y se confirma; hasta entonces no se ve ni se descarga nada */
+  ST.contratos=PREVIA?[]:await rows('doc_contratos','select=*&order=creado.desc');
+  const pend=ST.contratos.find(c=>c.estado==='enviado'||c.estado==='visto');
+  if(pend)return pantallaContrato(pend);
+  ST.proyectos=await rows('en_proyectos','select=*&order=creado.desc');
   if(ST.proyectos.length===1)return abrirProyecto(ST.proyectos[0].id,true);
   inicio();
+}
+
+/* ---------- contrato ---------- */
+async function pantallaContrato(c){
+  document.body.className='dots';
+  if(!document.getElementById('ctcss')){const st=document.createElement('style');st.id='ctcss';st.textContent=FaroContratoDoc.CSS+'.ct-box.cd{font-size:14px}.ct-box.cd h1{font-size:1.05rem}';document.head.append(st)}
+  let bl=[];try{bl=JSON.parse(c.texto)}catch(e){}
+  try{api('/rest/v1/rpc/ct_marcar_visto',{method:'POST',body:{p_id:c.id}}).catch(()=>{})}catch(e){}
+  APP.innerHTML='<div class="lg"><div class="lg-card ct-card"><div class="lg-top"><span class="iso"></span><h1>CONTRATO</h1><p>'+esc(c.numero)+' · Faro Studios</p></div><div class="lg-body">'
+    +'<p class="ct-in">Hola, '+esc(ST.perfil.nombre)+'. Antes de continuar, lee tu contrato y confírmalo. Toma solo un minuto.</p>'
+    +'<div class="ct-box cd" id="ctb" tabindex="0">'+FaroContratoDoc.cuerpo(bl)+'</div>'
+    +'<p class="ct-hint" id="cth">Desplázate hasta el final para poder confirmar ↓</p>'
+    +'<form class="ct-f" id="ctf" hidden autocomplete="off">'
+    +'<label>Nombre completo<input id="ctn" type="text" autocomplete="name" required></label>'
+    +'<div class="g2"><label>DPI<input id="ctd" type="text" inputmode="numeric" autocomplete="off" required></label><label>Celular<input id="ctt" type="tel" inputmode="tel" autocomplete="tel" required></label></div>'
+    +'<label>Tu clave de acceso (la misma con la que entraste)<input id="ctp" type="password" autocomplete="current-password" required></label>'
+    +'<label class="ck"><input id="ctk" type="checkbox"><span>He leído el contrato completo y estoy de acuerdo con todas sus cláusulas.</span></label>'
+    +'<p class="err" id="cte" role="alert"></p><button class="btn p" type="submit" id="ctb2" disabled>Acepto y confirmo</button></form>'
+    +'<p class="lg-wa">¿Dudas? <a href="'+WA+'" target="_blank" rel="noopener">Escríbenos por WhatsApp</a> · <a href="#" id="ctsal">Salir</a></p>'
+    +'</div></div></div>';
+  const box=$('#ctb'),f=$('#ctf'),hint=$('#cth'),ok=$('#ctk'),b2=$('#ctb2'),er=$('#cte');
+  let leido=false;
+  const mira=()=>{if(leido)return;if(box.scrollHeight-box.scrollTop-box.clientHeight<24){leido=true;f.hidden=false;hint.hidden=true}};
+  box.addEventListener('scroll',mira);setTimeout(mira,60);
+  ok.onchange=()=>{b2.disabled=!ok.checked};
+  $('#ctsal').onclick=e=>{e.preventDefault();salir('')};
+  f.onsubmit=async e=>{
+    e.preventDefault();er.textContent='';
+    const nombre=$('#ctn').value.trim(),dpi=$('#ctd').value.trim(),tel=$('#ctt').value.trim(),clave=$('#ctp').value;
+    if(nombre.length<5){er.textContent='Escribe tu nombre completo.';return}
+    if(dpi.replace(/\D/g,'').length<6){er.textContent='Escribe tu DPI.';return}
+    if(tel.replace(/\D/g,'').length<8){er.textContent='Escribe tu número de celular.';return}
+    if(!clave){er.textContent='Escribe tu clave de acceso.';return}
+    if(!ok.checked){er.textContent='Marca la casilla para confirmar.';return}
+    b2.disabled=true;b2.textContent='Confirmando…';
+    try{
+      const cu=await rows('en_cuentas','select=email_auth&user_id=eq.'+ST.perfil.user_id);
+      const ea=cu[0]&&cu[0].email_auth;
+      let s=ea?await signIn(ea,clave):null;if(!s&&ea&&normClave(clave)!==clave)s=await signIn(ea,normClave(clave));
+      if(!s){er.textContent='Esa clave no es correcta. Usa la clave con la que entraste.';b2.disabled=false;b2.textContent='Acepto y confirmo';return}
+      const r=await api('/rest/v1/rpc/ct_aceptar',{method:'POST',body:{p_id:c.id,p_nombre:nombre,p_dpi:dpi,p_tel:tel}});
+      if(!r.ok){let m='';try{m=(await r.json()).message||''}catch(x){}er.textContent=m||'No se pudo confirmar. Intenta de nuevo.';b2.disabled=false;b2.textContent='Acepto y confirmo';return}
+      const act=(await rows('doc_contratos','id=eq.'+c.id+'&select=*'))[0]||Object.assign({},c,{estado:'aceptado',firma_nombre:nombre});
+      contratoListo(act);
+    }catch(x){er.textContent='Sin conexión. Intenta de nuevo.';b2.disabled=false;b2.textContent='Acepto y confirmo'}
+  };
+}
+function contratoListo(c){
+  APP.innerHTML='<div class="lg"><div class="lg-card"><div class="lg-top"><span class="iso"></span><h1>CONFIRMADO</h1><p>'+esc(c.numero)+'</p></div><div class="lg-body ct-ok">'
+    +'<div class="big">'+ic('check')+'</div><p class="ct-in">Tu contrato quedó confirmado. Ya tienes tu copia en PDF.</p>'
+    +'<button class="btn o" id="ctpdf">'+ic('dl')+' Descargar mi copia (PDF)</button><button class="btn p" id="ctgo">Continuar</button></div></div></div>';
+  $('#ctpdf').onclick=()=>FaroContratoDoc.imprimir(c,'',toast);
+  $('#ctgo').onclick=()=>arrancar();
+}
+function ctStrip(){
+  const l=(ST.contratos||[]).filter(c=>c.estado==='aceptado');
+  if(!l.length)return '';
+  return '<div class="ct-strip">'+l.map(c=>'<div class="ct-line"><div><b>Contrato '+esc(c.numero)+'</b><small>Confirmado el '+esc(new Date(c.aceptado_en).toLocaleDateString('es-GT',{timeZone:'America/Guatemala',dateStyle:'long'}))+'</small></div><button class="btn s ctpdf" data-id="'+c.id+'">'+ic('dl')+' PDF</button></div>').join('')+'</div>';
 }
 function barra(extra){return '<header class="top"><span class="iso"></span><div><b>ENTREGAS</b><small>Faro Studios</small></div><span class="sp"></span>'+(extra||'')+'<button class="btn s" id="bsal">'+ic('out')+' Salir</button></header>'}
 function ligarBarra(){const b=$('#bsal');if(b)b.onclick=()=>salir('')}
@@ -330,12 +411,13 @@ function inicio(){
   ST.p=null;document.body.className='dots';document.body.removeAttribute('style');
   const pr=ST.proyectos,t=ST.perfil.tipo;
   APP.innerHTML=barra()+'<main class="wrap"><div class="hello"><h2>Hola, '+esc(ST.perfil.nombre)+'</h2><p>'
-    +(t==='galeria'?'Aquí están tus galerías.':'Aquí está el material de tus proyectos.')+'</p><span class="tipo">'+TIPOS[t]+'</span></div>'
+    +(t==='galeria'?'Aquí están tus galerías.':'Aquí está el material de tus proyectos.')+'</p><span class="tipo">'+TIPOS[t]+'</span></div>'+ctStrip()
     +(pr.length?'<div class="cards">'+pr.map(p=>{
       const rd=t==='galeria'?'':'<small>'+(p.rondas_max?'Ronda '+p.ronda+' de '+p.rondas_max:'Ronda '+p.ronda)+'</small>';
       return '<button class="pc" data-id="'+p.id+'"><div class="cv" data-cv="'+p.id+'">'+ic(t==='galeria'?'img':'film')+'</div><div class="in"><h3>'+esc(p.titulo)+'</h3>'+(t==='galeria'?'':estPill(p.estado))+rd+(p.descripcion?'<small>'+esc(p.descripcion)+'</small>':'')+'</div></button>'}).join('')+'</div>'
      :'<div class="vacio">'+ic('folder')+'<p style="margin-top:8px">Todavía no hay material disponible. Te avisaremos cuando esté listo.</p></div>')+'</main>';
   ligarBarra();APP.querySelectorAll('.pc').forEach(b=>b.onclick=()=>abrirProyecto(b.dataset.id));
+  APP.querySelectorAll('.ctpdf').forEach(b=>b.onclick=()=>{const c=(ST.contratos||[]).find(x=>x.id===b.dataset.id);if(c)FaroContratoDoc.imprimir(c,'',toast)});
 }
 
 async function abrirProyecto(id,unico){
@@ -523,6 +605,7 @@ function previaBoot(){
   if(SES){gCorIni();await arrancar();await gCorFin()}else pantallaLogin('');
 })();
 </script>
+<script src="contrato-doc.js?v=20261026a"></script>
 <script src="portada.js?v=20261018b"></script>
 <script src="galeria.js?v=20261018b"></script>
 <script>

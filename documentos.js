@@ -303,7 +303,7 @@ td.n{width:14mm}td.q{width:26mm}td.t{width:34mm;white-space:nowrap}
       h('button', { type: 'button', class: 'fd-chip', 'aria-pressed': String(S.filtro === k), onclick: () => { S.filtro = k; pintar(); } }, t)));
     const q = h('input', { type: 'search', placeholder: 'Buscar cliente o número…', value: S.q, 'aria-label': 'Buscar', style: 'max-width:280px;padding:9px 14px;border-radius:999px;border:1px solid var(--line);background:var(--input)' });
     q.addEventListener('input', () => { S.q = q.value; clearTimeout(q._t); q._t = setTimeout(() => { pintar(); const n = root.querySelector('input[type=search]'); if (n) { n.focus(); n.setSelectionRange(99, 99); } }, 250); });
-    top.append(chips, h('div', { class: 'fd-acts' }, btn('tag', 'Catálogo de precios', () => { S.vista = 'precios'; pintar(); }), q));
+    top.append(chips, h('div', { class: 'fd-acts' }, btn('file', 'Contratos', () => { S.vista = 'contratos'; S.ctDoc = null; pintar(); }), btn('tag', 'Catálogo de precios', () => { S.vista = 'precios'; pintar(); }), q));
     w.append(top);
     const card = h('div', { class: 'card' });
     const ql = S.q.trim().toLowerCase();
@@ -320,6 +320,7 @@ td.n{width:14mm}td.q{width:26mm}td.t{width:34mm;white-space:nowrap}
         h('div', { class: 'fd-acts' },
           btn('edit', 'Abrir', () => abrir(fila(x))), btn('print', 'PDF', () => imprimir(fila(x))), btn('copy', 'Duplicar', () => abrir(nuevo(x.tipo, fila(x)))),
           x.tipo === 'cotizacion' ? btn('check', 'Confirmar', () => abrir(nuevo('confirmacion', fila(x)))) : null,
+          x.tipo === 'confirmacion' && x.estado !== 'anulado' && window.FaroContratos ? btn('file', 'Contrato', () => { S.vista = 'contratos'; S.ctDoc = x; pintar(); }) : null,
           x.tipo !== 'recibo' ? btn('card', 'Recibo', () => abrir(nuevo('recibo', fila(x)))) : null,
           x.estado !== 'anulado' ? btn('ban', 'Anular', () => anular(x), 'btn-red') : null)));
     });
@@ -535,6 +536,12 @@ td.n{width:14mm}td.q{width:26mm}td.t{width:34mm;white-space:nowrap}
       root.append(h('div', { class: 'card' }, h('h2', {}, 'Formularios'), h('p', {}, S.err === 'tablas'
         ? 'Falta activar la base de datos de documentos. Abre Supabase › SQL Editor › New query, pega el contenido de sql/documentos.sql y pulsa Run. Después vuelve aquí.'
         : 'No hay conexión con el servidor.'), btn('search', 'Reintentar', cargar, 'btn-gold')));
+      return;
+    }
+    if (S.vista === 'contratos' && window.FaroContratos) {
+      const cont = h('div'); root.append(cont);
+      const volver = () => { S.vista = 'lista'; S.ctDoc = null; pintar(); };
+      FaroContratos.montar(cont, ctx, { doc: S.ctDoc, volver, irLista: () => { S.ctDoc = null; pintar(); } });
       return;
     }
     root.append(S.vista === 'editor' && S.d ? vEditor() : S.vista === 'precios' ? vPrecios() : vLista());
