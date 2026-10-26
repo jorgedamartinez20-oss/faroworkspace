@@ -322,8 +322,8 @@ h1,h2,h3{font-weight:300;letter-spacing:-.005em}
 .ucard{display:grid;gap:10px;align-content:start}
 /* las tarjetas en rejilla se ajustan a su ancho: sin esto un texto largo (correo) las ensanchaba y empujaba sus etiquetas fuera del cuadro */
 :where(.ucard,.rc,.fcard,.pr-lista,.pr-row,.pz,.pzd,.dbody,.dc-list,.acnav,.optbox,.field,.leg2,.sgf,.cx,.plist,.pd-f,.pd-fila,.pd-res,.mp-semana,.mp-dia,.mp-dm,.mp-calc2,.mp-kpi,.mp-prods,.mp-lista,.rd-form,.rd-sec,.rd-mb,.rd-tks,.cp-slot,.cp-rows,.rs-links,.rs-pv){grid-template-columns:minmax(0,1fr)}
-.uhead>.tag{flex:none}.ucard.off{opacity:.62}.ucard.dir{border-color:var(--oro)}
-.uhead{display:flex;gap:12px;align-items:center}
+.uhead>.tag{flex:none;margin-left:auto}.ucard.off{opacity:.62}.ucard.dir{border-color:var(--oro)}
+.uhead{display:flex;gap:8px 12px;align-items:center;flex-wrap:wrap}.uhead>div{flex:1 1 170px!important;min-width:0}.uhead small{display:block;overflow-wrap:anywhere}
 .uav{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--borgona),#5b1020);color:#fff;font:700 1rem var(--body);flex:none;box-shadow:0 6px 14px -6px rgba(0,0,0,.6)}.uav.dirav{background:linear-gradient(135deg,var(--oro),#85703C)}
 .un{display:block;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .uchips{display:flex;flex-wrap:wrap;gap:6px}.upc{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;background:var(--soft);border:1px solid var(--line);font-size:.85rem}
