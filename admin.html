@@ -4891,7 +4891,9 @@ function enBandejas(root){
         let puesto=0;
         try{for(let n=1;n<=6&&!puesto;n++)if(!sitioVal('rv.'+n+'.q')){await sitioSet('rv.'+n+'.q',x.texto||'');await sitioSet('rv.'+n+'.n',x.nombre||'Cliente');await sitioSet('rv.'+n+'.r',x.sesion||'');puesto=n}}catch(e){}
         /* también queda registrada en Reseñas → Reseñas recibidas */
-        try{await api('/rest/v1/rs_resenas',{method:'POST',body:{tipo:'individual',nombre:x.nombre||'Cliente',servicio:x.sesion||'',categoria:x.sesion||'',estrellas:x.estrellas,texto:x.texto||'',estado:'revisada',slot:puesto||null,autoriza_redes:true},headers:{Prefer:'return=minimal'}})}catch(e){}
+        try{let cod=null;try{const rc=await api('/rest/v1/cupones?select=codigo&proyecto_id=eq.'+x.proyecto_id+'&origen=eq.galeria&limit=1');if(rc.ok){const j=await rc.json();if(j[0])cod=j[0].codigo}}catch(e){}
+          const rr=await api('/rest/v1/rs_resenas',{method:'POST',body:{tipo:'individual',nombre:x.nombre||'Cliente',servicio:x.sesion||'',categoria:x.sesion||'',estrellas:x.estrellas,texto:x.texto||'',estado:'revisada',slot:puesto||null,autoriza_redes:true,codigo:cod},headers:{Prefer:'return=representation'}});
+          if(rr.ok&&cod){const nj=await rr.json();if(nj[0])await api('/rest/v1/cupones?codigo=eq.'+encodeURIComponent(cod),{method:'PATCH',body:{resena_id:nj[0].id},headers:{Prefer:'return=minimal'}})}}catch(e){}
         enBadge();renderEn();toast(puesto?'Reseña publicada · ya está en la web (espacio '+puesto+')':'Reseña marcada como publicada, pero los 6 espacios de la web están ocupados: libera uno en Reseñas')}},'btn-gold'),
       enBtn('Borrar','trash',async()=>{if(!confirm('¿Borrar esta reseña?'))return;const r=await api('/rest/v1/en_resenas?id=eq.'+x.id,{method:'DELETE',headers:{Prefer:'return=minimal'}});if(!r.ok){toast(await errText(r));return}EN.res=EN.res.filter(z=>z.id!==x.id);enBadge();renderEn()}))));
     root.append(c);
