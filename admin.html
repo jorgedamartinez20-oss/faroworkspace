@@ -1403,6 +1403,7 @@ async function loadAc(){
   for(const [k,t] of [['chat','ac_mensajes'],['clchat','cl_mensajes']]){
     try{const r=await api('/rest/v1/'+t+'?select=*&order=creado.asc&limit=1000');AC.list[k]=r.ok?await r.json():[];if(!r.ok)falta=true}catch(x){AC.list[k]=[];falta=true}}
   try{const r=await api('/rest/v1/sitio_config?select=*');AC.cfg={};if(r.ok)(await r.json()).forEach(x=>AC.cfg[x.clave]=x.valor);else falta=true}catch(x){falta=true}
+  try{const r=await api('/rest/v1/cupones?select=id,codigo,nombre,vence,estado,usos,usos_max,amigo,porcentaje');CUPV=r.ok?await r.json():[]}catch(x){}
   AC.ok=!falta;
   badges();renderAc();renderSitio();webCarga();try{renderDash()}catch(e){console.error(e)}try{avisosPintar()}catch(e){}
 }
@@ -3675,7 +3676,7 @@ function formRedes(){
   $$('.tab').forEach(t=>{const l=t.querySelector('.nl');if(l){t.title=l.textContent;t.setAttribute('aria-label',l.textContent)}})})();
 
 /* ---------- RELOJ · NOTIFICACIONES · PREFERENCIAS ---------- */
-const PREF0={h24:false,seg:true,nCot:true,nRes:true,nHoy:true,nMsg:true,nFac:true,nTar:true,nCon:true,nRec:true,dias:2,nav:false,auto:true,min:3,rd:6,ra:30};
+const PREF0={h24:false,seg:true,nCot:true,nRes:true,nHoy:true,nMsg:true,nFac:true,nTar:true,nCon:true,nRec:true,nCup:true,dias:2,nav:false,auto:true,min:3,rd:6,ra:30};
 let PREF=Object.assign({},PREF0);try{Object.assign(PREF,JSON.parse(localStorage.getItem('faro_pref')||'{}'))}catch(e){}
 const prefGuardar=()=>{try{localStorage.setItem('faro_pref',JSON.stringify(PREF))}catch(e){}};
 DASH.meses=PREF.rd;AN.rango=PREF.ra;
@@ -3695,6 +3696,7 @@ relojPintar();setInterval(()=>{if(!document.hidden)relojPintar()},1000);
 /* ---- avisos ---- */
 const NSEEN=(()=>{try{return JSON.parse(localStorage.getItem('faro_nseen')||'{}')}catch(e){return{}}})();
 let NPREV=null;
+let CUPV=[];  /* cupones, para avisar cuáles están por vencer */
 function avisosCalcular(){
   const L=k=>(AC.list&&AC.list[k])||[],t=today(),man=addD(t,1),out=[];
   const cot=D.cot||[],ag=D.agenda||[],edad=c=>Math.floor((+new Date(t+'T00:00:00Z')-+new Date(gtDate(c.creado)+'T00:00:00Z'))/864e5);
@@ -3727,6 +3729,9 @@ function avisosCalcular(){
     if(cm.length)out.push({id:'en-cam',n:cm.length,i:'edit',t:cm.length+' proyecto(s) con cambios pedidos',d:cm[0].titulo,go:'en',hot:true});
     const ap=EN.proy.filter(p=>p.estado==='aprobado');
     if(ap.length)out.push({id:'en-apr',n:ap.length,i:'check',t:ap.length+' proyecto(s) aprobado(s) por entregar',d:ap[0].titulo,go:'en',hot:false});}
+  if(PREF.nCup!==false){
+    const cp=CUPV.filter(c=>c.estado==='activo'&&c.usos<c.usos_max&&c.vence>=t&&recDias(c.vence,t)<=30).sort((x,y)=>x.vence.localeCompare(y.vence));
+    if(cp.length){const c0=cp[0],d0=recDias(c0.vence,t);out.push({id:'cup-vence',n:cp.length,i:'gift',t:cp.length+' cupón(es) por vencer',d:(c0.nombre||c0.codigo).split('·')[0].trim()+' · '+(d0===0?'vence hoy':'vence en '+d0+' día(s)')+(cp.length>1?' y '+(cp.length-1)+' más':'')+' · avísale que puede compartirlo',go:'cup',cod:c0.codigo,hot:d0<=7})}}
   if(PREF.nRec&&typeof CT!=='undefined'&&CT.cargado){
     CT.rec.filter(r=>r.activo).forEach(r=>{const n=recSiguiente(r,t);if(!n)return;const d=recDias(n.due,t);if(d<=r.aviso_dias)out.push({id:'rec-'+r.id+'-'+n.key,n:1,i:'bell',t:r.titulo,d:d<0?'Venció hace '+(-d)+' día(s)':d===0?'Vence hoy':'Vence en '+d+' día(s) · '+lbDia(n.due),go:'rec',hot:d<=1})})}
   return out;
@@ -3737,7 +3742,7 @@ function avisosPintar(){
   const p=$('#notif');if(p){p.textContent='';
     p.append(el('div',{class:'nh'},el('b',{},'Avisos'),el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>{l.forEach(a=>NSEEN[a.id]=a.n);try{localStorage.setItem('faro_nseen',JSON.stringify(NSEEN))}catch(e){}avisosPintar()}},icoEl('check'),' Marcar vistos')));
     if(!l.length)p.append(el('p',{class:'muted',style:'padding:16px;margin:0'},'Todo al día. No hay nada pendiente.'));
-    l.forEach(a=>p.append(el('button',{type:'button',class:'ni2'+(a.n>(NSEEN[a.id]||0)?' nuevo':''),onclick:()=>{p.hidden=true;if(a.dia){CT.vista='up';CT.dia=a.dia}showTab(a.go)}},el('span',{class:'nic'+(a.hot?' hot':'')},icoEl(a.i)),el('span',{style:'flex:1;min-width:0;text-align:left'},el('b',{style:'display:block;font-weight:400'},a.t),el('small',{class:'muted'},a.d)))));
+    l.forEach(a=>p.append(el('button',{type:'button',class:'ni2'+(a.n>(NSEEN[a.id]||0)?' nuevo':''),onclick:()=>{p.hidden=true;if(a.dia){CT.vista='up';CT.dia=a.dia}showTab(a.go);if(a.cod)setTimeout(()=>{try{FaroCupones.abrirCodigo(a.cod)}catch(e){}},400)}},el('span',{class:'nic'+(a.hot?' hot':'')},icoEl(a.i)),el('span',{style:'flex:1;min-width:0;text-align:left'},el('b',{style:'display:block;font-weight:400'},a.t),el('small',{class:'muted'},a.d)))));
     p.append(el('button',{class:'nf',type:'button',onclick:()=>{p.hidden=true;showTab('pre')}},icoEl('sliders'),' Elegir qué avisos ver'))}
   /* aviso del navegador cuando algo sube */
   if(NPREV&&PREF.nav&&'Notification' in window&&Notification.permission==='granted'){
@@ -3838,6 +3843,7 @@ async function renderPre(){
     setRow('Tareas por revisar','Academy',swEl(PREF.nTar,v=>cambia('nTar',v))),
     setRow('Planificación de contenido','Publicar hoy, grabaciones y material',swEl(PREF.nCon,v=>cambia('nCon',v))),
     setRow('Recordatorios (SAT y otros)','',swEl(PREF.nRec,v=>cambia('nRec',v))),
+    setRow('Cupones por vencer','Avisa 30 días antes para que el cliente lo use o lo comparta',swEl(PREF.nCup!==false,v=>cambia('nCup',v))),
     setRow('Cotización "sin responder" después de','',selEl([[1,'1 día'],[2,'2 días'],[3,'3 días'],[5,'5 días']],PREF.dias,v=>cambia('dias',+v))));
   if(ME.owner){const np=card('w6','Notificaciones en este aparato','Funciona con la app cerrada, con sonido, como una app de verdad: reservas, cotizaciones y qué publicar hoy (resumen a las 8:00)');pushCard(np)}
   card('w6','Avisos con la página abierta y actualización','Solo funcionan mientras tienes el Workspace abierto',

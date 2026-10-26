@@ -67,8 +67,11 @@
   const selC = () => S.lista.find(c => c.id === S.sel) || null;
   const MSG = {
     campana: c => '🎁 Descuento Faro Studios: ' + pct(c.porcentaje) + ' en tu cotización con el código ' + c.codigo + '. Escríbelo en farostudios.net → Cotizar. Válido hasta el ' + fd(c.vence) + (c.usos_max > 1 ? ' o hasta agotar existencias (' + c.usos_max + ' lugares).' : '.'),
+    porVencer: c => 'Hola' + (c.nombre ? ' ' + c.nombre.split(/[·\-–]/)[0].trim().split(/\s+/)[0] : '') + ', tu código ' + c.codigo + ' de Faro Studios (' + pct(c.porcentaje) + ' de descuento) vence el ' + fd(c.vence) + '. Recuerda que solo tiene ' + c.usos_max + ' usos en total' + (c.usos_max - c.usos < c.usos_max ? ' (te quedan ' + (c.usos_max - c.usos) + ')' : '') + '. Si no piensas usarlo, puedes regalarlo o compartirlo con alguien más 🎁 Menciónalo al reservar 📸',
     recordar: c => 'Hola' + (c.nombre ? ' ' + c.nombre.split(/[·\-–]/)[0].trim().split(/\s+/)[0] : '') + ', te recordamos que tu código ' + c.codigo + ' de Faro Studios (' + pct(c.porcentaje) + ' de descuento) vale hasta el ' + fd(c.vence) + '. Menciónalo al reservar 📸'
   };
+
+  const msgPara = c => c.tipo === 'campana' ? MSG.campana(c) : (estadoDe(c).k === 'disponible' && diasPara(c.vence) <= 30) ? MSG.porVencer(c) : MSG.recordar(c);
 
   /* ¿ya lo conoce alguien? entonces cambiar el % necesita advertencia */
   function yaEntregado(c) {
@@ -176,8 +179,8 @@
     /* acciones */
     const acts = el('div', { class: 'cp-acts' }, btn('Copiar código', 'copy', () => copiar(c.codigo, 'Código copiado')));
     if (e.k === 'disponible') {
-      acts.append(btn('Copiar mensaje para compartir', 'copy', () => copiar(c.tipo === 'campana' ? MSG.campana(c) : MSG.recordar(c), 'Mensaje copiado')),
-        el('a', { class: 'btn btn-sm btn-ghost', target: '_blank', rel: 'noopener', href: 'https://wa.me/?text=' + encodeURIComponent(c.tipo === 'campana' ? MSG.campana(c) : MSG.recordar(c)) }, ico('wa'), ' WhatsApp'));
+      acts.append(btn('Copiar mensaje para compartir', 'copy', () => copiar(msgPara(c), 'Mensaje copiado')),
+        el('a', { class: 'btn btn-sm btn-ghost', target: '_blank', rel: 'noopener', href: 'https://wa.me/?text=' + encodeURIComponent(msgPara(c)) }, ico('wa'), ' WhatsApp'));
     }
     if (c.amigo) usos.filter(u => u.quien).forEach(u => acts.append(btn('Deshacer canje del ' + (u.quien === 'amigo' ? 'amigo' : 'cliente'), 'undo', async () => {
       if (!confirm('¿Deshacer el canje del ' + (u.quien === 'amigo' ? 'amigo' : 'cliente') + ' de ' + c.codigo + '? Ese uso volverá a quedar disponible.')) return;
