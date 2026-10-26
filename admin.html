@@ -965,16 +965,27 @@ async function doLogin(){
   }catch(x){e.hidden=false;e.textContent='No hay conexión con el servidor. Abre este archivo desde tu navegador (no desde una vista previa).'}
   finally{b.disabled=false;b.textContent='Entrar'}
 }
-try{$('#rec').checked=recOn();const u=localStorage.getItem('faro_adm_u');if(u&&recOn())$('#em').value=u}catch(e){}
+try{$('#rec').checked=recOn();let u=localStorage.getItem('faro_adm_u');if(u==='reservas@farostudios.net'){u='david.martinez@farostudios.net';localStorage.setItem('faro_adm_u',u)}if(u&&recOn())$('#em').value=u}catch(e){}
 /* entrada automática: si el gestor de contraseñas rellena la contraseña (sin que la escribas), entra solo y pide el código */
-{let ant=0,tec=0,firma='';const pw=$('#pw'),em=$('#em'),f1=$('#lstep1');
+{const pw=$('#pw'),em=$('#em'),f1=$('#lstep1');let prev='',tecleo=false;
  f1.addEventListener('submit',e=>{e.preventDefault();doLogin()});
- const auto=()=>{if($('#v-login').hidden||f1.hidden||$('#lgo').disabled||tec||!em.value.trim()||pw.value.length<6)return;
-   const f=em.value.trim()+'\u0001'+pw.value;if(f===firma)return;firma=f;doLogin()};
- pw.addEventListener('keydown',()=>{tec=Date.now()});
- pw.addEventListener('input',()=>{const n=pw.value.length;if(n-ant>=6)setTimeout(auto,150);ant=n});
- pw.addEventListener('change',()=>setTimeout(auto,150));
- setInterval(auto,600);}
+ /* Se considera «rellenado» cuando la contraseña cambia sin que haya una tecla de por medio (Face ID, Touch ID, llavero, 1Password).
+    Si estás escribiendo a mano no entra solo: pulsas Entrar. */
+ pw.addEventListener('keydown',e=>{if(e.key!=='Enter')tecleo=true});
+ pw.addEventListener('beforeinput',e=>{if(/^(insertText|insertCompositionText|deleteContent|deleteWord|deleteSoft|deleteHard)/.test(e.inputType||''))tecleo=true});
+ const auto=()=>{
+   const v=pw.value;
+   if(!v){prev='';tecleo=false;return}
+   if(v===prev)return;                                             // sin cambios desde la última vez
+   if(tecleo&&v.length-prev.length<6){prev=v;tecleo=false;return} // lo escribiste tú (6+ letras de golpe no se teclean: es un relleno)
+   tecleo=false;
+   if($('#v-login').hidden||f1.hidden||$('#lgo').disabled)return;  // espera: se vuelve a revisar en 300 ms
+   if(!em.value.trim()||v.length<6)return;                         // el correo aún no se rellena
+   prev=v;doLogin()};                                              // rellenado automático → entra y pide el código
+ pw.addEventListener('input',()=>setTimeout(auto,120));
+ pw.addEventListener('change',()=>setTimeout(auto,120));
+ em.addEventListener('change',()=>setTimeout(auto,120));
+ setInterval(auto,300);}
 ['pointerdown','keydown','touchstart','scroll'].forEach(ev=>addEventListener(ev,()=>{if(S)actMarca()},{passive:true,capture:true}));
 function vigilaInact(){if(S&&Date.now()-actGet()>INACT){logAcceso('inactividad',true,'');logout();const e=$('#lerr');e.hidden=false;e.textContent='Cerramos tu sesión por inactividad. Entra de nuevo.'}}
 ['gesturestart','gesturechange','gestureend'].forEach(g=>document.addEventListener(g,e=>e.preventDefault()));
@@ -994,7 +1005,7 @@ async function loadAll(){
   D.agenda=a.ok?await a.json():[];D.bloq=b.ok?await b.json():[];D.sem=s.ok?await s.json():[];
   const cj=c.ok?await c.json():[];D.cfg={};cj.forEach(x=>D.cfg[x.clave]=x.valor);
   const w=$('#warn');
-  if(ME.owner&&(!b.ok||!s.ok||!c.ok||!cj.length)){w.hidden=false;w.textContent='Faltan permisos o tablas. Corre agenda-bloqueos.sql en Supabase y confirma que entraste con el correo de administrador (reservas@farostudios.net).'}else w.hidden=true;
+  if(ME.owner&&(!b.ok||!s.ok||!c.ok||!cj.length)){w.hidden=false;w.textContent='Faltan permisos o tablas. Corre agenda-bloqueos.sql en Supabase y confirma que entraste con el correo de administrador (david.martinez@farostudios.net).'}else w.hidden=true;
   render();loadAc();
 }
 
@@ -4322,7 +4333,7 @@ function secBadges(){SEC.forEach(x=>{const b=document.querySelector('.tab[data-s
 try{new MutationObserver(secBadges).observe($('#subnav'),{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['hidden']})}catch(e){}
 
 /* ========== EQUIPO · usuarios con permisos que elige el director ========== */
-const DIRECTOR='reservas@farostudios.net';
+const DIRECTOR='david.martinez@farostudios.net';
 const ADMIN_URL=location.href.split('#')[0].split('?')[0];
 const PERMISOS=[
   {k:'agenda',n:'Agenda y reservas',d:'Calendario, reservas y bloqueos de fechas',i:'calendar'},
