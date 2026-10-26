@@ -1,6 +1,7 @@
 -- Faro Workspace · Producciones (calendario, inventario, mantenimiento y hojas de llamado)
 -- Pega TODO esto en Supabase → SQL Editor → Run. Se puede correr más de una vez sin romper nada.
--- Protección: solo el director con autenticador activo (es_admin() = correo del director + mfa_ok()).
+-- Protección: el director (es_admin() = su correo + autenticador) y quien reciba el permiso «Producciones» en Ajustes › Usuarios y permisos (tiene_permiso('producciones')).
+--   Serie, factura (prod_inv_privado) y el historial (prod_auditoria) son SOLO del director.
 --   · Tablas con RLS y sin acceso para anon.
 --   · Inventario: nunca se borra desde la app (se archiva). Serie y factura viven en otra tabla (prod_inv_privado).
 --   · Auditoría: cada alta, cambio o borrado queda en prod_auditoria (quién, cuándo, antes y después) y no se puede editar desde la app.
@@ -129,7 +130,7 @@ create or replace function public.prod_siguiente_codigo() returns text
 language plpgsql security definer set search_path = '' as $$
 declare n int;
 begin
-  if not public.es_admin() then raise exception 'sin permiso'; end if;
+  if not public.tiene_permiso('producciones') then raise exception 'sin permiso'; end if;
   insert into public.prod_contador(tipo, ultimo) values ('llamado', 110)
   on conflict (tipo) do update set ultimo = public.prod_contador.ultimo + 1
   returning ultimo into n;
@@ -148,9 +149,9 @@ alter table public.prod_auditoria enable row level security;
 drop policy if exists prod_inv_ver on public.prod_inventario;
 drop policy if exists prod_inv_alta on public.prod_inventario;
 drop policy if exists prod_inv_edit on public.prod_inventario;
-create policy prod_inv_ver on public.prod_inventario for select to authenticated using (public.es_admin());
-create policy prod_inv_alta on public.prod_inventario for insert to authenticated with check (public.es_admin());
-create policy prod_inv_edit on public.prod_inventario for update to authenticated using (public.es_admin()) with check (public.es_admin());
+create policy prod_inv_ver on public.prod_inventario for select to authenticated using (public.tiene_permiso('producciones'));
+create policy prod_inv_alta on public.prod_inventario for insert to authenticated with check (public.tiene_permiso('producciones'));
+create policy prod_inv_edit on public.prod_inventario for update to authenticated using (public.tiene_permiso('producciones')) with check (public.tiene_permiso('producciones'));
 
 drop policy if exists prod_priv_ver on public.prod_inv_privado;
 drop policy if exists prod_priv_alta on public.prod_inv_privado;
@@ -160,10 +161,10 @@ create policy prod_priv_alta on public.prod_inv_privado for insert to authentica
 create policy prod_priv_edit on public.prod_inv_privado for update to authenticated using (public.es_admin()) with check (public.es_admin());
 
 drop policy if exists prod_mant_todo on public.prod_mantenimiento;
-create policy prod_mant_todo on public.prod_mantenimiento for all to authenticated using (public.es_admin()) with check (public.es_admin());
+create policy prod_mant_todo on public.prod_mantenimiento for all to authenticated using (public.tiene_permiso('producciones')) with check (public.tiene_permiso('producciones'));
 
 drop policy if exists prod_prod_todo on public.prod_producciones;
-create policy prod_prod_todo on public.prod_producciones for all to authenticated using (public.es_admin()) with check (public.es_admin());
+create policy prod_prod_todo on public.prod_producciones for all to authenticated using (public.tiene_permiso('producciones')) with check (public.tiene_permiso('producciones'));
 
 drop policy if exists prod_aud_ver on public.prod_auditoria;
 create policy prod_aud_ver on public.prod_auditoria for select to authenticated using (public.es_admin());
@@ -188,9 +189,9 @@ on conflict (id) do update set public = false, file_size_limit = 20971520,
 drop policy if exists inventario_ver on storage.objects;
 drop policy if exists inventario_subir on storage.objects;
 drop policy if exists inventario_cambiar on storage.objects;
-create policy inventario_ver on storage.objects for select to authenticated using (bucket_id = 'inventario' and public.es_admin());
-create policy inventario_subir on storage.objects for insert to authenticated with check (bucket_id = 'inventario' and public.es_admin());
-create policy inventario_cambiar on storage.objects for update to authenticated using (bucket_id = 'inventario' and public.es_admin()) with check (bucket_id = 'inventario' and public.es_admin());
+create policy inventario_ver on storage.objects for select to authenticated using (bucket_id = 'inventario' and public.tiene_permiso('producciones'));
+create policy inventario_subir on storage.objects for insert to authenticated with check (bucket_id = 'inventario' and public.tiene_permiso('producciones'));
+create policy inventario_cambiar on storage.objects for update to authenticated using (bucket_id = 'inventario' and public.tiene_permiso('producciones')) with check (bucket_id = 'inventario' and public.tiene_permiso('producciones'));
 
 -- las funciones internas (triggers) no se pueden llamar desde la API
 revoke execute on function public.prod_auditar() from public, anon, authenticated;

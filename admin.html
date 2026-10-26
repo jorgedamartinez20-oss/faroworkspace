@@ -319,7 +319,10 @@ h1,h2,h3{font-weight:300;letter-spacing:-.005em}
 .dg2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.dchk{display:flex;flex-wrap:wrap;gap:4px 14px;padding:8px 0;border-bottom:1px dashed var(--line)}.dchk .wchk{padding:2px 0}
 .dft{display:flex;gap:8px;padding:12px 18px;border-top:1px solid var(--line)}
 .ugrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-top:14px}
-.ucard{display:grid;gap:10px;align-content:start}.ucard.off{opacity:.62}.ucard.dir{border-color:var(--oro)}
+.ucard{display:grid;gap:10px;align-content:start}
+/* las tarjetas en rejilla se ajustan a su ancho: sin esto un texto largo (correo) las ensanchaba y empujaba sus etiquetas fuera del cuadro */
+:where(.ucard,.rc,.fcard,.pr-lista,.pr-row,.pz,.pzd,.dbody,.dc-list,.acnav,.optbox,.field,.leg2,.sgf,.cx,.plist,.pd-f,.pd-fila,.pd-res,.mp-semana,.mp-dia,.mp-dm,.mp-calc2,.mp-kpi,.mp-prods,.mp-lista,.rd-form,.rd-sec,.rd-mb,.rd-tks,.cp-slot,.cp-rows,.rs-links,.rs-pv){grid-template-columns:minmax(0,1fr)}
+.uhead>.tag{flex:none}.ucard.off{opacity:.62}.ucard.dir{border-color:var(--oro)}
 .uhead{display:flex;gap:12px;align-items:center}
 .uav{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--borgona),#5b1020);color:#fff;font:700 1rem var(--body);flex:none;box-shadow:0 6px 14px -6px rgba(0,0,0,.6)}.uav.dirav{background:linear-gradient(135deg,var(--oro),#85703C)}
 .un{display:block;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -4344,13 +4347,15 @@ const PERMISOS=[
   {k:'academy_facturas',n:'Facturas y pagos de Academy',d:'Ver y registrar las facturas de las clases',i:'card'},
   {k:'correo',n:'Correo de la empresa',d:'Leer y responder los correos de info@ y producciones@',i:'mail'},
   {k:'metricas',n:'Estadísticas y redes',d:'Visitas, alcance y seguimiento de redes sociales',i:'chart'},
+  {k:'formularios',n:'Formularios y documentos',d:'Crear y consultar cotizaciones, confirmaciones y recibos con su numeración',i:'file'},
+  {k:'producciones',n:'Producciones e inventario',d:'Calendario de producciones, hojas de llamado, inventario y mantenimiento (no ve serie ni factura de los equipos)',i:'film'},
   {k:'recursos',n:'Recursos para docentes',d:'Perfil, materiales, accesos y opiniones de la página de recursos para docentes',i:'book'},
   {k:'subir_material',n:'Subir material (solo carga)',d:'Solo ve su enlace personal para subir archivos; no ve ni borra nada',i:'upload'},
   {k:'ver_archivos',n:'Ver y descargar material (solo lectura)',d:'Abre la pestaña Materiales para ver y descargar archivos de Studios y Academy; no sube, no borra ni ve Documentos',i:'download'}];
 const PRESETS=[['Coach de docentes',['recursos']],['Docente',['academy']],['Fotógrafo (solo subir)',['subir_material']],['Solo ver y descargar',['ver_archivos']],['Administración',['agenda','clientes','academy','academy_facturas']],['Contenido y redes',['contenido','metricas']]];
 /* qué permiso abre cada pestaña · lo que no aparece aquí es solo del director · '*' = todos */
-const TAB_PERM={cor:'correo',pro:'clientes',vag:'clientes',ast:'metricas',aac:'metricas',red:'metricas',crm:'clientes',con:'contenido',cal:'agenda',res:'agenda',sem:'agenda',cot:'clientes',cli:'clientes',aca:'academy',avs:'clientes',en:'clientes',rsn:'clientes',cup:'clientes',web:'clientes',sub:'subir_material',rd:'recursos',mat:'ver_archivos',pre:'*',cha:'*'};
-const PRIMERA=['rd','sub','cor','con','cal','res','cot','cli','aca','avs','pro','vag','crm','ast','aac','red','mat','pre'];
+const TAB_PERM={cor:'correo',pro:'clientes',vag:'clientes',ast:'metricas',aac:'metricas',red:'metricas',crm:'clientes',con:'contenido',cal:'agenda',res:'agenda',sem:'agenda',cot:'clientes',cli:'clientes',aca:'academy',avs:'clientes',en:'clientes',rsn:'clientes',cup:'clientes',web:'clientes',sub:'subir_material',rd:'recursos',dcs:'formularios',prd:'producciones',mat:'ver_archivos',pre:'*',cha:'*'};
+const PRIMERA=['rd','sub','cor','con','cal','res','cot','cli','dcs','prd','aca','avs','pro','vag','crm','ast','aac','red','mat','pre'];
 const ME={owner:false,ok:false,perms:new Set(),nombre:'',uid:'',email:'',fila:null};
 const puede=p=>ME.owner||ME.perms.has(p);
 /* avatar y color de cada persona (perfil.js; se guarda en perfiles_ws) */
@@ -4833,7 +4838,7 @@ function rsnTab(){try{FaroResenas.iniciar($('#rsn-body'),rsnCtx())}catch(e){cons
 function rdTab(){try{FaroRecursosDoc.iniciar($('#rd-body'),{api:(p,o)=>api(p,o),raw:async(p,i)=>{if(S&&S.exp-60000<Date.now())await refresh();i=i||{};return fetch(SB.url+p,{method:i.method||'GET',headers:Object.assign({apikey:SB.key,Authorization:'Bearer '+(S?S.access:SB.key)},i.headers||{}),body:i.body})},toast,errText,sbUrl:SB.url})}catch(e){console.error(e);toast('No se pudo abrir Recursos docentes')}}
 function mpTab(){try{FaroMusicPro.iniciar($('#mp-body'),{api:(p,o)=>api(p,o),toast,errText})}catch(e){console.error(e);toast('No se pudo abrir Music Pro')}}
 /* ---------- Producciones (producciones.js · producciones-doc.js · sql/producciones.sql · solo el director) ---------- */
-function prdTab(){try{FaroProd.iniciar($('#prd-body'),{api:(p,o)=>api(p,o),raw:async(p,i)=>{if(S&&S.exp-60000<Date.now())await refresh();i=i||{};return fetch(SB.url+p,{method:i.method||'GET',headers:Object.assign({apikey:SB.key,Authorization:'Bearer '+(S?S.access:SB.key)},i.headers||{}),body:i.body})},toast,errText,sbUrl:SB.url})}catch(e){console.error(e);toast('No se pudo abrir Producciones')}}
+function prdTab(){try{FaroProd.iniciar($('#prd-body'),{owner:()=>!!ME.owner,api:(p,o)=>api(p,o),raw:async(p,i)=>{if(S&&S.exp-60000<Date.now())await refresh();i=i||{};return fetch(SB.url+p,{method:i.method||'GET',headers:Object.assign({apikey:SB.key,Authorization:'Bearer '+(S?S.access:SB.key)},i.headers||{}),body:i.body})},toast,errText,sbUrl:SB.url})}catch(e){console.error(e);toast('No se pudo abrir Producciones')}}
 function cupTab(){try{FaroCupones.iniciar($('#cup-body'),{api:(p,o)=>api(p,o),toast,errText})}catch(e){console.error(e);toast('No se pudo abrir Cupones')}}
 async function enPatch(tabla,lista,id,body){
   const r=await api('/rest/v1/'+tabla+'?id=eq.'+encodeURIComponent(id),{method:'PATCH',body,headers:{Prefer:'return=minimal'}});

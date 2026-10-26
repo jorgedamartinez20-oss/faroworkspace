@@ -8,7 +8,7 @@
  *   Hojas       : dos documentos (Crew y Apoyo) en tamaño carta, con pronóstico del clima (Open-Meteo), para imprimir, PDF o imagen.
  *   Protección  : historial automático de cambios, respaldo descargable y resumen de las capas de seguridad.
  * Base de datos: sql/producciones.sql (solo el director con autenticador). Uso desde admin.html:
- *   FaroProd.iniciar(contenedor, ctx)     ctx = { api, raw, toast, errText, sbUrl }
+ *   FaroProd.iniciar(contenedor, ctx)     ctx = { api, raw, toast, errText, sbUrl, owner }
  */
 (function () {
   'use strict';
@@ -93,6 +93,8 @@
   const nombreDia = f => ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][pf(f).getDay()];
   const pill = (txt, col, k) => el('span', { class: 'pd-pill', style: '--c:' + col }, k ? ico(k, 14) : null, txt);
   const toast = m => { try { ctx.toast(m); } catch (e) { console.log(m); } };
+  /* serie, factura, historial y respaldo completo: solo el director (la base de datos lo exige); quien recibe el permiso «Producciones» ve y edita todo lo demás */
+  const esDir = () => { try { return ctx.owner ? !!ctx.owner() : true; } catch (e) { return true; } };
   const item = id => S.items.find(x => x.id === id);
 
   async function get(t) {
@@ -389,7 +391,7 @@
     if (S.editando) { editor(); window.scrollTo(0, y); return; }
     host.append(el('div', { class: 'pd-top' }, el('h2', { class: 'pd-h' }, ico('film', 30), 'Producciones'), el('span', { class: 'pd-sp' }),
       btn('Nueva producción', 'plus', () => nueva(hoy()), 'btn-gold')));
-    host.append(el('div', { class: 'pd-nav', role: 'tablist' }, VISTAS.map(([k, n, i]) => el('button', { type: 'button', role: 'tab', 'aria-pressed': String(S.vista === k), onclick: () => { S.vista = k; if (k === 'prot' && !S.aud) cargarAud(); pintar(); } }, ico(i, 18), n))));
+    host.append(el('div', { class: 'pd-nav', role: 'tablist' }, VISTAS.filter(v => v[0] !== 'prot' || esDir()).map(([k, n, i]) => el('button', { type: 'button', role: 'tab', 'aria-pressed': String(S.vista === k), onclick: () => { S.vista = k; if (k === 'prot' && !S.aud) cargarAud(); pintar(); } }, ico(i, 18), n))));
     if (S.cargando && !S.cargado) { host.append(el('div', { class: 'pd-vacio' }, 'Cargando…')); return; }
     ({ cal: vCal, lista: vLista, inv: vInv, mant: vMant, prot: vProt })[S.vista]();
     window.scrollTo(0, y);
@@ -754,8 +756,8 @@
       campo('Estado', sel(E, 'estado', Object.entries(EST_INV).map(([k, v]) => [k, v[0]]))), campo('Ubicación / guardado en', inp(E, 'ubicacion', 'text', { placeholder: 'Estudio, mochila 1, bodega…' })),
       campo('Propiedad', sel(E, 'propiedad', [['propio', 'Propio de Faro'], ['prestado', 'Prestado por otra persona']])), campo('Dueño (si es prestado)', inp(E, 'dueno', 'text', { placeholder: 'Barló CR' })),
       campo('Notas / adicionales', area(E, 'notas', 2), 'full')),
-      el('h3', { class: 'pd-sec' }, ico('lock', 22), 'Datos privados'), el('p', { class: 'pd-muted', style: 'margin:0' }, 'Se guardan en una tabla aparte. Nunca salen en las hojas de llamado.'),
-      el('div', { class: 'pd-fg' }, campo('Número de serie', inp(P, 'serie')), campo('Fecha de compra', inp(P, 'fecha_compra', 'date')), campo('Factura', inp(P, 'factura', 'text', { placeholder: 'FEL-000' })), campo('Notas privadas', area(P, 'notas_privadas', 2), 'full')), mt);
+      esDir() && el('h3', { class: 'pd-sec' }, ico('lock', 22), 'Datos privados'), esDir() && el('p', { class: 'pd-muted', style: 'margin:0' }, 'Se guardan en una tabla aparte. Nunca salen en las hojas de llamado.'),
+      esDir() && el('div', { class: 'pd-fg' }, campo('Número de serie', inp(P, 'serie')), campo('Fecha de compra', inp(P, 'fecha_compra', 'date')), campo('Factura', inp(P, 'factura', 'text', { placeholder: 'FEL-000' })), campo('Notas privadas', area(P, 'notas_privadas', 2), 'full')), mt);
     pintaFoto(); pintaMant();
     const guardarItem = async () => {
       if (!E.descripcion.trim()) { toast('Falta la descripción'); return; } if (!E.sku) { toast('Falta el código'); return; }
@@ -767,7 +769,7 @@
         if (nuevo) { r = await send('POST', 'prod_inventario', cuerpoI); S.items.push(r[0]); }
         else { r = await send('PATCH', 'prod_inventario?id=eq.' + id, cuerpoI); S.items[S.items.findIndex(x => x.id === id)] = r[0]; }
         const iid = r[0].id;
-        const rp = await send('POST', 'prod_inv_privado', Object.assign({ item_id: iid }, priv), { Prefer: 'resolution=merge-duplicates,return=representation' }); S.priv[iid] = (rp && rp[0]) || Object.assign({ item_id: iid }, priv);
+        if (esDir()) { const rp = await send('POST', 'prod_inv_privado', Object.assign({ item_id: iid }, priv), { Prefer: 'resolution=merge-duplicates,return=representation' }); S.priv[iid] = (rp && rp[0]) || Object.assign({ item_id: iid }, priv); }
         S.items.sort((a, b) => a.sku.localeCompare(b.sku, 'es', { numeric: true })); toast('Guardado · ' + E.sku); cerrarModal(); pintar();
         if (nuevo) itemForm(iid);
       } catch (e) { toast('No se pudo guardar: ' + (e.message || e)); }
