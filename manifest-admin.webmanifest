@@ -1,7 +1,7 @@
 {
   "name": "FARO STUDIOS",
   "short_name": "FARO STUDIOS",
-  "start_url": "./admin.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#F5F2EE",

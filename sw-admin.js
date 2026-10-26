@@ -17,11 +17,11 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const destino = new URL((event.notification.data && event.notification.data.url) || 'admin.html', self.registration.scope).href;
+  const destino = new URL((event.notification.data && event.notification.data.url) || './', self.registration.scope).href;
   event.waitUntil((async () => {
     const todas = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const c of todas) {
-      if (c.url.startsWith(new URL('admin.html', self.registration.scope).href) && 'focus' in c) return c.focus();
+      if (c.url.startsWith(self.registration.scope) && 'focus' in c) return c.focus();
     }
     return self.clients.openWindow(destino);
   })());
