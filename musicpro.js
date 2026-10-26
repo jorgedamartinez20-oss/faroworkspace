@@ -443,7 +443,7 @@
           el('span', {}, 'Ventas del día ', el('b', {}, Q(t.ventas))),
           el('div', { class: 'mp-dmef' },
             el('span', {}, 'Saldo inicial ', el('b', {}, Q(t.saldo))),
-            el('span', {}, 'Efectivo ', el('b', {}, '+ ' + Q(t.ef))),
+            el('span', {}, 'Efectivo vendido ', el('b', {}, '+ ' + Q(t.ef))),
             el('span', {}, 'Depósitos/egresos ', el('b', {}, '− ' + Q(t.eg))),
             el('span', { class: 'mp-dmf' }, 'Final de caja ', el('b', {}, Q(t.total))))) : null);
     });
