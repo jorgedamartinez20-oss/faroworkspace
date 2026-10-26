@@ -279,7 +279,7 @@
   const CL = { ink: '#0F172A', mut: '#475569', line: '#CBD5E1', navy: '#1E3A5F', navy2: '#3B5B85', head: '#E8EEF6', alt: '#F6F8FB', tot: '#DCE8F5', eg: '#2F6F7E', ok: '#1B7F4B', okbg: '#DDF3E6', ef: '#5E9E6B', ta: '#3B5B85', de: '#C9A227', oro: '#B8A06A' };
   /* CIERRE DEL DÍA (imagen para correo / jefes): fecha y lugar de héroe, ventas por forma de pago, detalle, caja y depósitos.
      Ancho de diseño 2600; el alto crece con las facturas. px conserva la escala de siempre (1.95 → 3900 px de ancho). */
-  const CW = 2600, CNW = 620, COW = 300, CNS = 25;
+  const CW = 2600, CNW = 620, COW = 440, CNS = 25;
   let _cm = null;
   const lineasDe = (txt, w) => {
     txt = String(txt || ''); if (!txt) return []; if (!_cm) _cm = document.createElement('canvas').getContext('2d');
@@ -321,26 +321,26 @@
     cards.forEach((q, i) => {
       const w = q[2];
       if (i === 0) { box(X, 260, w, 250, CL.navy); T(q[0], X + 30, 310, 26, '700', '#C9D6EA'); T(QQ(q[1]), X + 30, 395, 70, '700', '#fff', 'left', w - 60); T(validas(d.facs).length + (validas(d.facs).length === 1 ? ' factura' : ' facturas') + (d.facs.length > validas(d.facs).length ? ' · ' + (d.facs.length - validas(d.facs).length) + ' anulada' : ''), X + 30, 465, 26, '400', '#C9D6EA'); }
-      else { box(X, 260, w, 250, i === 1 ? '#FFF1B8' : '#fff'); if (i === 1) { c.save(); rr(X, 260, w, 250, 22); c.strokeStyle = '#E2B100'; c.lineWidth = 4; c.stroke(); c.restore(); } c.fillStyle = q[3]; rr(X, 260, w, 12, 6); c.fill(); T(q[0], X + 26, 312, 24, '700', i === 1 ? '#7A5A00' : CL.mut); T(QQ(q[1]), X + 26, 385, i === 1 ? 46 : 44, '700', CL.ink, 'left', w - 50); T(i === 1 ? 'con esto arranca la caja' : (ven ? Math.round(q[1] / ven * 100) + '% de las ventas' : '—'), X + 26, 455, 22, '400', CL.mut, 'left', w - 50); }
+      else { box(X, 260, w, 250, i === 1 ? '#FFF1B8' : '#fff'); if (i === 1) { c.save(); rr(X, 260, w, 250, 22); c.strokeStyle = '#E2B100'; c.lineWidth = 4; c.stroke(); c.restore(); } c.fillStyle = q[3]; rr(X, 260, w, 12, 6); c.fill(); T(q[0], X + 26, 312, 24, '700', i === 1 ? '#7A5A00' : CL.mut); T(QQ(q[1]), X + 26, 385, i === 1 ? 46 : 44, '700', CL.ink, 'left', w - 50); T(i === 1 ? '' : (ven ? Math.round(q[1] / ven * 100) + '% de las ventas' : '—'), X + 26, 455, 22, '400', CL.mut, 'left', w - 50); }
       X += w + 25;
     });
     /* detalle de ventas: columnas fijas efectivo · tarjeta · depósito (una factura combinada llena dos) */
     const DW = 1900, R = [1040, 1230, 1420, 1600], ty = y1 + 75;
     box(50, y1, DW, ch, '#fff'); T('Detalle de ventas', 80, y1 + 40, 32, '700', CL.navy);
     c.fillStyle = CL.head; c.fillRect(70, ty, DW - 40, 48);
-    T('RECIBO', 90, ty + 24, 20, '700', CL.mut); T('CLIENTE', 200, ty + 24, 20, '700', CL.mut); T('OBSERVACIONES / REF.', 1640, ty + 24, 20, '700', CL.mut, 'left', 290);
-    ['EFECTIVO', 'TARJETA', 'DEPÓSITO', 'TOTAL'].forEach((h, i) => T(h, R[i], ty + 24, 20, '700', CL.mut, 'right'));
+    T('RECIBO', 90, ty + 24, 20, '700', CL.mut); T('CLIENTE', 200, ty + 24, 20, '700', CL.mut); T('OBSERVACIONES / REF.', 1470, ty + 24, 20, '700', CL.mut, 'left', 440);
+    ['EFECTIVO', 'TARJETA', 'DEPÓSITO'].forEach((h, i) => T(h, R[i], ty + 24, 20, '700', CL.mut, 'right'));
     let yy = ty + 48;
     rows.forEach((r, i) => {
       const f = r.f, ym = yy + r.h / 2; if (i % 2) { c.fillStyle = CL.alt; c.fillRect(70, yy, DW - 40, r.h); }
       T(String(f.recibo), 90, ym, 26, '700', CL.ink);
       r.L.forEach((l, q) => T(l, 200, ym + (q - (r.L.length - 1) / 2) * 30, CNS, esAnulada(f) ? '700' : '400', esAnulada(f) ? '#C0283A' : CL.ink));
-      r.O.forEach((l, q) => T(l, 1640, ym + (q - (r.O.length - 1) / 2) * 28, 22, '400', CL.mut));
+      r.O.forEach((l, q) => T(l, 1470, ym + (q - (r.O.length - 1) / 2) * 28, 22, '400', CL.mut));
       [f.efectivo, f.tarjeta, f.deposito].forEach((v, j) => AC(v, R[j], ym, 26, '400', CL.ink));
-      AC(num(f.efectivo) + num(f.tarjeta) + num(f.deposito), R[3], ym, 27, '700', CL.ink); yy += r.h;
+      yy += r.h;
     });
     c.fillStyle = CL.tot; c.fillRect(70, yy, DW - 40, rowH); T('TOTAL', 90, yy + rowH / 2, 24, '700', CL.navy);
-    [ef, ta, de, ven].forEach((v, j) => AC(v, R[j], yy + rowH / 2, 26, '700', CL.navy));
+    [ef, ta, de].forEach((v, j) => AC(v, R[j], yy + rowH / 2, 26, '700', CL.navy));
     /* caja del día */
     const CX = 50 + DW + 30, CWd = 2550 - CX; box(CX, y1, CWd, ch, '#fff'); T('Caja del día', CX + 30, y1 + 40, 32, '700', CL.navy);
     [['Saldo inicial', d.saldo, ''], ['Efectivo vendido', ef, ''], ['Depósitos/egresos', d.t.eg, '− ']].forEach((l, i) => { const y = y1 + 115 + i * 80; if (i === 0) { box(CX + 16, y - 34, CWd - 32, 68, '#FFF1B8', 14, 0); } T(l[0], CX + 30, y, 26, i === 0 ? '700' : '400', i === 0 ? '#7A5A00' : CL.mut); T(l[2] + QQ(l[1]), CX + CWd - 30, y, 36, '700', CL.ink, 'right', 300); });
