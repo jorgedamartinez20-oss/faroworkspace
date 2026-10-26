@@ -92,7 +92,12 @@
 
   /* ---------- estado ---------- */
   let host = null, ctx = null, started = false, css1 = false;
-  const S = { cargando: false, falta: false, enlaces: [], res: [], cfg: {}, sel: null, ed: null, filtro: 'todas', nuevoEnlace: null, ajustes: false, ocupado: false };
+  const S = { cargando: false, falta: false, enlaces: [], res: [], cfg: {}, sel: null, ed: null, filtro: 'todas', nuevoEnlace: null, ajustes: false, ocupado: false, canal: 'todos', cup: {} };
+  /* canales por donde llegan las reseñas: para sumar uno nuevo solo se agrega aquí y se guarda con ese nombre en rs_resenas.canal */
+  const CANALES = { comentarios: 'Comentarios web', entregas: 'Entregas' };
+  const canalDe = r => r.canal || 'comentarios';
+  const canalNom = k => CANALES[k] || (String(k).charAt(0).toUpperCase() + String(k).slice(1));
+  const fvence = d => { if (!d) return ''; const dias = Math.ceil((new Date(d + 'T23:59:59-06:00') - Date.now()) / 86400000); return fdate(d + 'T12:00:00-06:00') + (dias < 0 ? ' · vencido' : dias === 0 ? ' · vence hoy' : ' · faltan ' + dias + ' día' + (dias === 1 ? '' : 's')); };
   const cfgGet = (k, d) => (S.cfg[k] != null && S.cfg[k] !== '' ? S.cfg[k] : d);
   const get = async (t, ord) => { const r = await ctx.api('/rest/v1/' + t + '?select=*' + (ord ? '&order=' + ord : '')); if (!r.ok) { const e = new Error(await ctx.errText(r)); e.status = r.status; throw e; } return r.json(); };
   const linea = r => r.tipo === 'empresa' ? [r.cargo && r.empresa ? r.cargo + ', ' + r.empresa : r.empresa, r.servicio, r.pais].filter(Boolean).join(' · ') : [r.servicio, r.subtipo].filter(Boolean).join(' · ');
@@ -103,6 +108,7 @@
     S.cargando = true; pintar();
     try {
       const [b, c] = await Promise.all([get('rs_resenas', 'creado.desc'), get('rs_config')]);
+      try { const cp = await get('cupones'); S.cup = {}; cp.forEach(x => { S.cup[x.codigo] = x; }); } catch (e) { }
       S.res = b; S.cfg = {}; c.forEach(x => { S.cfg[x.clave] = x.valor; }); S.falta = false;
       /* la config del sitio (espacios de la web y contador) puede no haber llegado aún al abrir esta pestaña: se vuelve a leer antes de pintar */
       try { await ctx.recargar(); } catch (e) { }
@@ -192,12 +198,20 @@
     const fl = el('div', { class: 'rs-fl' });
     [['todas', 'Todas'], ['nueva', 'Nuevas'], ['web', 'En la web'], ['archivada', 'Archivadas']].forEach(([k, l]) => fl.append(el('button', { type: 'button', class: 'rs-f', 'aria-pressed': String(S.filtro === k), onclick: () => { S.filtro = k; pintar(); } }, l)));
     c.append(fl);
-    const lista = S.res.filter(r => S.filtro === 'todas' ? r.estado !== 'archivada' : S.filtro === 'web' ? !!r.slot : r.estado === S.filtro);
+    const canales = [...new Set([...Object.keys(CANALES), ...S.res.map(canalDe)])];
+    const fc = el('div', { class: 'rs-fl' }, el('small', { class: 'muted', style: 'align-self:center;margin-right:4px' }, 'Canal:'));
+    [['todos', 'Todos los canales'], ...canales.map(k => [k, canalNom(k) + ' (' + S.res.filter(r => canalDe(r) === k).length + ')'])].forEach(([k, l]) => fc.append(el('button', { type: 'button', class: 'rs-f', 'aria-pressed': String(S.canal === k), onclick: () => { S.canal = k; pintar(); } }, l)));
+    c.append(fc);
+    const lista = S.res.filter(r => (S.canal === 'todos' || canalDe(r) === S.canal) && (S.filtro === 'todas' ? r.estado !== 'archivada' : S.filtro === 'web' ? !!r.slot : r.estado === S.filtro));
     if (!lista.length) c.append(el('p', { class: 'muted' }, S.res.length ? 'No hay reseñas en este filtro.' : 'Cuando un cliente envíe su reseña, aparece aquí.'));
-    const g = el('div', { class: 'mdg' });
-    lista.forEach(r => g.append(el('button', { type: 'button', class: 'mdc' + (r.estado === 'nueva' ? '' : ' on'), 'aria-pressed': String(r.id === S.sel), title: r.nombre, onclick: () => { S.sel = r.id; S.ed = null; pintar(); } },
-      el('span', { class: 'mdt' }, r.foto ? el('img', { src: r.foto, alt: '', loading: 'lazy' }) : ico('user')), el('b', {}, r.nombre), el('small', {}, estrellas(r.estrellas) + (r.slot ? ' · Web ' + r.slot : '')), r.estado === 'nueva' ? el('i', { class: 'mdk rs-nv' }, 'NUEVA') : null)));
-    c.append(g);
+    const tarjeta = r => el('button', { type: 'button', class: 'mdc' + (r.estado === 'nueva' ? '' : ' on'), 'aria-pressed': String(r.id === S.sel), title: r.nombre + ' · ' + canalNom(canalDe(r)), onclick: () => { S.sel = r.id; S.ed = null; pintar(); } },
+      el('span', { class: 'mdt' }, r.foto ? el('img', { src: r.foto, alt: '', loading: 'lazy' }) : ico('user')), el('b', {}, r.nombre), el('small', {}, estrellas(r.estrellas) + (r.slot ? ' · Web ' + r.slot : '')), el('small', { class: 'muted' }, canalNom(canalDe(r))), r.estado === 'nueva' ? el('i', { class: 'mdk rs-nv' }, 'NUEVA') : null);
+    /* separadas por canal para saber de dónde llegó cada una */
+    canales.filter(k => lista.some(r => canalDe(r) === k)).forEach(k => {
+      const its = lista.filter(r => canalDe(r) === k), g = el('div', { class: 'mdg' });
+      c.append(el('h4', { style: 'margin:16px 0 8px;display:flex;align-items:center;gap:8px;font-weight:700;border-bottom:1px solid rgba(0,0,0,.1);padding-bottom:6px' }, canalNom(k), el('small', { class: 'muted', style: 'font-weight:400' }, its.length + (its.length === 1 ? ' reseña' : ' reseñas'))));
+      its.forEach(r => g.append(tarjeta(r))); c.append(g);
+    });
     const r = S.res.find(x => x.id === S.sel);
     if (r) c.append(vEditor(r));
     return c;
@@ -206,7 +220,7 @@
   function vEditor(r) {
     if (!S.ed || S.ed.id !== r.id) S.ed = { ...r };
     const E = S.ed, box = el('div', { class: 'rs-ed' });
-    box.append(el('h3', {}, 'Reseña de ' + r.nombre), el('p', { class: 'muted' }, 'Recibida ' + fdate(r.creado) + (r.tipo === 'empresa' ? ' · Empresa (sin código)' : ' · Código ' + (r.codigo || '—'))));
+    box.append(el('h3', {}, 'Reseña de ' + r.nombre), el('p', { class: 'muted' }, 'Recibida ' + fdate(r.creado) + ' · ' + canalNom(canalDe(r)) + (r.tipo === 'empresa' ? ' · Empresa (sin código)' : ' · Código ' + (r.codigo || '—'))));
     /* foto + encuadre */
     const enc = encuadre({ url: E.foto, pos: E.foto_pos, size: 230, onChange: p => { E.foto_pos = p; } });
     const fi = el('input', { type: 'file', accept: 'image/*', style: 'display:none' });
@@ -276,7 +290,7 @@
     if (r.slot) acts.append(btn('Quitar de la web', 'x', async () => { if (!confirm('¿Quitar esta reseña de la web? Se queda guardada aquí.')) return; try { await quitarDeWeb(r.slot); const nr = await patch(r.id, { slot: null }); Object.assign(r, nr); await ctx.recargar(); ctx.toast('Quitada de la web'); pintar(); } catch (e) { ctx.toast(e.message || 'No se pudo quitar'); } }, 'btn-red'));
     box.append(acts);
     const acts2 = el('div', { class: 'acts' }, btn('Exportar como imagen (PNG)', 'download', () => abrirExport({ nombre: E.nombre, linea: linea({ ...E }), texto: E.texto, estrellas: E.estrellas, foto: E.foto, pos: E.foto_pos }), 'btn-gold'));
-    const cj = r.codigo ? el('div', { class: 'rs-chk' }, el('span', {}, 'Código ' + r.codigo), btn('Ver y canjear en Cupones', 'gift', () => { try { window.FaroCupones.abrirCodigo(r.codigo); } catch (e) { } if (window.showTab) window.showTab('cup'); })) : el('span', { class: 'muted' }, r.tipo === 'empresa' ? 'Empresa: sin código de descuento' : 'Sin código de descuento');
+    const cj = r.codigo ? el('div', { class: 'rs-chk' }, el('span', {}, 'Código ' + r.codigo + (S.cup[r.codigo] && S.cup[r.codigo].vence ? ' · Vence ' + fvence(S.cup[r.codigo].vence) : '')), btn('Ver y canjear en Cupones', 'gift', () => { try { window.FaroCupones.abrirCodigo(r.codigo); } catch (e) { } if (window.showTab) window.showTab('cup'); })) : el('span', { class: 'muted' }, r.tipo === 'empresa' ? 'Empresa: sin código de descuento' : 'Sin código de descuento');
     acts2.append(cj, el('span', { class: 'rs-sp' }),
       r.estado !== 'archivada' ? btn('Archivar', null, async () => { try { if (r.slot) { await quitarDeWeb(r.slot); await ctx.recargar(); } const n = await patch(r.id, { estado: 'archivada', slot: null }); Object.assign(r, n); S.sel = null; S.ed = null; pintar(); ctx.toast('Archivada'); } catch (e) { ctx.toast(e.message); } }) : btn('Desarchivar', null, async () => { const n = await patch(r.id, { estado: 'revisada' }); Object.assign(r, n); pintar(); }),
       btn('Borrar', 'trash', async () => { if (!confirm('¿Borrar esta reseña para siempre?' + (r.slot ? ' También se quita de la web.' : ''))) return; try { if (r.slot) { await quitarDeWeb(r.slot); await ctx.recargar(); } const x = await ctx.api('/rest/v1/rs_resenas?id=eq.' + r.id, { method: 'DELETE', headers: { Prefer: 'return=minimal' } }); if (!x.ok) throw new Error(await ctx.errText(x)); S.res = S.res.filter(z => z.id !== r.id); S.sel = null; S.ed = null; badge(); pintar(); } catch (e) { ctx.toast(e.message); } }, 'btn-red'));
