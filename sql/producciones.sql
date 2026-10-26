@@ -171,6 +171,13 @@ create policy prod_aud_ver on public.prod_auditoria for select to authenticated 
 revoke all on public.prod_inventario, public.prod_inv_privado, public.prod_mantenimiento, public.prod_producciones, public.prod_auditoria from anon;
 revoke insert, update, delete, truncate on public.prod_auditoria from authenticated;
 revoke delete, truncate on public.prod_inventario, public.prod_inv_privado from authenticated;
+revoke truncate on public.prod_mantenimiento, public.prod_producciones from authenticated;
+
+-- permisos de tabla para la app (sin esto Supabase responde «permission denied» aunque la política RLS lo permita;
+-- RLS sigue limitando todo al director con autenticador)
+grant select on public.prod_auditoria to authenticated;
+grant select, insert, update on public.prod_inventario, public.prod_inv_privado to authenticated;
+grant select, insert, update, delete on public.prod_mantenimiento, public.prod_producciones to authenticated;
 
 -- fotos del inventario: bucket privado
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
