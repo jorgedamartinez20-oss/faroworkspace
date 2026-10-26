@@ -296,7 +296,7 @@
     const deps = d.facs.filter(f => num(f.deposito) > 0), egs = d.egs;
     const sumH = rows.reduce((a, r) => a + r.h, 0), ch = Math.max(70 + 48 + sumH + rowH + 30, 540);
     const dh = egs.length ? 130 + egs.length * rowH : 210, eh = 0;
-    const y1 = 720, y2 = y1 + ch + 30, y3 = y2 + dh, H = Math.round(y3 + 80);
+    const y1 = 540, y2 = y1 + ch + 30, y3 = y2 + dh, H = Math.round(y3 + 80);
     cv.width = Math.round(W * k); cv.height = Math.round(H * k); cv.style.setProperty('--r', (W / H).toFixed(4));
     const c = cv.getContext('2d'); c.setTransform(k, 0, 0, k, 0, 0); c.textBaseline = 'middle';
     const m = v => num(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), QQ = v => 'Q ' + m(v);
@@ -316,7 +316,7 @@
     c.fillStyle = 'rgba(255,255,255,.25)'; c.fillRect(1650, 40, 3, 150);
     T('MUSIC PRO', 1710, 60, 30, '700', '#C9D6EA'); T('PRADERA', 1710, 130, 96, '700', '#fff', 'left', 780); T('ZONA 10', 1710, 196, 54, '700', '#E3EBF7', 'left', 780);
     /* ventas, ingreso del día y formas de pago */
-    const cards = [['VENTAS DEL DÍA', ven, 700], ['SALDO INICIAL', d.saldo, 425, '#E2B100'], ['EFECTIVO', ef, 425, CL.ef], ['TARJETA', ta, 425, CL.ta], ['DEPÓSITO', de, 425, CL.de]];
+    const cards = [['VENTAS DEL DÍA', ven, 1250], ['SALDO INICIAL', d.saldo, 1225, '#E2B100']];
     let X = 50;
     cards.forEach((q, i) => {
       const w = q[2];
@@ -324,11 +324,6 @@
       else { box(X, 260, w, 250, i === 1 ? '#FFF1B8' : '#fff'); if (i === 1) { c.save(); rr(X, 260, w, 250, 22); c.strokeStyle = '#E2B100'; c.lineWidth = 4; c.stroke(); c.restore(); } c.fillStyle = q[3]; rr(X, 260, w, 12, 6); c.fill(); T(q[0], X + 26, 312, 24, '700', i === 1 ? '#7A5A00' : CL.mut); T(QQ(q[1]), X + 26, 385, i === 1 ? 46 : 44, '700', CL.ink, 'left', w - 50); T(i === 1 ? 'con esto arranca la caja' : (ven ? Math.round(q[1] / ven * 100) + '% de las ventas' : '—'), X + 26, 455, 22, '400', CL.mut, 'left', w - 50); }
       X += w + 25;
     });
-    box(50, 540, 2500, 150, '#fff'); T('¿Cómo se pagó?', 80, 572, 26, '700', CL.navy);
-    const fp = [['Efectivo', ef, CL.ef], ['Tarjeta', ta, CL.ta], ['Depósito', de, CL.de]];
-    fp.forEach((q, i) => { const lx = 900 + i * 450; c.fillStyle = q[2]; rr(lx, 560, 22, 22, 6); c.fill(); T(q[0] + ' ' + (ven ? Math.round(q[1] / ven * 100) : 0) + '%', lx + 34, 572, 24, '700', CL.ink); });
-    rr(80, 615, 2440, 40, 20); c.fillStyle = '#E2E8F0'; c.fill();
-    if (ven > 0) { c.save(); rr(80, 615, 2440, 40, 20); c.clip(); let xx = 80; fp.forEach(q => { const w = 2440 * q[1] / ven; c.fillStyle = q[2]; c.fillRect(xx, 615, w, 40); xx += w; }); c.restore(); }
     /* detalle de ventas: columnas fijas efectivo · tarjeta · depósito (una factura combinada llena dos) */
     const DW = 1900, R = [1040, 1230, 1420, 1600], ty = y1 + 75;
     box(50, y1, DW, ch, '#fff'); T('Detalle de ventas', 80, y1 + 40, 32, '700', CL.navy);
