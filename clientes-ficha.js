@@ -504,11 +504,55 @@ function fichaAlumno(id){
     tuts.forEach(v=>enc.append(el('div',{class:'fc-it'},el('span',{},el('b',{style:'font-weight:600'},acN('enc',v.encargado_id)),v.parentesco?el('small',{style:'display:block;opacity:.75'},v.parentesco):null))));
     D.body.append(enc);
     const fa=el('div',{class:'fc-sec'},el('h4',{},'Facturas y pagos'));
-    if(!fs.length)fa.append(el('small',{class:'muted'},'Sin facturas todavía.'));
-    fs.slice().sort((x,y)=>String(y.emision).localeCompare(String(x.emision))).forEach(f=>fa.append(el('div',{class:'fc-it'},el('span',{},el('b',{style:'font-weight:600'},'Q'+Number(f.monto).toFixed(2)+' · '+f.concepto),el('small',{style:'display:block;opacity:.75'},(f.estado||'').toUpperCase()+(f.vence?' · vence '+f.vence:''))),
-      f.ruta&&!/^https?:/i.test(f.ruta)?el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>acAbrir(f.ruta,'academy')},'Abrir'):null)));
-    fa.append(el('div',{class:'fc-acts'},el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>{D.cerrar();tabIr('fac',a.id);showTab('aca')}},'Agregar o editar facturas')));
-    D.body.append(fa);
+    const pend=fs.filter(f=>f.estado==='pendiente'),deb=pend.reduce((t,f)=>t+Number(f.monto||0),0);
+    fa.append(el('small',{class:'muted'},fs.length?(pend.length?pend.length+' pendiente'+(pend.length===1?'':'s')+' · Q'+deb.toFixed(2)+' por cobrar':'Todo al día'):'Sin facturas todavía.'));
+    fs.slice().sort((x,y)=>String(y.emision).localeCompare(String(x.emision))).forEach(f=>fa.append(el('div',{class:'fc-it'},
+      el('span',{},el('b',{style:'font-weight:600'},'Q'+Number(f.monto).toFixed(2)+' · '+f.concepto),el('small',{style:'display:block;opacity:.75'},(f.estado||'').toUpperCase()+(f.numero?' · No. '+f.numero:'')+(f.vence&&f.estado==='pendiente'?' · vence '+f.vence:'')+(f.pagado_en?' · pagada '+f.pagado_en:''))),
+      f.ruta&&!/^https?:/i.test(f.ruta)?el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>acAbrir(f.ruta,'academy')},'Abrir PDF'):f.ruta?el('a',{class:'btn btn-ghost btn-sm',href:f.ruta,target:'_blank',rel:'noopener'},'Abrir'):null,
+      f.estado==='pendiente'?el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:async()=>{try{const b={estado:'pagada',pagado_en:new Date().toISOString().slice(0,10)};await acPatch('ac_facturas',f.id,b);Object.assign(f,b);toast('Marcada como pagada');pintar();refrescaLista()}catch(e){toast(e.message||'No se pudo')}}},'Marcar pagada'):
+        f.estado==='pagada'?el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:async()=>{try{const b={estado:'pendiente',pagado_en:null};await acPatch('ac_facturas',f.id,b);Object.assign(f,b);pintar();refrescaLista()}catch(e){toast(e.message||'No se pudo')}}},'Deshacer'):null)));
+    const fm=el('details',{class:'fc-mini'},el('summary',{style:'cursor:pointer;font-weight:700'},'Agregar factura o cobro'));
+    const encs=tuts.map(v=>[v.encargado_id,acN('enc',v.encargado_id)]);
+    const FF=[{k:'concepto',l:'Concepto (Mensualidad noviembre…)',req:1},{k:'monto',l:'Monto en Q',t:'number',req:1,step:'0.01'},{k:'numero',l:'Número de factura'},{k:'emision',l:'Emisión',t:'date',def:'hoy'},{k:'vence',l:'Vence',t:'date'},
+      {k:'estado',l:'Estado',t:'sel',o:[['pendiente','Pendiente'],['pagada','Pagada']],def:'pendiente'}];
+    if(encs.length)FF.unshift({k:'encargado_id',l:'A nombre de',t:'sel',o:[['','—'],...encs]});
+    FF.forEach(f=>fm.append(acField(f,f.def==='hoy'?new Date().toISOString().slice(0,10):f.def,'fdf')));
+    const pdf=el('input',{type:'file',accept:'.pdf,.png,.jpg,.jpeg'});fm.append(el('div',{class:'field'},el('label',{},'PDF de la factura (opcional)'),pdf));
+    fm.append(el('div',{class:'fc-acts'},el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:async(ev)=>{
+      const body={estudiante_id:a.id};for(const f of FF){const v=acVal(f,'fdf');if(f.req&&(v==null||v==='')){toast('Falta: '+f.l.replace(/\s*\(.*$/,''));return}if(v!=null&&v!=='')body[f.k]=v}
+      if(body.estado==='pagada')body.pagado_en=new Date().toISOString().slice(0,10);
+      const btn=ev.currentTarget;btn.disabled=true;
+      try{
+        if(pdf.files[0]){if(!a.carpeta){toast('Este alumno aún no tiene carpeta en R2 (Archivos › Sincronizar carpetas)');return}
+          await matArbol();toast('Subiendo PDF…');body.ruta=(await matSubirKey(pdf.files[0],'privado',a.carpeta+'facturas/'+matNombre(Date.now()+'-'+pdf.files[0].name))).key}
+        const r=await api('/rest/v1/ac_facturas',{method:'POST',body,headers:{Prefer:'return=representation'}});if(!r.ok){toast(await errText(r));return}
+        const j=await r.json();(AC.list.fac=AC.list.fac||[]).push(j[0]||body);toast('Factura guardada');pintar();refrescaLista()}
+      catch(e){toast(e.message||'No se pudo guardar')}finally{btn.disabled=false}}},'Guardar factura')));
+    fa.append(fm);D.body.append(fa);
+    /* archivos del alumno: material, diplomas */
+    const mats=(AC.list.mat||[]).filter(m=>m.estudiante_id===a.id),dips=(AC.list.dip||[]).filter(d=>d.estudiante_id===a.id);
+    const ar=el('div',{class:'fc-sec'},el('h4',{},'Archivos y documentos'),el('small',{class:'muted'},'Lo que subes aquí lo ve el alumno en su portal.'));
+    const abre=r=>/^https?:/i.test(r)?el('a',{class:'btn btn-ghost btn-sm',href:r,target:'_blank',rel:'noopener'},'Abrir'):el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>acAbrir(r,'academy')},'Abrir');
+    if(!mats.length&&!dips.length)ar.append(el('p',{class:'muted',style:'margin:8px 0 0'},'Todavía no hay archivos.'));
+    mats.forEach(m=>ar.append(el('div',{class:'fc-it'},el('span',{},el('b',{style:'font-weight:600'},m.titulo),el('small',{style:'display:block;opacity:.75'},({hoja:'Hoja de trabajo',ejercicio:'Ejercicio',material:'Material',sesion:'Sesión grabada',otro:'Otro'})[m.categoria]+' · '+m.tipo+(m.subido_por==='alumno'?' · subido por el alumno':''))),m.ruta?abre(m.ruta):null,
+      el('button',{class:'btn btn-red btn-sm',type:'button',onclick:async()=>{if(!confirm('¿Quitar este material del alumno?'))return;const r=await api('/rest/v1/ac_materiales?id=eq.'+m.id,{method:'DELETE',headers:{Prefer:'return=minimal'}});if(!r.ok){toast(await errText(r));return}AC.list.mat=AC.list.mat.filter(x=>x.id!==m.id);pintar()}},'Quitar'))));
+    dips.forEach(d=>ar.append(el('div',{class:'fc-it'},el('span',{},el('b',{style:'font-weight:600'},'🎖️ '+d.titulo),el('small',{style:'display:block;opacity:.75'},'Diploma'+(d.nivel?' · '+d.nivel:'')+(d.fecha?' · '+d.fecha:''))),d.ruta?abre(d.ruta):null)));
+    const am=el('details',{class:'fc-mini'},el('summary',{style:'cursor:pointer;font-weight:700'},'Subir archivo o enlace'));
+    const MF=[{k:'titulo',l:'Título',req:1},{k:'categoria',l:'Qué es',t:'sel',o:[['material','Material de estudio'],['hoja','Hoja de trabajo'],['ejercicio','Ejercicio'],['sesion','Sesión / clase grabada'],['otro','Otro']],def:'material'},{k:'tipo',l:'Tipo',t:'sel',o:[['pdf','PDF'],['audio','Audio'],['video','Video'],['imagen','Imagen'],['enlace','Enlace'],['otro','Otro']],def:'pdf'}];
+    MF.forEach(f=>am.append(acField(f,f.def,'fdm')));
+    const mf=el('input',{type:'file',accept:'.pdf,.mp3,.m4a,.wav,.mp4,.mov,.png,.jpg,.jpeg,.webp,.zip,.docx,.pptx,.xlsx'}),mu=el('input',{type:'text',placeholder:'…o pega un enlace (YouTube, Drive…)'});
+    am.append(el('div',{class:'field'},el('label',{},'Archivo (máx. 25 MB)'),mf,mu));
+    am.append(el('div',{class:'fc-acts'},el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:async(ev)=>{
+      const body={estudiante_id:a.id,subido_por:'academy'};for(const f of MF){const v=acVal(f,'fdm');if(f.req&&!v){toast('Falta: '+f.l);return}body[f.k]=v}
+      const btn=ev.currentTarget;btn.disabled=true;
+      try{
+        if(mf.files[0]){const file=mf.files[0];if(!a.carpeta){toast('Este alumno aún no tiene carpeta en R2 (Archivos › Sincronizar carpetas)');return}
+          if(file.size>25*1024*1024)throw new Error('El archivo pasa de 25 MB');await matArbol();toast('Subiendo…');body.ruta=(await matSubirKey(file,'privado',a.carpeta+'material/'+matNombre(Date.now()+'-'+file.name))).key}
+        else if(mu.value.trim())body.ruta=mu.value.trim();else{toast('Sube un archivo o pega un enlace');return}
+        const r=await api('/rest/v1/ac_materiales',{method:'POST',body,headers:{Prefer:'return=representation'}});if(!r.ok){toast(await errText(r));return}
+        const j=await r.json();(AC.list.mat=AC.list.mat||[]).unshift(j[0]||body);toast('Archivo guardado');pintar()}
+      catch(e){toast(e.message||'No se pudo guardar')}finally{btn.disabled=false}}},'Guardar')));
+    ar.append(am);D.body.append(ar);
     D.body.append(el('div',{class:'fc-sec'},el('h4',{},'Acceso'),el('small',{class:'muted'},accTxt('alumno','estudiante_id',a.id)),
       el('div',{class:'fc-acts'},el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:()=>{D.cerrar();AC.tabAlu=a.id;AC.sel.ac='tabl';showTab('aca');renderGrp('ac')}},'Abrir tablero y clases'),
         el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>{D.cerrar();tabIr('acc',a.id);showTab('aca')}},'Gestionar acceso'))));
