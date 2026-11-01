@@ -14,7 +14,15 @@
   const PHI = 1.618, RPHI = 1.272;                       // proporción áurea y su raíz: jerarquía de tamaños
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const lerp = (a, b, t) => a + (b - a) * t;
-  const FONT = px => '400 ' + px.toFixed(1) + 'px Lato, "Helvetica Neue", Arial, sans-serif';   // siempre Lato Regular
+  const FUENTES = {
+    lato: { n: 'Lato (la de Faro)', css: 'Lato', g: 'Lato:wght@400' },
+    bebas: { n: 'Bebas Neue', css: '"Bebas Neue"', g: 'Bebas+Neue' },
+    montserrat: { n: 'Montserrat', css: 'Montserrat', g: 'Montserrat:wght@400' },
+    cormorant: { n: 'Cormorant Garamond', css: '"Cormorant Garamond"', g: 'Cormorant+Garamond:wght@400' },
+    playfair: { n: 'Playfair Display', css: '"Playfair Display"', g: 'Playfair+Display:wght@400' }
+  };
+  let FAM = 'Lato';
+  const FONT = px => '400 ' + px.toFixed(1) + 'px ' + FAM + ', "Helvetica Neue", Arial, sans-serif';   // Lato Regular por defecto
   const E = {
     out: t => 1 - Math.pow(1 - t, 3),
     outBack: t => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); },
@@ -28,6 +36,17 @@
     grafito: { n: 'Grafito y oro',     txt: '#F5F2EE', acc: '#B8A06A', caja: '#252528', cajaTxt: '#F5F2EE', cajaAcc: '#B8A06A', marca: '#B8A06A', marcaTxt: '#252528', linea: '#B8A06A' },
     borgona: { n: 'Borgoña y marfil',  txt: '#F5F2EE', acc: '#B8A06A', caja: '#8B1A2A', cajaTxt: '#F5F2EE', cajaAcc: '#F5F2EE', marca: '#F5F2EE', marcaTxt: '#8B1A2A', linea: '#B8A06A' }
   };
+  const hex2rgb = h => { h = String(h || '#000000').replace('#', ''); if (h.length === 3) h = h.split('').map(c => c + c).join(''); const n = parseInt(h, 16) || 0; return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+  const lum = h => { const [r, g, b] = hex2rgb(h).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const contraste = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  const sobre = bg => contraste(bg, '#252528') >= contraste(bg, '#F5F2EE') ? '#252528' : '#F5F2EE';
+  function aplicarColores(pal, c) {
+    if (!c) return;
+    if (c.txt) pal.txt = c.txt;
+    if (c.acc) { pal.acc = c.acc; pal.linea = c.acc; pal.marca = c.acc; pal.marcaTxt = sobre(c.acc); pal.cajaAcc = c.acc; }
+    if (c.caja) { pal.caja = c.caja; pal.cajaTxt = sobre(c.caja); if (!c.acc && contraste(pal.cajaAcc, c.caja) < 3) pal.cajaAcc = sobre(c.caja); }
+    if (c.cajaTxt) pal.cajaTxt = c.cajaTxt;
+  }
   const TRANS = { corte: 'Corte directo', fundido: 'Fundido', deslizar: 'Deslizar', zoom: 'Zoom suave', pop: 'Pop' };
 
   /* ---------- íconos (trazo, cuadrícula 24) ---------- */
@@ -126,7 +145,7 @@
       n: 'Pop palabra a palabra', grupo: 'Dinámico', desc: 'Cada palabra salta cuando se dice; la clave crece y se pone dorada.', k: 1, y: 0.70,
       dibujar(g) {
         const { ctx, pal, base, cue } = g; const L = maquetarBal(ctx, cue.palabras, { base, maxW: g.maxW, tam: w => w.en ? base * RPHI : base });
-        eachWord(L, (it, cx, cy) => { const p = clamp((g.t - it.w.s) / 0.24, 0, 1); if (p <= 0) return; dibujaPalabra(ctx, it, cx, cy, it.w.en ? pal.acc : pal.txt, { sc: lerp(0.4, 1, E.outBack(p)), alpha: p * 3 }); });
+        eachWord(L, (it, cx, cy) => { const p = clamp((g.t - it.w.s) / (0.24 / g.v), 0, 1); if (p <= 0) return; dibujaPalabra(ctx, it, cx, cy, it.w.en ? pal.acc : pal.txt, { sc: lerp(1 - 0.6 * g.m, 1, E.outBack(p)), alpha: p * 3 }); });
         return { w: L.w, h: L.h };
       }
     },
@@ -136,8 +155,8 @@
         const { ctx, pal, base, cue } = g; const L = maquetarBal(ctx, cue.palabras, { base, maxW: g.maxW });
         eachWord(L, (it, cx, cy) => {
           const w = it.w; const act = g.t >= w.s && g.t < Math.max(w.e, w.s + 0.18); const antes = g.t < w.s;
-          const p = clamp((g.t - w.s) / 0.14, 0, 1);
-          dibujaPalabra(ctx, it, cx, cy, act || (w.en && !antes) ? pal.acc : pal.txt, { sc: act ? 1 + 0.16 * E.outBack(p) : 1, alpha: antes ? 0.5 : 1 });
+          const p = clamp((g.t - w.s) / (0.14 / g.v), 0, 1);
+          dibujaPalabra(ctx, it, cx, cy, act || (w.en && !antes) ? pal.acc : pal.txt, { sc: act ? 1 + 0.16 * g.m * E.outBack(p) : 1, alpha: antes ? 0.5 : 1 });
         });
         return { w: L.w, h: L.h };
       }
@@ -149,10 +168,10 @@
         eachWord(L, (it, cx, cy) => {
           if (g.t < it.w.s) return; ctx.font = FONT(it.px); const x0 = cx - it.wd / 2; const col = it.w.en ? pal.acc : pal.txt;
           for (let k = 0; k < it.t.length; k++) {
-            const tl = (g.t - it.w.s - k * 0.03) / 0.5; if (tl <= 0) continue; const q = clamp(tl, 0, 1);
+            const tl = (g.t - it.w.s - k * 0.03 / g.v) / (0.5 / g.v); if (tl <= 0) continue; const q = clamp(tl, 0, 1);
             ctx.font = FONT(it.px); const off = ctx.measureText(it.t.slice(0, k)).width;
             ctx.save(); ctx.globalAlpha *= clamp(q * 6, 0, 1); ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = col; sombraOn(ctx, it.px);
-            ctx.fillText(it.t[k], x0 + off, cy - (1 - E.outBounce(q)) * it.px * 1.1); ctx.restore();
+            ctx.fillText(it.t[k], x0 + off, cy - (1 - E.outBounce(q)) * g.m * it.px * 1.1); ctx.restore();
           }
         });
         return { w: L.w, h: L.h };
@@ -164,10 +183,10 @@
         const { ctx, pal, base, cue } = g; const L = maquetarBal(ctx, cue.palabras, { base, maxW: g.maxW });
         L.lines.forEach(l => {
           ctx.save(); ctx.beginPath(); ctx.rect(-l.wd / 2 - base * 0.4, l.y - l.h * 0.62, l.wd + base * 0.8, l.h * 1.24); ctx.clip();
-          l.items.forEach(it => { const p = E.out(clamp((g.t - it.w.s) / 0.32, 0, 1)); if (p <= 0) return; dibujaPalabra(ctx, it, -l.wd / 2 + it.x + it.wd / 2, l.y, it.w.en ? pal.acc : pal.txt, { dy: (1 - p) * l.h * 0.95 }); });
+          l.items.forEach(it => { const p = E.out(clamp((g.t - it.w.s) / (0.32 / g.v), 0, 1)); if (p <= 0) return; dibujaPalabra(ctx, it, -l.wd / 2 + it.x + it.wd / 2, l.y, it.w.en ? pal.acc : pal.txt, { dy: (1 - p) * g.m * l.h * 0.95 }); });
           ctx.restore();
         });
-        const lw = Math.min(L.w, g.maxW) * 0.36 * E.out(clamp(g.tl / 0.5, 0, 1)); const ly = L.h / 2 + base * 0.32;
+        const lw = Math.min(L.w, g.maxW) * 0.36 * E.out(clamp(g.tl / (0.5 / g.v), 0, 1)); const ly = L.h / 2 + base * 0.32;
         ctx.save(); ctx.fillStyle = pal.linea; ctx.fillRect(-lw / 2, ly, lw, Math.max(2, base * 0.05)); ctx.restore();
         return { w: L.w, h: L.h + base * 0.5, dy: base * 0.2 };
       }
@@ -177,12 +196,12 @@
       dibujar(g) {
         const { ctx, pal, base, cue } = g; const L = maquetarBal(ctx, cue.palabras, { base, maxW: g.maxW, tam: w => w.en ? base * 1.08 : base });
         eachWord(L, (it, cx, cy) => {
-          const p = clamp((g.t - it.w.s) / 0.26, 0, 1); if (p <= 0) return;
+          const p = clamp((g.t - it.w.s) / (0.26 / g.v), 0, 1); if (p <= 0) return;
           if (it.w.en) {
             const pad = it.px * 0.22, w = (it.wd + pad * 2) * E.out(p), h = it.px * 1.1;
             ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.4)'; ctx.shadowOffsetY = h * 0.08; ctx.shadowBlur = h * 0.2; ctx.fillStyle = pal.marca; rr(ctx, cx - it.wd / 2 - pad, cy - h / 2, w, h, h * 0.14); ctx.fill(); ctx.restore();
             dibujaPalabra(ctx, it, cx, cy, pal.marcaTxt, { alpha: (p - 0.15) * 4, sombra: false });
-          } else dibujaPalabra(ctx, it, cx, cy, pal.txt, { alpha: p * 3, dy: (1 - E.out(p)) * it.px * 0.25 });
+          } else dibujaPalabra(ctx, it, cx, cy, pal.txt, { alpha: p * 3, dy: (1 - E.out(p)) * g.m * it.px * 0.25 });
         });
         return { w: L.w + base * 0.5, h: L.h + base * 0.2 };
       }
@@ -197,12 +216,12 @@
         const L = resto.length ? maquetarBal(ctx, resto, { base, maxW: g.maxW }) : { lines: [], w: 0, h: 0, items: [] };
         const gapv = resto.length ? base * 0.35 : 0; const total = L.h + gapv + bh; const top = -total / 2;
         L.lines.forEach(l => l.items.forEach(it => {
-          const p = clamp((g.t - it.w.s) / 0.2, 0, 1); if (p <= 0) return;
-          dibujaPalabra(ctx, it, -l.wd / 2 + it.x + it.wd / 2, top + (l.y + L.h / 2), pal.txt, { alpha: p * 3, dy: (1 - E.out(p)) * base * 0.3 });
+          const p = clamp((g.t - it.w.s) / (0.2 / g.v), 0, 1); if (p <= 0) return;
+          dibujaPalabra(ctx, it, -l.wd / 2 + it.x + it.wd / 2, top + (l.y + L.h / 2), pal.txt, { alpha: p * 3, dy: (1 - E.out(p)) * g.m * base * 0.3 });
         }));
-        const p = clamp((g.t - clave.s) / 0.3, 0, 1);
+        const p = clamp((g.t - clave.s) / (0.3 / g.v), 0, 1);
         if (p > 0) {
-          const cy = top + L.h + gapv + bh / 2; ctx.save(); ctx.translate(0, cy); const sc = lerp(0.5, 1, E.outBack(p)); ctx.scale(sc, sc); ctx.globalAlpha *= clamp(p * 4, 0, 1);
+          const cy = top + L.h + gapv + bh / 2; ctx.save(); ctx.translate(0, cy); const sc = lerp(1 - 0.5 * g.m, 1, E.outBack(p)); ctx.scale(sc, sc); ctx.globalAlpha *= clamp(p * 4, 0, 1);
           caja(ctx, -bw / 2, -bh / 2, bw, bh, bh * 0.16, pal.caja); texto(ctx, clave.t, 0, px * 0.02, px, pal.cajaAcc, { sombra: false });
           ctx.restore();
         }
@@ -214,17 +233,17 @@
       dibujar(g) {
         const { ctx, pal, base, cue } = g; const L = maquetarBal(ctx, cue.palabras, { base, maxW: g.maxW * 0.8 });
         const pad = base * 0.55, bar = base * 0.14; const bw = L.w + pad * 2 + bar, bh = L.h + pad * 0.95;
-        const p = E.out(clamp(g.tl / 0.36, 0, 1)); ctx.save(); ctx.translate(-(1 - p) * g.W * 0.12, 0); ctx.globalAlpha *= clamp(p * 2, 0, 1);
+        const p = E.out(clamp(g.tl / (0.36 / g.v), 0, 1)); ctx.save(); ctx.translate(-(1 - p) * g.m * g.W * 0.12, 0); ctx.globalAlpha *= clamp(p * 2, 0, 1);
         caja(ctx, -bw / 2, -bh / 2, bw, bh, base * 0.12, pal.caja); ctx.fillStyle = pal.linea; rr(ctx, -bw / 2 + base * 0.12, -bh / 2 + base * 0.2, bar, bh - base * 0.4, bar / 2); ctx.fill();
         ctx.translate(bar / 2, 0);
-        eachWord(L, (it, cx, cy) => { const q = clamp((g.t - it.w.s) / 0.2, 0, 1); dibujaPalabra(ctx, it, cx, cy, it.w.en ? pal.cajaAcc : pal.cajaTxt, { alpha: 0.15 + q * 0.85, sombra: false }); });
+        eachWord(L, (it, cx, cy) => { const q = clamp((g.t - it.w.s) / (0.2 / g.v), 0, 1); dibujaPalabra(ctx, it, cx, cy, it.w.en ? pal.cajaAcc : pal.cajaTxt, { alpha: 0.15 + q * 0.85, sombra: false }); });
         ctx.restore(); return { w: bw, h: bh };
       }
     },
     enfoque: {
       n: 'Cine · letras que se juntan', grupo: 'Elegante', desc: 'Mayúsculas finas con el espaciado que se cierra, y una línea que se dibuja.', k: 0.84, y: 0.70,
       dibujar(g) {
-        const { ctx, pal, base, cue } = g; const sp1 = 0.08, p = E.out(clamp(g.tl / 0.9, 0, 1)); const sp = lerp(0.5, sp1, p);
+        const { ctx, pal, base, cue } = g; const sp1 = 0.08, p = E.out(clamp(g.tl / (0.9 / g.v), 0, 1)); const sp = lerp(sp1 + 0.42 * g.m, sp1, p);
         const L = maquetarBal(ctx, cue.palabras, { base, maxW: g.maxW, mayus: true, sp: sp1 });
         ctx.save(); ctx.globalAlpha *= clamp(p * 2.2, 0, 1);
         L.lines.forEach(l => {
@@ -235,7 +254,7 @@
             for (let k = 0; k < it.t.length; k++) { ctx.fillText(it.t[k], xx, l.y); xx += ws[i].cw[k] + sp * it.px; } sombraOff(ctx); x += ws[i].w + gap;
           });
         });
-        const lw = L.w * 0.5 * E.out(clamp((g.tl - 0.15) / 0.5, 0, 1)); ctx.fillStyle = pal.linea; ctx.fillRect(-lw / 2, L.h / 2 + base * 0.38, lw, Math.max(2, base * 0.04));
+        const lw = L.w * 0.5 * E.out(clamp((g.tl - 0.15) / (0.5 / g.v), 0, 1)); ctx.fillStyle = pal.linea; ctx.fillRect(-lw / 2, L.h / 2 + base * 0.38, lw, Math.max(2, base * 0.04));
         ctx.restore(); return { w: L.w * 1.15, h: L.h + base * 0.6, dy: base * 0.25 };
       }
     },
@@ -248,8 +267,8 @@
         const filas = grupos.map(gr => { const en = gr.some(w => w.en); let px = en ? base * PHI : base * RPHI * 0.9; const txt = gr.map(w => w.t).join(' '); ctx.font = FONT(px); const wd = ctx.measureText(txt).width; if (wd > g.maxW) px *= g.maxW / wd; ctx.font = FONT(px); return { gr, en, px, txt, wd: ctx.measureText(txt).width }; });
         const H = filas.reduce((a, f) => a + f.px * 1.08, 0); let y = -H / 2, W = 0;
         filas.forEach(f => {
-          const cy = y + f.px * 0.54; y += f.px * 1.08; W = Math.max(W, f.wd); const p = clamp((g.t - f.gr[0].s) / 0.28, 0, 1); if (p <= 0) return;
-          ctx.save(); ctx.translate(0, cy + (1 - E.out(p)) * f.px * 0.5); const sc = lerp(0.7, 1, E.outBack(p)); ctx.scale(sc, sc); ctx.globalAlpha *= clamp(p * 3, 0, 1);
+          const cy = y + f.px * 0.54; y += f.px * 1.08; W = Math.max(W, f.wd); const p = clamp((g.t - f.gr[0].s) / (0.28 / g.v), 0, 1); if (p <= 0) return;
+          ctx.save(); ctx.translate(0, cy + (1 - E.out(p)) * g.m * f.px * 0.5); const sc = lerp(1 - 0.3 * g.m, 1, E.outBack(p)); ctx.scale(sc, sc); ctx.globalAlpha *= clamp(p * 3, 0, 1);
           texto(ctx, f.txt, 0, 0, f.px, f.en ? pal.acc : pal.txt); ctx.restore();
         });
         return { w: W, h: H };
@@ -260,10 +279,10 @@
       dibujar(g) {
         const { ctx, pal, base, cue } = g; const L = maquetarBal(ctx, cue.palabras, { base, maxW: g.maxW });
         eachWord(L, (it, cx, cy) => {
-          const p = clamp((g.t - it.w.s) / 0.22, 0, 1); if (p <= 0) return;
-          dibujaPalabra(ctx, it, cx, cy, pal.txt, { alpha: p * 3, dy: (1 - E.out(p)) * it.px * 0.3 });
+          const p = clamp((g.t - it.w.s) / (0.22 / g.v), 0, 1); if (p <= 0) return;
+          dibujaPalabra(ctx, it, cx, cy, pal.txt, { alpha: p * 3, dy: (1 - E.out(p)) * g.m * it.px * 0.3 });
           if (it.w.en) {
-            const q = E.inOut(clamp((g.t - it.w.s - 0.1) / 0.38, 0, 1)); if (q <= 0) return; const x0 = cx - it.wd / 2, y0 = cy + it.px * 0.5, N = 24;
+            const q = E.inOut(clamp((g.t - it.w.s - 0.1) / (0.38 / g.v), 0, 1)); if (q <= 0) return; const x0 = cx - it.wd / 2, y0 = cy + it.px * 0.5, N = 24;
             ctx.save(); ctx.beginPath(); for (let i = 0; i <= N * q; i++) { const u = i / N; const x = x0 + u * it.wd, y = y0 + Math.sin(u * Math.PI * 2) * it.px * 0.03 + u * it.px * 0.02; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
             ctx.lineWidth = Math.max(2, it.px * 0.085); ctx.lineCap = 'round'; ctx.strokeStyle = pal.acc; ctx.stroke(); ctx.restore();
           }
@@ -283,7 +302,7 @@
       dibujar(g) {
         const { ctx, pal, base, cue } = g; const L = maquetarBal(ctx, cue.palabras, { base, maxW: g.maxW * 0.88 });
         const pad = base * 0.6, bw = L.w + pad * 2, bh = L.h + pad * 1.0;
-        const p = clamp(g.tl / 0.22, 0, 1); ctx.save(); ctx.scale(lerp(0.88, 1, E.outBack(p)), lerp(0.88, 1, E.outBack(p))); ctx.globalAlpha *= clamp(p * 3, 0, 1);
+        const p = clamp(g.tl / (0.22 / g.v), 0, 1); ctx.save(); ctx.scale(lerp(1 - 0.12 * g.m, 1, E.outBack(p)), lerp(1 - 0.12 * g.m, 1, E.outBack(p))); ctx.globalAlpha *= clamp(p * 3, 0, 1);
         caja(ctx, -bw / 2, -bh / 2, bw, bh, base * 0.16, pal.caja);
         let lastX = 0, lastY = 0, hay = false;
         eachWord(L, (it, cx, cy) => {
@@ -301,22 +320,22 @@
 
   /* ---------- dibujar una frase (con la transición elegida) ---------- */
   function dibujar(ctx, W, H, cue, t, proy) {
-    proy = proy || {}; const est = ESTILOS[cue.estilo] || ESTILOS.pop; const pal = PALETAS[cue.paleta || proy.paleta] || PALETAS.marfil;
+    proy = proy || {}; const est = ESTILOS[cue.estilo] || ESTILOS.pop; const pal = Object.assign({}, PALETAS[cue.paleta || proy.paleta] || PALETAS.marfil); aplicarColores(pal, Object.assign({}, proy.col || {}, cue.col || {})); FAM = (FUENTES[cue.fuente || proy.fuente] || FUENTES.lato).css;
     const tl = t - cue.s, dur = Math.max(0.2, cue.e - cue.s); if (t < cue.s - 0.001 || t > cue.e + 0.001) return null;
     const esc = cue.escala || 1; const base = Math.min(W * 0.088, H * 0.058) * esc * est.k; const maxW = W < H ? W * 0.84 : W * 0.62;
     const pos = cue.pos || { x: 0.5, y: est.y }; const trans = cue.trans || proy.trans || 'fundido';
-    const pIn = clamp(tl / 0.22, 0, 1), pOut = clamp((cue.e - t) / 0.16, 0, 1); let al = 1, dx = 0, dy = 0, sc = 1;
+    const v = clamp(cue.vel || 1, 0.4, 2.5), m = cue.mov == null ? 1 : clamp(cue.mov, 0, 2); const pIn = clamp(tl / (0.22 / v), 0, 1), pOut = clamp((cue.e - t) / (0.16 / v), 0, 1); let al = 1, dx = 0, dy = 0, sc = 1;
     if (trans === 'fundido') al = Math.min(pIn, pOut);
-    else if (trans === 'deslizar') { al = Math.min(pIn, pOut); dy = (1 - E.out(pIn)) * H * 0.05 - (1 - pOut) * H * 0.025; }
-    else if (trans === 'zoom') { al = Math.min(pIn, pOut); sc = lerp(0.84, 1, E.out(pIn)) * lerp(1.07, 1, pOut); }
-    else if (trans === 'pop') { sc = lerp(0.6, 1, E.outBack(pIn)); al = Math.min(clamp(pIn * 3, 0, 1), pOut); }
+    else if (trans === 'deslizar') { al = Math.min(pIn, pOut); dy = ((1 - E.out(pIn)) * H * 0.05 - (1 - pOut) * H * 0.025) * m; }
+    else if (trans === 'zoom') { al = Math.min(pIn, pOut); sc = lerp(1 - 0.16 * m, 1, E.out(pIn)) * lerp(1 + 0.07 * m, 1, pOut); }
+    else if (trans === 'pop') { sc = lerp(1 - 0.4 * m, 1, E.outBack(pIn)); al = Math.min(clamp(pIn * 3, 0, 1), pOut); }
     ctx.save(); ctx.globalAlpha *= al; ctx.translate(pos.x * W + dx, pos.y * H + dy); ctx.scale(sc, sc);
-    const g = { ctx, W, H, cue, t, tl, dur, pal, base, maxW };
+    const g = { ctx, W, H, cue, t, tl, dur, pal, base, maxW, v, m };
     const b = est.dibujar(g) || { w: 0, h: 0 }; const ddy = b.dy || 0; let top = -b.h / 2 + ddy;
     if (cue.icono && ICONOS[cue.icono]) {
       const r = base * 0.95, ip = clamp((tl - 0.05) / 0.3, 0, 1);
       if (ip > 0) {
-        const cy = top - r * 1.25; ctx.save(); ctx.translate(0, cy); const s2 = lerp(0.4, 1, E.outBack(ip)); ctx.scale(s2, s2); ctx.globalAlpha *= clamp(ip * 3, 0, 1);
+        const cy = top - r * 1.25; ctx.save(); ctx.translate(0, cy); const s2 = lerp(1 - 0.6 * m, 1, E.outBack(ip)); ctx.scale(s2, s2); ctx.globalAlpha *= clamp(ip * 3, 0, 1);
         ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.42)'; ctx.shadowOffsetY = r * 0.14; ctx.shadowBlur = r * 0.4; ctx.fillStyle = pal.caja; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill(); ctx.restore();
         ctx.lineWidth = Math.max(1.5, r * 0.05); ctx.strokeStyle = pal.linea; ctx.beginPath(); ctx.arc(0, 0, r - ctx.lineWidth * 1.4, 0, Math.PI * 2); ctx.stroke();
         dibujarIcono(ctx, cue.icono, 0, 0, r * 1.05, pal.cajaAcc); ctx.restore();
@@ -326,6 +345,21 @@
     ctx.restore();
     const cx = pos.x * W + dx, cy = pos.y * H + dy, bot = b.h / 2 + ddy;
     return { x: cx - b.w * sc / 2, y: cy + top * sc, w: b.w * sc, h: (bot - top) * sc };
+  }
+
+  /* motion blur real: promedia varios instantes dentro del "obturador" (sirve igual en la vista previa y en la exportación) */
+  const _bl = {};
+  function dibujarBlur(ctx, W, H, cue, t, proy, N) {
+    const b = clamp(cue.blur || 0, 0, 1); N = N || 6;
+    if (b <= 0.01 || N < 2 || typeof document === 'undefined') return dibujar(ctx, W, H, cue, t, proy);
+    if (!_bl.tmp || _bl.W !== W || _bl.H !== H) { _bl.tmp = document.createElement('canvas'); _bl.acc = document.createElement('canvas'); _bl.tmp.width = _bl.acc.width = W; _bl.tmp.height = _bl.acc.height = H; _bl.W = W; _bl.H = H; }
+    const ct = _bl.tmp.getContext('2d'), ca = _bl.acc.getContext('2d'); ca.setTransform(1, 0, 0, 1, 0, 0); ca.globalCompositeOperation = 'source-over'; ca.globalAlpha = 1; ca.clearRect(0, 0, W, H); ca.globalCompositeOperation = 'lighter';
+    const win = b / 30; let bb = null;
+    for (let i = 0; i < N; i++) {
+      const ti = clamp(t - win / 2 + win * (i + 0.5) / N, cue.s, cue.e); ct.setTransform(1, 0, 0, 1, 0, 0); ct.clearRect(0, 0, W, H);
+      const r = dibujar(ct, W, H, cue, ti, proy); if (i === Math.floor(N / 2)) bb = r; ca.globalAlpha = 1 / N; ca.drawImage(_bl.tmp, 0, 0);
+    }
+    ctx.drawImage(_bl.acc, 0, 0); return bb || dibujar(document.createElement('canvas').getContext('2d'), W, H, cue, t, proy);
   }
 
   /* ---------- análisis del texto ---------- */
@@ -447,5 +481,5 @@
     }); return out;
   }
 
-  root.FaroSubsMotor = { PHI, RPHI, ESTILOS, GRUPOS, PALETAS, TRANS, ICONOS, ICONOS_N, PROPUESTAS, dibujar, dibujarIcono, analizar, propuesta, repartirTexto, detectarVoz, aSRT, deSRT, limpiar, nuevoId, puntaje, iconoDe, norm };
+  root.FaroSubsMotor = { PHI, RPHI, FUENTES, contraste, sobre, aplicarColores, dibujarBlur, ESTILOS, GRUPOS, PALETAS, TRANS, ICONOS, ICONOS_N, PROPUESTAS, dibujar, dibujarIcono, analizar, propuesta, repartirTexto, detectarVoz, aSRT, deSRT, limpiar, nuevoId, puntaje, iconoDe, norm };
 })(typeof window !== 'undefined' ? window : globalThis);

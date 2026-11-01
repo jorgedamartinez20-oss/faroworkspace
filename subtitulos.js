@@ -82,7 +82,7 @@
 
   /* ---------- guardar / restaurar ---------- */
   function guardar() {
-    try { localStorage.setItem(KEY, JSON.stringify({ nombre: S.file && S.file.name, dur: S.dur, paleta: S.paleta, trans: S.trans, prop: S.prop, cues: S.cues })); } catch (e) {}
+    try { localStorage.setItem(KEY, JSON.stringify({ mod: Date.now(), nombre: S.file && S.file.name, dur: S.dur, paleta: S.paleta, trans: S.trans, prop: S.prop, cues: S.cues })); } catch (e) {}
   }
   function restaurar() {
     try {
@@ -169,7 +169,7 @@
     if (S.guias) { ctx2.save(); ctx2.setLineDash([6, 6]); ctx2.strokeStyle = 'rgba(245,242,238,.35)'; ctx2.lineWidth = 1; ctx2.strokeRect(W * 0.06, H * 0.12, W * 0.88, H * 0.64); ctx2.restore(); }
     const c = activaEn(t); last = null;
     if (c) {
-      last = M.dibujar(ctx2, W, H, c, t, proy());
+      last = M.dibujarBlur(ctx2, W, H, c, t, proy(), 4);
       if (last && c.id === S.sel) { ctx2.save(); ctx2.setLineDash([8, 6]); ctx2.lineWidth = Math.max(1.5, W * 0.003); ctx2.strokeStyle = '#B8A06A'; ctx2.strokeRect(last.x - 8, last.y - 8, last.w + 16, last.h + 16); ctx2.restore(); }
     }
     const pl = $('#sb-ph', host), tl = $('.sb-tl', host); if (pl && tl && S.dur) pl.style.left = (t / S.dur * 100) + '%';
@@ -264,7 +264,7 @@
   }
   async function exportarSecuencia() {
     if (!S.cues.length || S.ocupado) return; const { w, h } = medidasExport(), fps = S.expFps, N = Math.ceil(S.dur * fps), nombre = base() + '-subtitulos';
-    try { await document.fonts.load('400 40px Lato'); } catch (e) {}
+    await fuentesListas();
     let dir = null, zip = null;
     if (window.showDirectoryPicker) { try { const raiz = await window.showDirectoryPicker({ mode: 'readwrite' }); dir = await raiz.getDirectoryHandle(nombre, { create: true }); } catch (e) { if (e && e.name === 'AbortError') return; dir = null; } }
     if (!dir) zip = zipSimple();
@@ -272,20 +272,81 @@
     try {
       for (let i = 0; i < N; i++) {
         if (S.cancela) throw new Error('Cancelado'); const t = i / fps; x.clearRect(0, 0, w, h);
-        S.cues.forEach(cc => { if (t >= cc.s && t <= cc.e) M.dibujar(x, w, h, cc, t, proy()); });
+        S.cues.forEach(cc => { if (t >= cc.s && t <= cc.e) M.dibujarBlur(x, w, h, cc, t, proy(), 8); });
         const blob = await new Promise(r => c.toBlob(r, 'image/png')); const nom = nombre + '_' + String(i).padStart(5, '0') + '.png';
         if (dir) { const fh = await dir.getFileHandle(nom, { create: true }); const wr = await fh.createWritable(); await wr.write(blob); await wr.close(); } else await zip.add(nombre + '/' + nom, blob);
         if (i % 6 === 0) progreso('Generando imágenes con transparencia… ' + (i + 1) + ' / ' + N, (i + 1) / N * 100);
       }
       if (zip) { const a = el('a', { href: URL.createObjectURL(zip.fin()), download: nombre + '.zip' }); document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000); }
-      aviso(dir ? 'Listo: ' + N + ' imágenes en la carpeta «' + nombre + '»' : 'Listo: ' + N + ' imágenes en un .zip (descomprímelo)');
+      S.avisoExp = true; aviso(dir ? 'Listo: ' + N + ' imágenes en la carpeta «' + nombre + '»' : 'Listo: ' + N + ' imágenes en un .zip (descomprímelo)');
     } catch (e) { aviso(e && e.message === 'Cancelado' ? 'Exportación cancelada' : 'No pude exportar: ' + (e && e.message)); console.error(e); }
-    finally { S.ocupado = false; progreso(null); pintarBotones(); }
+    finally { S.ocupado = false; progreso(null); pintarBotones(); if (S.avisoExp) pintar(); }
+  }
+
+
+  /* ---------- tipografías ---------- */
+  const fuentesCargadas = new Set(['lato']);
+  function cargaFuente(k) {
+    const F = M.FUENTES[k]; if (!F || fuentesCargadas.has(k)) return; fuentesCargadas.add(k);
+    document.head.append(el('link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=' + F.g + '&display=swap' }));
+  }
+  async function fuentesListas() {
+    const usadas = new Set(['lato']); S.cues.forEach(c => { if (c.fuente) usadas.add(c.fuente); });
+    for (const k of usadas) { cargaFuente(k); try { await document.fonts.load('400 40px ' + M.FUENTES[k].css); } catch (e) {} }
+  }
+
+  /* ---------- .mov transparente (QuickTime Animation · el que funciona en Premiere) ---------- */
+  async function exportarMov() {
+    if (!S.cues.length || S.ocupado) return; if (!window.FaroSubsMov) { aviso('Falta el módulo de .mov'); return; }
+    const { w, h } = medidasExport(), fps = S.expFps, N = Math.ceil(S.dur * fps), nombre = base() + '-subtitulos';
+    let fh = null;
+    if (window.showSaveFilePicker) { try { fh = await window.showSaveFilePicker({ suggestedName: nombre + '.mov', types: [{ description: 'Video QuickTime', accept: { 'video/quicktime': ['.mov'] } }] }); } catch (e) { if (e && e.name === 'AbortError') return; fh = null; } }
+    await fuentesListas(); const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d', { willReadFrequently: true }); const mv = FaroSubsMov.crear(w, h, fps);
+    S.ocupado = true; S.cancela = false; pintarBotones(); video.pause();
+    try {
+      for (let i = 0; i < N; i++) {
+        if (S.cancela) throw new Error('Cancelado'); const t = i / fps; x.clearRect(0, 0, w, h);
+        S.cues.forEach(cc => { if (t >= cc.s && t <= cc.e) M.dibujarBlur(x, w, h, cc, t, proy(), 8); });
+        mv.agregar(x.getImageData(0, 0, w, h).data);
+        if (i % 4 === 0) { progreso('Creando el .mov con transparencia… ' + (i + 1) + ' / ' + N + ' · ' + Math.round(mv.bytes / 1048576) + ' MB', (i + 1) / N * 100); await new Promise(r => setTimeout(r, 0)); }
+      }
+      progreso('Cerrando el archivo…', null); const blob = mv.fin();
+      if (fh) { const wr = await fh.createWritable(); await wr.write(blob); await wr.close(); } else { const a = el('a', { href: URL.createObjectURL(blob), download: nombre + '.mov' }); document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 8000); }
+      S.avisoExp = true; aviso('Listo: ' + nombre + '.mov (' + Math.round(blob.size / 1048576) + ' MB, ' + w + '×' + h + ' a ' + fps + ' fps)');
+    } catch (e) { aviso(e && e.message === 'Cancelado' ? 'Exportación cancelada' : 'No pude crear el .mov: ' + (e && e.message)); console.error(e); }
+    finally { S.ocupado = false; progreso(null); pintarBotones(); if (S.avisoExp) pintar(); }
+  }
+
+  /* ---------- borrado: automático (24 h) y manual ---------- */
+  const CFG = 'faro_subs_cfg', DIA = 24 * 3600e3;
+  const cfg = () => { try { return JSON.parse(localStorage.getItem(CFG) || '{}'); } catch (e) { return {}; } };
+  const setCfg = o => { try { localStorage.setItem(CFG, JSON.stringify(Object.assign(cfg(), o))); } catch (e) {} };
+  async function borrarModelo() { let n = 0; try { const ks = await caches.keys(); for (const k of ks) if (/transformers|onnx|huggingface/i.test(k)) { await caches.delete(k); n++; } } catch (e) {} return n; }
+  function limpiarTodo(conModelo) {
+    if (S.url) { try { URL.revokeObjectURL(S.url); } catch (e) {} }
+    S.url = ''; S.file = null; S.dur = 0; S.vw = S.vh = 0; S.cues = []; S.sel = null; S.raw = []; S.prop = ''; S.msg = ''; S.avisoExp = false; poster = null;
+    try { video.pause(); video.removeAttribute('src'); video.load(); } catch (e) {}
+    try { localStorage.removeItem(KEY); } catch (e) {}
+    return conModelo ? borrarModelo() : Promise.resolve(0);
+  }
+  function revisarCaducidad() {
+    if ((cfg().auto || '24h') !== '24h') return false; const d = guardado();
+    if (d && d.mod && Date.now() - d.mod > DIA) { limpiarTodo(false); aviso('Borré el proyecto de subtítulos anterior: pasó más de un día sin tocarlo'); if (host && host.isConnected) pintar(); return true; } return false;
+  }
+  function cuentaTxt() {
+    if ((cfg().auto || '24h') !== '24h') return 'No se borra solo';
+    const d = guardado(); if (!d || !d.mod) return 'Nada guardado todavía'; const r = d.mod + DIA - Date.now(); if (r <= 0) return 'Se borra en cualquier momento';
+    const hh = Math.floor(r / 3600e3), mm = Math.floor(r % 3600e3 / 60e3); return 'Se borra solo en ' + hh + ' h ' + mm + ' min';
+  }
+  function actualizaCuenta() { const t = $('#sb-cd', host); if (t) t.textContent = cuentaTxt(); }
+  async function borrarAhora(conModelo) {
+    if (!window.confirm('¿Borrar el proyecto y quitar el video de la memoria?\n\nAsegúrate de haber descargado tu .mov o tus imágenes. Esto no se puede deshacer.')) return;
+    const n = await limpiarTodo(conModelo); pintar(); aviso('Todo borrado' + (conModelo ? (n ? ' (también el modelo de voz)' : '') : ''));
   }
 
   /* ---------- pantalla ---------- */
   function sel(opts, val, fn) { const s = el('select', { onchange: e => fn(e.target.value) }, opts.map(o => el('option', { value: o[0] }, o[1]))); s.value = val; return s; }
-  function pintarBotones() { const b = $('#sb-trans', host); if (b) { b.disabled = S.ocupado || !S.file; } const r = $('#sb-rec', host); if (r) r.disabled = !!rec || !S.cues.length; const q = $('#sb-seq', host); if (q) q.disabled = S.ocupado || !S.cues.length; }
+  function pintarBotones() { const b = $('#sb-trans', host); if (b) { b.disabled = S.ocupado || !S.file; } const r = $('#sb-rec', host); if (r) r.disabled = !!rec || !S.cues.length; const q = $('#sb-seq', host); if (q) q.disabled = S.ocupado || !S.cues.length; const q2 = $('#sb-mov', host); if (q2) q2.disabled = S.ocupado || !S.cues.length; }
   function pintarSel() { const z = $('#sb-selpanel', host); if (z) { z.replaceChildren(panelSel()); } $$cues(); }
   function $$cues() { host.querySelectorAll('.sb-cue').forEach(n => n.classList.toggle('sel', n.dataset.id === S.sel)); host.querySelectorAll('.sb-tl i').forEach(n => n.classList.toggle('sel', n.dataset.id === S.sel)); host.querySelectorAll('.sb-th').forEach(n => n.classList.toggle('on', !!selCue() && n.dataset.id === selCue().estilo)); }
   function panelSel() {
@@ -298,7 +359,26 @@
         el('label', { class: 'sb-l' }, 'Paleta', sel([['', 'Igual que el proyecto']].concat(Object.keys(M.PALETAS).map(k => [k, M.PALETAS[k].n])), c.paleta && c.paleta !== S.paleta ? c.paleta : (c.paleta || ''), v => { c.paleta = v || null; guardar(); })),
         el('label', { class: 'sb-l' }, 'Transición', sel([['', 'Igual que el proyecto']].concat(Object.keys(M.TRANS).map(k => [k, M.TRANS[k]])), c.trans || '', v => { c.trans = v || null; guardar(); })),
         el('label', { class: 'sb-l' }, 'Ícono', sel([['', 'Sin ícono']].concat(Object.keys(M.ICONOS).map(k => [k, M.ICONOS_N[k]])), c.icono || '', v => { c.icono = v || null; guardar(); }))),
-      el('div', { class: 'sb-row' }, btn('Volver a su posición', 'move', () => { c.pos = null; c.escala = 1; guardar(); pintarSel(); }), btn('Reproducir frase', 'play', () => reproducirFrase(c))));
+      el('div', { class: 'sb-gh' }, 'Tipografía y animación'),
+      el('div', { class: 'sb-row' }, el('label', { class: 'sb-l' }, 'Tipografía', sel(Object.keys(M.FUENTES).map(k => [k, M.FUENTES[k].n]), c.fuente || 'lato', v => { c.fuente = v === 'lato' ? null : v; cargaFuente(v); guardar(); }))),
+      rango('Velocidad de la animación', c, 'vel', 0.5, 2, 0.05, 1, v => v.toFixed(2) + '×'),
+      rango('Movimiento (entradas, rebotes, deslizar)', c, 'mov', 0, 2, 0.05, 1, v => Math.round(v * 100) + '%'),
+      rango('Motion blur', c, 'blur', 0, 1, 0.05, 0, v => v < 0.05 ? 'Apagado' : Math.round(v * 100) + '%'),
+      el('div', { class: 'sb-gh' }, 'Colores'), colorFila(c),
+      el('div', { class: 'sb-row' }, btn('Volver a su posición', 'move', () => { c.pos = null; c.escala = 1; guardar(); pintarSel(); }), btn('Reproducir frase', 'play', () => reproducirFrase(c)),
+        btn('Aplicar tipografía, colores y animación a todas', 'style', () => { S.cues.forEach(q => { q.fuente = c.fuente || null; q.col = c.col ? Object.assign({}, c.col) : null; q.vel = c.vel; q.mov = c.mov; q.blur = c.blur; }); guardar(); aviso('Aplicado a todas las frases'); })));
+  }
+  function rango(nombre, c, k, min, max, paso, def, fm) {
+    const val = el('span', { class: 'sb-tag' }, fm(c[k] == null ? def : c[k]));
+    return el('label', { class: 'sb-l' }, el('span', { class: 'sb-row' }, nombre, val), el('input', { type: 'range', min, max, step: paso, value: c[k] == null ? def : c[k], oninput: e => { c[k] = +e.target.value; val.textContent = fm(c[k]); guardar(); } }));
+  }
+  function colorFila(c) {
+    const efectiva = () => { const p = Object.assign({}, M.PALETAS[c.paleta || S.paleta] || M.PALETAS.marfil); M.aplicarColores(p, c.col); return p; };
+    const defs = [['txt', 'Texto'], ['acc', 'Palabra clave'], ['caja', 'Caja o fondo'], ['cajaTxt', 'Texto en caja']];
+    const aviso1 = el('p', { class: 'muted', style: 'margin:4px 0 0;font-size:.84rem' });
+    const revisa = () => { const p = efectiva(); const m = []; if (M.contraste(p.cajaTxt, p.caja) < 4.5) m.push('el texto dentro de la caja'); if (M.contraste(p.cajaAcc, p.caja) < 3) m.push('la palabra clave dentro de la caja'); aviso1.textContent = m.length ? 'Poco contraste en ' + m.join(' y ') + ': elige colores más distintos (marfil, grafito, oro y borgoña siempre combinan bien).' : ''; aviso1.style.color = m.length ? 'var(--red-t,#A3283A)' : ''; };
+    const ins = defs.map(([k, n]) => el('label', { class: 'sb-l' }, n, el('input', { type: 'color', value: (c.col && c.col[k]) || efectiva()[k], oninput: e => { c.col = c.col || {}; c.col[k] = e.target.value; guardar(); revisa(); } })));
+    revisa(); return el('div', {}, el('div', { class: 'sb-row' }, ins, btn('Colores de la paleta', 'x', () => { c.col = null; guardar(); pintarSel(); })), aviso1);
   }
   function filaCue(c, i) {
     const row = el('div', { class: 'sb-cue' + (c.id === S.sel ? ' sel' : ''), 'data-id': c.id, onclick: e => { if (/^(INPUT|BUTTON|SELECT)$/.test(e.target.tagName) || e.target.closest('button')) return; S.sel = c.id; irA(c.s + (c.e - c.s) * 0.7); pintarSel(); } });
@@ -320,7 +400,7 @@
     return el('div', { class: 'sb-st' }, el('span', {}, S.cues.length + ' frases'), el('span', {}, 'Gancho: ' + gan + ' frase' + (gan === 1 ? '' : 's') + ' (primeros ~5 s)'), el('span', {}, ic + ' con ícono sugerido'), el('span', {}, 'Claves: ' + (claves.join(' · ') || '—')));
   }
   function pintar() {
-    css(); const guard = guardado(); thumbs.length = 0;
+    css(); const guard = guardado(); thumbs.length = 0; S.cues.forEach(c => { if (c.fuente) cargaFuente(c.fuente); });
     const stage = el('div', { class: 'sb-stage', style: S.vw ? '--ar:' + (S.vw / S.vh) : '' }, video, cv, S.file ? null : el('div', { class: 'sb-vacio' }, 'Carga un video en baja calidad para empezar'));
     const izq = el('div', { class: 'sb-izq' }, el('div', { class: 'card' }, stage,
       el('div', { class: 'sb-row', style: 'justify-content:center;margin-top:10px' }, btn('', 'back', () => irA((video.currentTime || 0) - 2), 'btn-ghost', '−2 s'), btn('', 'play', () => { if (video.paused) video.play(); else video.pause(); }, 'btn-gold', 'Reproducir / pausa'), btn('', 'fwd', () => irA((video.currentTime || 0) + 2), 'btn-ghost', '+2 s'), el('span', { class: 'muted', id: 'sb-t' }, '0:00.0 / 0:00.0')),
@@ -367,15 +447,23 @@
     const cExp = el('div', { class: 'card' }, el('h2', {}, el('span', { class: 'n' }, '6'), 'Exportar'),
       el('p', { class: 'muted', style: 'margin:0 0 10px' }, 'Cuando quedes conforme, descarga el proyecto y pídeme en el chat el overlay transparente (.mov) a la resolución original de tu video; ahí va el mismo diseño, sin perder calidad.'),
       el('div', { class: 'sb-row' }, btn('Descargar proyecto (.json)', 'down', () => { descargar(base() + '-subtitulos.json', 'application/json', proyectoJSON()); aviso('Súbelo al chat y escríbeme «overlay» para generarlo en calidad pro'); }, 'btn-gold'),
+        el('button', { type: 'button', class: 'btn btn-sm btn-gold', id: 'sb-mov', onclick: exportarMov, disabled: !S.cues.length || S.ocupado }, ico('film', 16), ' Video .mov transparente (Premiere)'),
         el('button', { type: 'button', class: 'btn btn-sm btn-gold', id: 'sb-seq', onclick: exportarSecuencia, disabled: !S.cues.length || S.ocupado }, ico('film', 16), ' Secuencia PNG transparente'),
         btn('Subtítulos .srt', 'file', () => descargar(base() + '.srt', 'text/plain', M.aSRT(S.cues))), btn('Copiar texto', 'copy', () => { try { navigator.clipboard.writeText(S.cues.map(c => c.palabras.map(w => w.t).join(' ')).join('\n')); aviso('Texto copiado'); } catch (e) {} }),
         el('button', { type: 'button', class: 'btn btn-sm btn-ghost', id: 'sb-rec', onclick: grabarRevision, disabled: !S.cues.length }, ico('rec', 16), ' Video de revisión (.webm)')),
       el('div', { class: 'sb-row', style: 'margin-top:10px' }, el('label', { class: 'sb-l' }, 'Tamaño de la secuencia', sel([['proxy', 'Igual que el video cargado'], ['hd', 'HD'], ['fhd', 'Full HD (recomendado)'], ['uhd', '4K']], S.expRes, v => { S.expRes = v; const m = medidasExport(); const t = $('#sb-med', host); if (t) t.textContent = m.w + '×' + m.h; })),
         el('label', { class: 'sb-l' }, 'Cuadros por segundo', sel([[24, '24'], [25, '25'], [30, '30'], [60, '60']], S.expFps, v => { S.expFps = +v; })), el('span', { class: 'sb-tag', id: 'sb-med', style: 'align-self:end' }, medidasExport().w + '×' + medidasExport().h), btn('Cancelar', 'x', () => { S.cancela = true; })),
-      el('p', { class: 'muted', style: 'margin:8px 0 0;font-size:.86rem' }, 'La secuencia es una imagen PNG por cuadro con fondo transparente, desde el segundo 0 del video. En Chrome elige una carpeta; en otros navegadores baja un .zip. Ponle el mismo fps que tu proyecto. En Premiere: Importar → primera imagen → «Secuencia de imágenes». En DaVinci: arrastra la carpeta al Media Pool.'),
+      el('p', { class: 'muted', style: 'margin:8px 0 0;font-size:.86rem' }, 'El .mov es QuickTime Animation con canal alfa (el mismo formato de tu ffmpeg: qtrle · argb), sin audio. La secuencia es una imagen PNG por cuadro con fondo transparente, desde el segundo 0 del video. En Chrome elige una carpeta; en otros navegadores baja un .zip. Ponle el mismo fps que tu proyecto. En Premiere: Importar → primera imagen → «Secuencia de imágenes». En DaVinci: arrastra la carpeta al Media Pool.'),
       el('p', { class: 'muted', style: 'margin:10px 0 0;font-size:.86rem' }, 'El video de revisión se graba en tiempo real con tu video en baja calidad y los subtítulos quemados; sirve para mostrarlo o aprobarlo, no es el entregable final.'));
 
-    const der = el('div', { class: 'sb-der' }, cVideo, cTexto, cProp, galeria, cLista, cExp);
+    const cBorrar = el('div', { class: 'card' }, el('h2', {}, el('span', { class: 'n' }, '7'), 'Borrado y espacio'),
+      el('p', { class: 'muted', style: 'margin:0 0 10px' }, 'Tu video no se sube ni se guarda: vive solo en la memoria de esta pestaña y se libera al cerrarla o al borrar aquí. Lo único que queda en este navegador es el proyecto (texto, estilos y posiciones: unos pocos KB) y, si ya transcribiste, el modelo de voz descargado (~75 MB).'),
+      el('div', { class: 'sb-row' }, el('label', { class: 'sb-l' }, 'Borrado automático', sel([['24h', 'A las 24 h de tu última edición'], ['nunca', 'Nunca (lo borro yo)']], cfg().auto || '24h', v => { setCfg({ auto: v }); actualizaCuenta(); })), el('span', { class: 'sb-tag', id: 'sb-cd', style: 'align-self:end' }, cuentaTxt())),
+      el('label', { class: 'sb-row', style: 'margin-top:8px;font-size:.9rem' }, el('input', { type: 'checkbox', id: 'sb-delmod' }), 'Al borrar, quitar también el modelo de voz (la próxima vez se vuelve a descargar)'),
+      el('div', { class: 'sb-row', style: 'margin-top:8px' }, btn('Borrar proyecto y video ahora', 'trash', () => borrarAhora(!!($('#sb-delmod', host) || {}).checked), 'btn-gold'), btn('Borrar solo el modelo de voz', 'trash', async () => { const n = await borrarModelo(); aviso(n ? 'Modelo de voz borrado' : 'No había modelo guardado'); })));
+    const cAviso = S.avisoExp ? el('div', { class: 'card', style: 'border:1.5px solid var(--oro,#B8A06A)' }, el('b', { style: 'font-weight:400' }, 'Ya descargaste tu archivo.'), el('p', { class: 'muted', style: 'margin:4px 0 10px' }, '¿Borro el proyecto y el video para no ocupar espacio? Si no haces nada, ' + ((cfg().auto || '24h') === '24h' ? 'se borra solo en un día.' : 'se queda guardado hasta que lo borres.')),
+      el('div', { class: 'sb-row' }, btn('Sí, borrar ahora', 'trash', () => { S.avisoExp = false; borrarAhora(false); }, 'btn-gold'), btn('Conservar por ahora', '', () => { S.avisoExp = false; pintar(); }))) : null;
+    const der = el('div', { class: 'sb-der' }, cAviso, cVideo, cTexto, cProp, galeria, cLista, cExp, cBorrar);
     host.replaceChildren(el('div', { class: 'sb' }, izq, der)); pintarTimeline(); ajustaCanvas(); pintarBotones();
     if (S.progreso) progreso(S.progreso.txt, S.progreso.p);
     if (!raf) raf = requestAnimationFrame(bucle);
@@ -390,6 +478,7 @@
       cv.addEventListener('dblclick', () => { const c = selCue(); if (c) { c.pos = null; guardar(); } });
       video.addEventListener('seeked', () => setTimeout(capturaFondo, 120)); video.addEventListener('loadeddata', () => setTimeout(capturaFondo, 200));
     }
+    revisarCaducidad(); if (!iniciar.t) iniciar.t = setInterval(() => { revisarCaducidad(); actualizaCuenta(); }, 60e3);
     pintar();
   }
   window.FaroSubs = { iniciar };
