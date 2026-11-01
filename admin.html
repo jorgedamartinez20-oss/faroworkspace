@@ -799,7 +799,7 @@ summary{transition:color .18s}
 
     <div id="t-cli" hidden>
       <div class="msg" id="cl-warn" hidden style="margin-bottom:14px">Faltan las tablas del portal. En Supabase abre SQL Editor, New query, pega portal-faro.sql y dale Run.</div>
-      <div class="card" style="margin-bottom:18px"><h2>Faro Studios · clientes</h2><p class="muted">Cada cliente recibe un token para entrar a su espacio: enlace a su galería de Pixieset, contrato, entregas y un buzón para comentarios.</p><div class="chips" id="cl-chips" style="margin-top:12px"></div></div>
+      <div class="card" style="margin-bottom:18px"><h2>Faro Studios · clientes</h2><p class="muted">Todo en un solo lugar: en Fichas agregas clientes y alumnos, editas sus datos y ves sus galerías, documentos, facturas, accesos y buzón.</p><div class="chips" id="cl-chips" style="margin-top:12px"></div></div>
       <div id="cl-body"></div>
     </div>
 
@@ -876,7 +876,7 @@ summary{transition:color .18s}
 <script src="cupones-admin.js"></script>
 <script src="recursos-docentes.js?v=20261026a"></script>
 <script src="musicpro.js?v=20261026d"></script>
-<script src="clientes-ficha.js?v=20261101f"></script>
+<script src="clientes-ficha.js?v=20261101g"></script>
 <script src="producciones-doc.js?v=20261101a"></script>
 <script src="producciones.js?v=20261101a"></script>
 <script src="produccion-cliente.js?v=20261101a"></script>
@@ -1433,7 +1433,7 @@ const ENT={
     {k:'titulo',l:'Título',req:1},{k:'ruta',l:'Archivo (máx. 50 MB)',t:'file',folder:''}],
     row:r=>[r.titulo+' · '+r.tipo,acN('cli',r.cliente_id)]}
 };
-const GRP={ac:['tabl','est','enc','doc','asg','vin','acc','tar','eva','prac','hab','logro','reco','clase','mat','dip','fac','chat'],cl:['fic','cli','clacc','cldoc','clchat']};
+const GRP={ac:['tabl','est','enc','doc','asg','vin','acc','tar','eva','prac','hab','logro','reco','clase','mat','dip','fac','chat'],cl:['fic','clacc']};
 function acN(k,id){const x=(AC.list[k]||[]).find(r=>r.id===id);return x?(x.apodo||x.nombre):'(borrado)'}
 function accHas(fk,id){return (AC.list.acc||[]).some(c=>c[fk]===id)}
 function accTxt(rol,fk,id,tok){const c=(AC.list.acc||[]).find(x=>x[fk]===id);return c?((tok?'acceso con ':'usuario ')+c.usuario+(c.activo?'':' (desactivado)')):'sin acceso todavía'}
