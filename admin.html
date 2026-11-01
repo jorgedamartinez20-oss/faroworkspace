@@ -876,7 +876,7 @@ summary{transition:color .18s}
 <script src="cupones-admin.js"></script>
 <script src="recursos-docentes.js?v=20261026a"></script>
 <script src="musicpro.js?v=20261026d"></script>
-<script src="clientes-ficha.js?v=20261101a"></script>
+<script src="clientes-ficha.js?v=20261101b"></script>
 <script src="producciones-doc.js?v=20261101a"></script>
 <script src="producciones.js?v=20261101a"></script>
 <script src="produccion-cliente.js?v=20261101a"></script>
@@ -1439,6 +1439,7 @@ async function loadAc(){
   try{const r=await api('/rest/v1/sitio_config?select=*');AC.cfg={};if(r.ok)(await r.json()).forEach(x=>AC.cfg[x.clave]=x.valor);else falta=true}catch(x){falta=true}
   try{const r=await api('/rest/v1/cupones?select=id,codigo,nombre,vence,estado,usos,usos_max,amigo,porcentaje');CUPV=r.ok?await r.json():[]}catch(x){}
   AC.ok=!falta;
+  try{if(window.fcPre)window.fcPre()}catch(e){}
   badges();renderAc();renderSitio();webCarga();try{renderDash()}catch(e){console.error(e)}try{avisosPintar()}catch(e){}
 }
 function badges(){
@@ -3830,6 +3831,7 @@ function avisosCalcular(){
     if(cp.length){const c0=cp[0],d0=recDias(c0.vence,t);out.push({id:'cup-vence',n:cp.length,i:'gift',t:cp.length+' cupón(es) por vencer',d:(c0.nombre||c0.codigo).split('·')[0].trim()+' · '+(d0===0?'vence hoy':'vence en '+d0+' día(s)')+(cp.length>1?' y '+(cp.length-1)+' más':'')+' · avísale que puede compartirlo',go:'cup',cod:c0.codigo,hot:d0<=7})}}
   if(PREF.nRec&&typeof CT!=='undefined'&&CT.cargado){
     CT.rec.filter(r=>r.activo).forEach(r=>{const n=recSiguiente(r,t);if(!n)return;const d=recDias(n.due,t);if(d<=r.aviso_dias)out.push({id:'rec-'+r.id+'-'+n.key,n:1,i:'bell',t:r.titulo,d:d<0?'Venció hace '+(-d)+' día(s)':d===0?'Vence hoy':'Vence en '+d+' día(s) · '+lbDia(n.due),go:'rec',hot:d<=1})})}
+  try{if(window.fcAvisos)window.fcAvisos(t,out)}catch(e){}
   return out;
 }
 function avisosPintar(){

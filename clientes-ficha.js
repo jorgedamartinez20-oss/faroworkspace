@@ -4,7 +4,7 @@
    solo enlaza lo que ya existe (en_cuentas.cliente_id y la tabla cl_vinculos · sql/clientes-vinculos.sql). */
 (function(){
 'use strict';
-const FC={seg:'studios',q:'',vinc:[],ok:true,cargado:false,cargando:false,abierto:null};
+const FC={seg:'studios',q:'',vinc:[],ses:[],ok:true,okS:true,cargado:false,cargando:false,abierto:null};
 window.FC=FC;
 const ETAPAS=[
   ['cotizacion','Cotización','clipboard','La propuesta con precio que le enviaste'],
@@ -41,7 +41,44 @@ const cuentasDe=c=>(EN.cuentas||[]).filter(x=>x.cliente_id===c.id);
 
 async function fcCargar(){
   try{const r=await api('/rest/v1/cl_vinculos?select=*&order=creado.asc&limit=5000');FC.ok=r.ok;FC.vinc=r.ok?await r.json():[]}catch(e){FC.ok=false;FC.vinc=[]}
+  try{const r=await api('/rest/v1/cl_sesiones?select=*&order=creado.asc&limit=5000');FC.okS=r.ok;FC.ses=r.ok?await r.json():[]}catch(e){FC.okS=false;FC.ses=[]}
   FC.cargado=true}
+window.fcPre=async function(){try{await fcCargar();avisosPintar()}catch(e){}};
+
+/* ---------- días hábiles de Guatemala (sin sábados, domingos, feriados ni asuetos) ---------- */
+const uiso=d=>d.toISOString().slice(0,10);
+const sumd=(i,k)=>uiso(new Date(+new Date(i+'T00:00:00Z')+k*864e5));
+function pascua(y){const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),mes=Math.floor((h+l-7*m+114)/31),dia=((h+l-7*m+114)%31)+1;return uiso(new Date(Date.UTC(y,mes-1,dia)))}
+const _fer={};
+function feriadosDe(y){
+  if(_fer[y])return _fer[y];const P=pascua(y),S=new Set(['01-01','05-01','06-30','08-15','09-15','10-20','11-01','12-24','12-25','12-31'].map(x=>y+'-'+x));
+  S.add(sumd(P,-3));S.add(sumd(P,-2));S.add(sumd(P,-1));return _fer[y]=S}
+function extraFeriados(){try{return String((AC.cfg&&AC.cfg['feriados.extra'])||'').split(/[\s,;]+/).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x))}catch(e){return[]}}
+const esHabil=i=>{const w=new Date(i+'T00:00:00Z').getUTCDay();return w>0&&w<6&&!feriadosDe(+i.slice(0,4)).has(i)&&!extraFeriados().includes(i)};
+/* los n días hábiles que siguen a la fecha de la sesión (el último es la fecha de entrega) */
+function habilesDespues(i,n){const o=[];let d=i;while(o.length<n){d=sumd(d,1);if(esHabil(d))o.push(d)}return o}
+const proxHabil=i=>{let d=sumd(i,1);while(!esHabil(d))d=sumd(d,1);return d};
+window.FaroHabiles={esHabil,habilesDespues,proxHabil};
+const hoy=()=>new Date().toLocaleDateString('en-CA',{timeZone:'America/Guatemala'});
+const sesDe=id=>FC.ses.filter(x=>x.cliente_id===id);
+const ETQ_SES={agendada:'Agendada',realizada:'Sesión realizada',lista:'Galería lista',cancelada:'Cancelada'};
+const diaDe=s=>(s.dias_habiles||[]).filter(d=>d<=hoy()).length;   /* 0 = el día de la sesión; 1..5 = días hábiles transcurridos */
+const fcorta=i=>{const d=new Date(i+'T00:00:00Z');return DIAS[d.getUTCDay()]+' '+d.getUTCDate()+' de '+MESES[d.getUTCMonth()]};
+
+/* avisos para ti (campana del Workspace) */
+window.fcAvisos=function(t,out){
+  if(!FC.cargado)return;const nom=s=>{const c=nCli().find(x=>x.id===s.cliente_id);return c?c.nombre:'Cliente'};
+  const rea=FC.ses.filter(s=>s.estado==='realizada'&&s.entrega_fecha);
+  const hoyE=rea.filter(s=>s.entrega_fecha===t),man=rea.filter(s=>s.entrega_fecha===proxHabil(t)&&s.entrega_fecha!==t),atr=rea.filter(s=>s.entrega_fecha<t);
+  if(atr.length)out.push({id:'ses-atr',n:atr.length,i:'hourglass',t:atr.length+' entrega(s) atrasada(s)',d:nom(atr[0])+' · debía ser '+fcorta(atr[0].entrega_fecha),go:'cli',hot:true});
+  if(hoyE.length)out.push({id:'ses-hoy',n:hoyE.length,i:'upload',t:'Hoy toca entregar '+hoyE.length+' sesión(es)',d:hoyE.map(nom).join(' · ').slice(0,70),go:'cli',hot:true});
+  if(man.length)out.push({id:'ses-man',n:man.length,i:'clock',t:'Mañana (hábil) entregas '+man.length+' sesión(es)',d:man.map(nom).join(' · ').slice(0,70),go:'cli',hot:false});
+  const pend=FC.ses.filter(s=>s.estado==='agendada'&&s.fecha&&s.fecha<t);
+  if(pend.length)out.push({id:'ses-marcar',n:pend.length,i:'check',t:'Marca si se realizó '+pend.length+' sesión(es)',d:nom(pend[0])+' · '+pend[0].titulo,go:'cli',hot:true});
+  const ven=nCli().filter(c=>c.acceso_vence&&c.acceso_vence<=t),pron=nCli().filter(c=>c.acceso_vence&&c.acceso_vence>t&&c.acceso_vence<=sumd(t,3));
+  if(ven.length)out.push({id:'acc-ven',n:ven.length,i:'key',t:ven.length+' perfil(es) de Mi espacio vencido(s)',d:ven[0].nombre+' · para eliminar a mano',go:'cli',hot:true});
+  if(pron.length)out.push({id:'acc-pron',n:pron.length,i:'key',t:pron.length+' perfil(es) vencen en 3 días',d:pron[0].nombre,go:'cli',hot:false});
+};
 
 window.renderFichas=function(box){
   if(!FC.cargado||!EN.cargado){
@@ -77,6 +114,9 @@ window.renderFichas=function(box){
         const dots=el('div',{class:'fc-dots'});
         ETAPAS.forEach(([k,n,i])=>dots.append(el('span',{class:'fc-dot'+(vs.some(v=>v.etapa===k)?' ok':''),title:n},icoEl(i),n)));
         const np=ct.reduce((s,x)=>s+(EN.proy||[]).filter(p=>p.cuenta_id===x.user_id).length,0);
+        const sr=sesDe(c.id).find(x=>x.estado==='realizada'),sl=sesDe(c.id).find(x=>x.estado==='lista');
+        if(sr)dots.append(el('span',{class:'fc-dot ok',title:'Sesión en edición'},icoEl('clock'),'Edición · día '+diaDe(sr)+'/5 · entrega '+sr.entrega_fecha.slice(8,10)+'/'+sr.entrega_fecha.slice(5,7)));
+        else if(sl)dots.append(el('span',{class:'fc-dot ok'},icoEl('image'),'Galería lista'));
         dots.append(el('span',{class:'fc-dot ent'+(ct.length||c.galeria_url?' ok':''),title:'Galería y entregas'},icoEl('image'),ct.length?('Entregas · '+np+' proyecto'+(np===1?'':'s')):c.galeria_url?'Galería':'Sin galería'));
         lista.append(el('div',{class:'item'},el('b',{},c.nombre+(c.activo?'':' (inactivo)')),el('small',{},(c.proyecto||c.tipo||'')+(c.fecha?' · '+fdt(c.fecha+'T12:00:00'):'')),dots,
           el('div',{class:'fc-acts'},
@@ -113,7 +153,7 @@ function ficha(id){
     D.body.append(el('p',{class:'sub'},[c.proyecto||c.tipo||'Sin proyecto',c.fecha?fdt(c.fecha+'T12:00:00'):'',c.correo,c.whatsapp].filter(Boolean).join(' · ')),
       el('div',{class:'fc-prog',role:'img','aria-label':hechas+' de '+ETAPAS.length+' etapas'},el('i',{style:'width:'+(hechas*100/ETAPAS.length)+'%'})),
       el('small',{class:'muted'},hechas+' de '+ETAPAS.length+' etapas con documento. Todo se vincula a mano y no cambia tus galerías.'));
-    D.body.append(seccionEtapas(c,pintar),seccionEntregas(c,pintar,D),seccionDocs(c,pintar));
+    D.body.append(seccionSesion(c,pintar),seccionEtapas(c,pintar),seccionEntregas(c,pintar,D),seccionDocs(c,pintar),seccionAcceso(c,pintar,D));
   };
   pintar();
 }
@@ -187,6 +227,111 @@ async function subir(c,file){
   if(file.size>50*1024*1024)throw new Error('El archivo pasa de 50 MB');
   await matArbol();toast('Subiendo a R2…');
   return (await matSubirKey(file,'privado',c.carpeta+matNombre(Date.now()+'-'+file.name))).key}
+
+
+/* ---------- sesión y entrega (tú marcas cada paso; el cliente lo ve en Mi espacio) ---------- */
+async function patchSes(s,body,pintar,msg){
+  try{const r=await api('/rest/v1/cl_sesiones?id=eq.'+s.id,{method:'PATCH',body,headers:{Prefer:'return=minimal'}});
+    if(!r.ok){toast(await errText(r));return false}Object.assign(s,body);if(msg)toast(msg);pintar();refrescaLista();try{avisosPintar()}catch(e){}return true}
+  catch(e){toast(e.message||'No se pudo guardar');return false}}
+function cardSesion(c,s,pintar){
+  const box=el('div',{class:'fc-et '+(s.estado==='lista'?'ok':s.estado==='cancelada'?'':'pend')});
+  box.append(el('div',{class:'fc-eth'},icoEl(s.estado==='lista'?'image':'camera'),el('b',{},s.titulo),el('span',{class:'fc-dot'+(s.estado==='lista'?' ok':'')},ETQ_SES[s.estado]||s.estado),
+    el('small',{},(s.fecha?fcorta(s.fecha)+(s.hora?' · '+s.hora:''):'Sin fecha')+(s.nota?' · '+s.nota:''))));
+  const mini=el('div'),acts=el('div',{class:'fc-acts'});
+  if(s.estado==='realizada'){
+    const n=diaDe(s),dh=s.dias_habiles||[];
+    const dots=el('div',{class:'fc-dots'},...dh.map((d,i)=>el('span',{class:'fc-dot'+(d<=hoy()?' ok':''),title:fcorta(d)},'Día '+(i+1))));
+    box.append(dots,el('p',{style:'margin:8px 0 0'},el('b',{},s.entrega_fecha<hoy()?'Entrega atrasada · debía ser el '+fcorta(s.entrega_fecha):(s.entrega_fecha===hoy()?'Hoy toca entregar':'Faltan '+(5-n)+' día'+(5-n===1?'':'s')+' hábil'+(5-n===1?'':'es')+' · entrega el '+fcorta(s.entrega_fecha))),
+      el('small',{style:'display:block;opacity:.8'},'Sesión realizada el '+fcorta(s.realizada_en)+'. Sin sábados, domingos ni feriados.')));
+  }
+  if(s.estado==='lista'){
+    const p=(EN.proy||[]).find(x=>x.id===s.proyecto_id);
+    box.append(el('p',{style:'margin:8px 0 0'},'Galería lista'+(p?': '+p.titulo:'')+(s.lista_en?' · '+fcorta(s.lista_en.slice(0,10)):'')));
+  }
+  if(s.estado==='agendada')acts.append(
+    el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:()=>{mini.textContent='';
+      const f=el('input',{type:'date',value:(s.fecha&&s.fecha<=hoy())?s.fecha:hoy(),max:hoy()});
+      const go=el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:()=>{
+        if(!f.value){toast('Elige el día en que se hizo la sesión');return}
+        const dh=habilesDespues(f.value,5);
+        patchSes(s,{estado:'realizada',realizada_en:f.value,dias_habiles:dh,entrega_fecha:dh[4]},pintar,'Sesión marcada. Entrega el '+fcorta(dh[4]))}},'Confirmar');
+      mini.append(el('div',{class:'fc-mini'},el('small',{},'¿Qué día se realizó? La entrega se calcula en 5 días hábiles (sin fines de semana ni feriados).'),f,go))}},icoEl('check'),' La sesión se realizó'),
+    el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>{if(confirm('¿Cancelar esta sesión?'))patchSes(s,{estado:'cancelada'},pintar,'Sesión cancelada')}},'Cancelar'));
+  if(s.estado==='realizada')acts.append(
+    el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:()=>{mini.textContent='';
+      const ct=cuentasDe(c),ps=(EN.proy||[]).filter(p=>ct.some(x=>x.user_id===p.cuenta_id));
+      const sel=el('select',{'aria-label':'Galería publicada'},el('option',{value:''},ps.length?'— elige la galería publicada —':'Sin galerías vinculadas (puedes marcarla igual)'),...ps.map(p=>el('option',{value:p.id},p.titulo)));
+      const go=el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:()=>patchSes(s,{estado:'lista',proyecto_id:sel.value||null,lista_en:new Date().toISOString()},pintar,'Listo: el cliente verá «Tu galería está lista»')},'Marcar lista');
+      mini.append(el('div',{class:'fc-mini'},el('small',{},'Cuando ya subiste y publicaste la galería. El cliente verá «Tu galería está lista» con su portada.'),sel,go))}},icoEl('image'),' Galería lista'),
+    el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>{if(confirm('¿Volver a «agendada»? Se borra el conteo de días.'))patchSes(s,{estado:'agendada',realizada_en:null,dias_habiles:[],entrega_fecha:null},pintar,'Vuelta a agendada')}},'Deshacer'));
+  if(s.estado==='lista')acts.append(el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>patchSes(s,{estado:'realizada',lista_en:null},pintar,'Vuelve a «editando»')},'Volver a editando'));
+  if(s.estado==='cancelada')acts.append(el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>patchSes(s,{estado:'agendada'},pintar,'Sesión reactivada')},'Reactivar'));
+  acts.append(el('button',{class:'btn btn-red btn-sm',type:'button',onclick:async()=>{
+    if(!confirm('¿Quitar esta sesión de la ficha?'))return;
+    const r=await api('/rest/v1/cl_sesiones?id=eq.'+s.id,{method:'DELETE',headers:{Prefer:'return=minimal'}});if(!r.ok){toast(await errText(r));return}
+    FC.ses=FC.ses.filter(x=>x.id!==s.id);pintar();refrescaLista()}},'Quitar'));
+  box.append(acts,mini);return box}
+function seccionSesion(c,pintar){
+  const sec=el('div',{class:'fc-sec'},el('h4',{},'Sesión y entrega'),el('small',{class:'muted'},'Marcas tú cada paso. El cliente lo ve en Mi espacio con su contador de 5 días hábiles.'));
+  if(!FC.okS)sec.append(el('p',{class:'msg'},'Falta la tabla de sesiones (sql/clientes-sesiones.sql).'));
+  const ss=sesDe(c.id);if(!ss.length)sec.append(el('p',{class:'muted'},'Todavía no hay sesiones. Agrega la primera abajo.'));
+  ss.forEach(x=>sec.append(cardSesion(c,x,pintar)));
+  const tit=el('input',{placeholder:'Sesión (ej. Graduación Mirna)',maxlength:'160',value:c.proyecto||''}),fe=el('input',{type:'date',value:c.fecha||''}),hr=el('input',{placeholder:'Hora (ej. 3:00 pm)',maxlength:'40'});
+  const ag=(typeof D!=='undefined'&&D.agenda)||[];
+  const sa=el('select',{'aria-label':'Tomar de la agenda'},el('option',{value:''},'— o toma los datos de una reserva de la agenda —'),
+    ...ag.filter(r=>r.estado!=='cancelada').slice().sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha))).slice(0,60).map(r=>el('option',{value:r.id},(r.fecha||'')+' · '+(r.categoria||'')+' · '+(r.nombre||''))));
+  sa.addEventListener('change',()=>{const r=ag.find(x=>x.id===sa.value);if(r){tit.value=(r.categoria||'Sesión')+(r.nombre?' · '+r.nombre:'');fe.value=r.fecha||'';hr.value=r.hora||''}});
+  const go=el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:async()=>{
+    if(!tit.value.trim()){toast('Falta el nombre de la sesión');return}
+    go.disabled=true;
+    try{const r=await api('/rest/v1/cl_sesiones',{method:'POST',body:{cliente_id:c.id,titulo:tit.value.trim(),fecha:fe.value||null,hora:hr.value.trim()||null,agenda_id:sa.value||null},headers:{Prefer:'return=representation'}});
+      if(!r.ok){toast(await errText(r));return}const j=await r.json();FC.ses.push(j[0]||j);toast('Sesión agregada');pintar();refrescaLista()}
+    catch(e){toast(e.message||'No se pudo guardar')}finally{go.disabled=false}}},'Agregar sesión');
+  sec.append(el('div',{class:'fc-mini'},el('b',{},'Nueva sesión'),sa,tit,el('div',{style:'display:grid;grid-template-columns:1fr 1fr;gap:8px'},fe,hr),go));
+  return sec}
+
+/* ---------- perfil de Mi espacio (mismo login que Entregas) ---------- */
+const MI_URL='farostudios.net/miespacio';
+const AVISO_TXT='Este perfil es temporal y de uso exclusivo para el proceso de entregas y el resguardo de tu galería. Dura mientras estemos en el proceso de sesión y entrega, y al terminar se elimina.';
+function seccionAcceso(c,pintar,D){
+  const sec=el('div',{class:'fc-sec'},el('h4',{},'Perfil de Mi espacio'),el('small',{class:'muted'},'Temporal: dura mientras estemos en la sesión y la entrega. Usa el mismo usuario y contraseña que Entregas.'));
+  const me=(AC.list.acc||[]).find(a=>a.cliente_id===c.id&&a.rol==='cliente'),ent=cuentasDe(c)[0];
+  const box=el('div',{class:'fc-et '+(me?'ok':'pend')});
+  box.append(el('div',{class:'fc-eth'},icoEl('key'),el('b',{},me?'Perfil activo':'Sin perfil todavía'),el('span',{class:'fc-dot'+(me?' ok':'')},me?('Usuario '+me.usuario+(me.activo?'':' (desactivado)')):'Falta crearlo'),
+    el('small',{},c.aviso_aceptado_en?'Aceptó el aviso el '+fcorta(gtDate(c.aviso_aceptado_en)):'Aún no acepta el aviso de perfil temporal')));
+  const acts=el('div',{class:'fc-acts'});
+  if(!me){
+    if(ent)acts.append(el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:async ev=>{
+      const u=String(ent.usuario||c.correo||'').trim().toLowerCase();
+      if(!u){toast('Este cliente no tiene correo ni usuario de Entregas');return}
+      ev.target.disabled=true;
+      try{const r=await api('/rest/v1/ac_cuentas',{method:'POST',body:{user_id:ent.user_id,rol:'cliente',usuario:u,cliente_id:c.id,email_auth:ent.email_auth,activo:true},headers:{Prefer:'return=minimal'}});
+        if(!r.ok){toast(await errText(r));ev.target.disabled=false;return}
+        toast('Perfil creado con el mismo acceso de Entregas');await loadAc();pintar()}catch(e){toast(e.message||'No se pudo crear');ev.target.disabled=false}}},icoEl('link'),' Crear perfil con el login de Entregas'));
+    else acts.append(el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:()=>{D.cerrar();enPreparar(c)}},'Primero prepara su Entregas (crea el login único)'));
+  }else{
+    acts.append(el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>{
+      const clave=ent&&vaultGet()[ent.user_id]?vaultGet()[ent.user_id].clave:'(tu contraseña de Entregas)';
+      copyTxt('Hola '+c.nombre.split(' ')[0]+', este es tu perfil de Mi espacio de Faro Studios, donde verás el estado de tu sesión, tu agenda, tus documentos y tu galería:\n\nEnlace: https://'+MI_URL+'\nCorreo: '+me.usuario+'\nContraseña: '+clave+'\n\n'+AVISO_TXT)}},icoEl('clipboard'),' Copiar mensaje con acceso'),
+      el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>window.open('miespacio.html?demo=cliente&id='+c.id,'_blank','noopener')},icoEl('eye'),' Ver como lo ve el cliente'),
+      el('button',{class:'btn btn-red btn-sm',type:'button',onclick:async()=>{
+        if(!confirm('¿Eliminar el perfil de Mi espacio de '+c.nombre+'?\n\nSe borra solo este acceso. Sus galerías, entregas, documentos y su login de Entregas NO se tocan.'))return;
+        const r=await api('/rest/v1/ac_cuentas?user_id=eq.'+me.user_id,{method:'DELETE',headers:{Prefer:'return=minimal'}});if(!r.ok){toast(await errText(r));return}
+        toast('Perfil eliminado (la galería sigue intacta)');await loadAc();pintar()}},'Eliminar perfil'));
+  }
+  box.append(acts);
+  /* vencimiento */
+  const v=c.acceso_vence,dv=v?Math.round((+new Date(v+'T00:00:00Z')-+new Date(hoy()+'T00:00:00Z'))/864e5):null;
+  const fv=el('input',{type:'date',value:v||''});
+  const guarda=async val=>{try{const r=await api('/rest/v1/cl_clientes?id=eq.'+c.id,{method:'PATCH',body:{acceso_vence:val||null},headers:{Prefer:'return=minimal'}});
+    if(!r.ok){toast(await errText(r));return}c.acceso_vence=val||null;toast(val?'El perfil vence el '+fcorta(val):'Sin vencimiento');pintar();refrescaLista();try{avisosPintar()}catch(e){}}catch(e){toast(e.message||'No se pudo guardar')}};
+  box.append(el('div',{class:'fc-mini'},el('b',{},'Vencimiento del perfil'),
+    el('small',{},v?(dv<0?'Venció hace '+(-dv)+' día(s): el cliente ya ve el aviso de acceso caducado. Elimínalo cuando quieras.':dv===0?'Vence hoy.':'Vence en '+dv+' día(s) · '+fcorta(v)):'Sin vencimiento. Cuando termines la entrega, ponle fecha o elimínalo.'),
+    fv,el('div',{class:'fc-acts',style:'margin:0'},el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:()=>guarda(fv.value)},'Guardar fecha'),
+      ...[30,60,90].map(k=>el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>guarda(sumd(hoy(),k))},'+'+k+' días')),
+      v?el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>guarda(null)},'Sin vencimiento'):null)));
+  sec.append(box);return sec}
 
 /* ---------- galería y entregas ---------- */
 function seccionEntregas(c,pintar,D){
