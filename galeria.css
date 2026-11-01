@@ -531,3 +531,9 @@ html.gpal::before{display:none!important}
   .gvista .ico{width:16px;height:16px}
 }
 .gmc .x{top:24px;right:14px;z-index:6}
+
+/* ---- estabilidad en iPhone/Android: sin desbordes laterales, sin zoom al escribir, capa oscura siempre ---- */
+html,body{overflow-x:clip;max-width:100%}
+.gcod{transform:none}
+@media(max-width:700px){input,select,textarea{font-size:16px!important}}
+.gt:not(.on){background:rgba(10,10,12,.82)}

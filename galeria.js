@@ -236,7 +236,20 @@ function gCortina(min){
 /* cortina del ingreso: se prende al tocar «Entrar» y se apaga cuando la portada ya está lista */
 function gCorIni(){try{if(window.GCOR)return window.GCOR;window.GCOR=gCortina(1500)}catch(e){window.GCOR=null}return window.GCOR}
 async function gCorFin(){const c=window.GCOR;window.GCOR=null;if(c)await c.fin()}
+/* iOS puede dejar la página ampliada o desplazada de lado (teclado/zoom del acceso): se suelta el foco y se restablece la escala */
+function gResetZoom(){
+  try{
+    const a=document.activeElement;if(a&&a.blur&&a!==document.body)a.blur();
+    const vv=window.visualViewport,m=document.querySelector('meta[name=viewport]');
+    if(m&&vv&&(Math.abs(vv.scale-1)>.02||Math.abs(vv.offsetLeft)>1)){
+      const c=m.getAttribute('content');m.setAttribute('content',c.replace(/,?\s*maximum-scale=[^,]*/,'')+',maximum-scale=1');
+      setTimeout(()=>m.setAttribute('content',c),400);
+    }
+    window.scrollTo(0,0);document.documentElement.scrollLeft=0;document.body.scrollLeft=0;
+  }catch(e){}
+}
 async function gAbrirMuro(silencio){
+  gResetZoom();
   const b=$('#bver');if(!b||b.disabled)return;
   gMusicaPlay();
   let nueva=false;
@@ -259,7 +272,7 @@ async function gAbrirMuro(silencio){
     g.classList.add('go');gPortadaMueve(true);
     b.disabled=false;
     /* orden: bienvenida → tutorial (inmediato) → la galería empieza desde arriba; la reseña va al final */
-    if(bv){await bv;await gEspera(150);gTutorial(true)}
+    if(bv){await bv;await gEspera(150);gResetZoom();await gEspera(450);gTutorial(true)}
   }
 }
 /* nombre de la persona fotografiada: el que escribe Faro en el diseño de la galería; si no hay, la primera palabra del nombre del acceso */
@@ -886,12 +899,12 @@ function gTutorial(primera){
     const r=el&&el.getBoundingClientRect();
     if(!el||!r.width||!r.height||r.bottom<0||r.top>H){
       /* el objetivo no está a la vista: tarjeta centrada, sin flecha (y se intenta acercarlo) */
-      for(const e of [hl,pl])e.style.opacity='0';t.querySelector('#gtp').setAttribute('d','');
+      for(const e of [hl,pl])e.style.opacity='0';t.classList.remove('on');t.querySelector('#gtp').setAttribute('d','');
       cd.style.left=Math.max(12,(W-cw)/2)+'px';cd.style.top=Math.max(12,(H-ch)/2)+'px';
       if(el&&!el.closest('.gtop,.gbm,#gbolsa'))el.scrollIntoView({block:'center',behavior:'instant'});
       return;
     }
-    const pad=8;for(const e of [hl,pl]){e.style.opacity='';e.style.left=(r.left-pad)+'px';e.style.top=(r.top-pad)+'px';e.style.width=(r.width+pad*2)+'px';e.style.height=(r.height+pad*2)+'px'}
+    t.classList.add('on');const pad=8;for(const e of [hl,pl]){e.style.opacity='';e.style.left=(r.left-pad)+'px';e.style.top=(r.top-pad)+'px';e.style.width=(r.width+pad*2)+'px';e.style.height=(r.height+pad*2)+'px'}
     const movil=W<640,G0=64;           /* G0: espacio entre el objetivo y la tarjeta para la flecha */
     let x,y;
     if(movil){x=(W-cw)/2;y=r.top>H/2?r.top-ch-G0:r.bottom+G0}
