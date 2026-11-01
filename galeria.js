@@ -21,7 +21,7 @@ const GPAL={
   marfil:{n:'Marfil',bg:'#F5F2EE',tx:'#252528',ac:'#8B1A2A',luz:'clara',nota:'Alto contraste'},
   oliva:{n:'Oliva',bg:'#2F3626',tx:'#DCDCC4',ac:'#B9B67A',luz:'oscura',nota:'Suave'},
   salvia:{n:'Salvia',bg:'#E4E8DC',tx:'#4A5440',ac:'#7C8A64',luz:'clara',nota:'Suave'},
-  rosa:{n:'Rosa pastel',bg:'#F6E4E4',tx:'#6A4A50',ac:'#C98A94',luz:'clara',nota:'Suave'},
+  rosa:{n:'Rosa pastel',bg:'#FFBFC9',tx:'#5A242B',ac:'#B44858',luz:'clara',nota:'Suave'},
   palo:{n:'Palo de rosa',bg:'#3A1F28',tx:'#F8E9EC',ac:'#E7A9B6',luz:'oscura',nota:'Alto contraste'},
   mar:{n:'Mar profundo',bg:'#0E2A36',tx:'#EAF4F5',ac:'#7FC8C8',luz:'oscura',nota:'Alto contraste'},
   espuma:{n:'Espuma de mar',bg:'#DCEBEA',tx:'#2F5559',ac:'#4F9A9C',luz:'clara',nota:'Suave'},
@@ -43,9 +43,34 @@ const GFUENTES={
   fina:{n:'Fina',d:"'Raleway',sans-serif",b:"'Raleway',sans-serif",gf:'Raleway:wght@300;400;500',up:'none',ls:'.06em',desc:'Raleway'},
   cine:{n:'Cine',d:"'Oswald',Impact,sans-serif",b:"'Lato',sans-serif",gf:'Oswald:wght@400;500&family=Lato:wght@300;400;700',up:'uppercase',ls:'.08em',desc:'Oswald + Lato'}
 };
+/* ---------- tema de marca por paleta ----------
+   El borgoña original (#8B1A2A, matiz 351.5°) solo se usa donde armoniza de verdad con la paleta:
+   · matiz dentro del arco áureo de 52.5° (360°/φ⁴) → Marfil, Rosa pastel, Palo de rosa, Terracota, Arena
+   · o en el complemento del ángulo áureo (137.5° + 76.5° = 214°) → Cielo bebé (matiz 209°)
+   El resto (Faro, Oliva, Salvia, Mar profundo, Espuma de mar, Lavanda) usa solo oro, marfil o grafito. */
+const GBOR='#8B1A2A',GORO='#B8A06A',GMAR='#F5F2EE',GGRA='#252528';
+const GTEMAS={
+  bor:{br:GBOR,brt:GMAR,ink:GBOR,hd:GBOR,hdt:GMAR,ln:GORO,iso:'#D9BE7E'},      /* borgoña + hilo dorado */
+  oro:{br:GORO,brt:GGRA,ink:GGRA,hd:'oscuro',hdt:GMAR,ln:GORO,iso:'#D9BE7E'},    /* oro sobre fondos oscuros */
+  mar:{br:GMAR,brt:GGRA,ink:GGRA,hd:'oscuro',hdt:GMAR,ln:GMAR,iso:GMAR},         /* marfil sobre fondos oscuros */
+  gra:{br:GGRA,brt:GMAR,ink:GGRA,hd:GGRA,hdt:GMAR,ln:GORO,iso:'#D9BE7E'}         /* grafito sobre fondos claros */
+};
+const GTEMA_DE={faro:'oro',marfil:'bor',oliva:'mar',salvia:'gra',rosa:'bor',palo:'bor',mar:'oro',espuma:'gra',cielo:'bor',arena:'bor',terracota:'bor',lavanda:'gra',
+  blanco:'bor',noche:'oro',borgona:'oro'};
+const gHex=h=>{h=h.replace('#','');return [0,2,4].map(i=>parseInt(h.substr(i,2),16))};
+const gOscuro=(h,k)=>'#'+gHex(h).map(v=>Math.round(v*k).toString(16).padStart(2,'0')).join('');
+function gTema(clave,pal){
+  const t=Object.assign({},GTEMAS[GTEMA_DE[clave]||'bor']);
+  if(t.hd==='oscuro')t.hd=clave==='borgona'?'#5E101C':gOscuro(pal.bg,.62);
+  t.rgb=gHex(t.br).join(',');
+  return t;
+}
 function gAplica(cfg){
   const pal=GPAL[cfg.paleta]||GPAL.marfil,fu=GFUENTES[cfg.fuente]||GFUENTES.faro,r=document.documentElement.style;
   r.setProperty('--g-bg',pal.bg);r.setProperty('--g-tx',pal.tx);r.setProperty('--g-ac',pal.ac);
+  const tm=gTema(GPAL[cfg.paleta]?cfg.paleta:'marfil',pal);
+  r.setProperty('--g-br',tm.br);r.setProperty('--g-brt',tm.brt);r.setProperty('--g-ink',tm.ink);r.setProperty('--g-hd',tm.hd);r.setProperty('--g-hdt',tm.hdt);
+  r.setProperty('--g-ln',tm.ln);r.setProperty('--g-iso',tm.iso);r.setProperty('--g-br-rgb',tm.rgb);
   r.setProperty('--g-ft',fu.d);r.setProperty('--g-ft2',fu.b);r.setProperty('--g-up',fu.up);r.setProperty('--g-ls',fu.ls);
   if(!document.getElementById('gfont-'+(cfg.fuente||'faro'))){const l=document.createElement('link');l.id='gfont-'+(cfg.fuente||'faro');l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family='+fu.gf+'&display=swap';document.head.append(l)}
   document.body.className='g';document.body.style.background=pal.bg;document.body.style.color=pal.tx;
@@ -138,7 +163,7 @@ async function vistaGaleria(){
 /* portada: dibuja el estilo elegido con portada.js (sin capa fija: la oscuridad es la que se eligió) */
 function gPortadaPinta(cfg,d){
   const cb=cfg.cubierta||{},fx=typeof cb.fx==='number'?cb.fx:(+d.foco.x||50)/100,fy=typeof cb.fy==='number'?cb.fy:(+d.foco.y||50)/100;
-  G.pc={estilo:cb.estilo||'centro',titulo:d.titulo,fecha:d.fecha,src:d.src,fx,fy,zoom:+cb.zoom>=1?+cb.zoom:1,ov:Math.max(0,Math.min(70,+cb.ov||0)),movimiento:cb.mov!==false,pie:d.n+' fotografías · Galería privada'};
+  G.pc={estilo:cb.estilo||'centro',titulo:d.titulo,fecha:d.fecha,src:d.src,fx,fy,zoom:+cb.zoom>=1?+cb.zoom:1,ov:Math.max(0,Math.min(70,+cb.ov||0)),tam:Math.max(40,Math.min(160,+cb.tam||100)),movimiento:cb.mov!==false,pie:d.n+' fotografías · Galería privada'};
   const box=document.getElementById('gcv');if(!box||!window.FaroPortada)return;
   G.pcv=FaroPortada.render(box,G.pc,{boton:true,movimiento:false});
   const m=()=>{const x=box.clientWidth<700;box.classList.toggle('fpph',x)};m();
@@ -275,9 +300,17 @@ async function gId3(url){
     return o;
   }catch(e){return null}
 }
+/* Título de la canción = nombre del archivo tal cual lo puso Faro (mayúsculas, guiones y espacios; en el servidor el espacio viaja como «_»).
+   Los archivos viejos, sin «_», traían guiones en lugar de espacios. Si la etiqueta del mp3 es el mismo título solo que con acentos, se muestran los acentos. */
+function gTituloCancion(nombre,id3){
+  let b=String(nombre||'').replace(/\.[^.]+$/,'');
+  b=(b.indexOf('_')>=0?b.replace(/_/g,' '):b.replace(/-+/g,' ')).replace(/\s+/g,' ').trim();
+  const f=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9]+/g,' ').trim();
+  return id3&&f(id3)===f(b)&&!/www\.|\.com/i.test(id3)?String(id3).trim():b;
+}
 function gMusicaTitulo(){
   const m=(G.meta&&G.meta[G.mi])||{},l=G.lista&&G.lista[G.mi];if(!l||!$('#gmus'))return;
-  $('#gmt').textContent=m.titulo||l.nombre.replace(/\.[^.]+$/,'').replace(/[-_]+/g,' ');
+  $('#gmt').textContent=gTituloCancion(l.nombre,m.titulo);
   $('#gma').textContent=[m.artista,m.album].filter(Boolean).join(' · ');
   const cv=$('#gmcv');if(m.cover){cv.style.backgroundImage='url('+m.cover+')';cv.classList.add('im')}else{cv.style.backgroundImage='';cv.classList.remove('im')}
 }
@@ -663,7 +696,7 @@ function gAbrirBolsa(){
     let ok=false;
     try{const r=await api('/rest/v1/en_solicitudes',{method:'POST',body:{proyecto_id:ST.p.id,cliente:ST.perfil.nombre,items,cantidad:n,subtotal:sub,envio,total,nota:nota.slice(0,800)},headers:{Prefer:'return=minimal'}});ok=r.ok}catch(e){}
     if(ok){G.carro=[];gGuardaCarro();
-      dr.querySelector('.bd').innerHTML='<div class="vacio" style="padding-top:50px"><div style="font:400 2.6rem/1 \'Bebas Neue\',Impact;letter-spacing:.05em;color:#8B1A2A">¡Solicitud enviada!</div><p style="margin-top:12px">Ya le llegó a Faro. Te escribimos pronto para confirmar los tamaños y agendar la entrega.</p><div class="acts" style="margin-top:14px"><button class="btn2 p" data-x2>Seguir viendo mi galería</button></div></div>';
+      dr.querySelector('.bd').innerHTML='<div class="vacio" style="padding-top:50px"><div style="font:400 2.6rem/1 \'Bebas Neue\',Impact;letter-spacing:.05em;color:var(--g-ink)">¡Solicitud enviada!</div><p style="margin-top:12px">Ya le llegó a Faro. Te escribimos pronto para confirmar los tamaños y agendar la entrega.</p><div class="acts" style="margin-top:14px"><button class="btn2 p" data-x2>Seguir viendo mi galería</button></div></div>';
       dr.querySelector('[data-x2]').onclick=cierra;
     }else{
       be.disabled=false;be.textContent='ENVIAR SOLICITUD';
@@ -778,7 +811,7 @@ function gTutorial(primera){
     if(el&&!el.closest('.gtop,#gbolsa')){const r=el.getBoundingClientRect();if(r.top<110||r.bottom>innerHeight-90)el.scrollIntoView({block:'center',behavior:'instant'})}
     const cd=t.querySelector('.cd');
     cd.innerHTML='<div class="eti">PASO '+(k+1)+' DE '+pasos.length+'</div><h3>'+esc(p.t)+'</h3><p>'+esc(p.x)+'</p>'
-      +(p.vista&&portada?'<div class="pv"><div class="hist"><canvas width="62" height="110" id="gtv"></canvas></div><span>Así se verá tu foto en la historia.<br><b style="color:#8B1A2A">Abrir Instagram → publicar</b></span></div>':'')
+      +(p.vista&&portada?'<div class="pv"><div class="hist"><canvas width="62" height="110" id="gtv"></canvas></div><span>Así se verá tu foto en la historia.<br><b style="color:var(--g-ink)">Abrir Instagram → publicar</b></span></div>':'')
       +'<div class="dots">'+pasos.map((_,i)=>'<i class="'+(i===k?'on':'')+'"></i>').join('')+'</div>'
       +'<div class="nav"><button id="gta0">'+(k?'Atrás':'Omitir')+'</button><button class="p" id="gta1">'+(k===pasos.length-1?'Terminar':'Siguiente')+'</button></div>';
     $('#gta0',cd).onclick=()=>{if(k){k--;paso()}else fin(false)};
