@@ -344,6 +344,7 @@ function seccionEntregas(c,pintar,D){
       el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:()=>{D.cerrar();enEditor(p.id)}},'Abrir galería'))));
     if(!ps.length)box.append(el('p',{class:'muted',style:'margin:8px 0 0'},'Esta cuenta aún no tiene proyectos.'));
     box.append(el('div',{class:'fc-acts'},
+      x.tipo!=='galeria'&&ps.length&&window.FaroProdCli?el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:()=>{D.cerrar();FaroProdCli.abrir(ps[0].id)}},icoEl('file'),' Plataforma de producción'):null,
       el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>{D.cerrar();enPreparar(c)}},'Administrar Entregas'),
       el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:async()=>{
         if(!confirm('¿Desvincular esta cuenta de '+c.nombre+'?\n\nLa galería, sus archivos y su acceso NO se tocan; solo deja de aparecer en esta ficha.'))return;

@@ -650,7 +650,7 @@
   function pGen(c, E) {
     c.append(el('div', { class: 'pd-fg' },
       campo('Nombre de la producción *', inp(E, 'titulo', 'text', { placeholder: 'Cobertura caravana de independencia' }), 'full'),
-      campo('Cliente', inp(E, 'cliente', 'text', { placeholder: 'Bi-Formato | Maxi Despensa' })),
+      campo('Cliente', (() => { try { const L = (window.AC && AC.list && AC.list.cli) || []; let dl = document.getElementById('pd-cli-dl'); if (dl) dl.remove(); if (L.length) { dl = el('datalist', { id: 'pd-cli-dl' }, L.map(c => el('option', { value: c.nombre }))); document.body.append(dl); } } catch (e) {} return inp(E, 'cliente', 'text', { placeholder: 'Bi-Formato | Maxi Despensa', list: 'pd-cli-dl' }); })()),
       campo('Tipo', sel(E, 'tipo', TIPOS)),
       campo('Fecha *', inp(E, 'fecha', 'date')), campo('Hora de llamado', inp(E, 'hora_llamado', 'time')), campo('Hora de fin (aprox.)', inp(E, 'hora_fin', 'time')),
       campo('Ubicación', el('span', { style: 'display:flex;gap:8px' }, inp(E, 'ubicacion', 'text', { placeholder: '9.ª avenida 3-85, zona 11, Ciudad de Guatemala' }), btn('', 'search', () => { S.paso = 'cli'; pintar(); }, 'btn-ghost', 'Buscar el lugar para el clima')), 'full'),
