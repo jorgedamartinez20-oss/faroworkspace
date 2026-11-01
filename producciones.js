@@ -1,5 +1,6 @@
 /* Faro Workspace · Producciones
  * Calendario de producciones, inventario con fotos, mantenimiento y hojas de llamado (Crew y Apoyo).
+ * Mi equipo   : cada responsable puede vincularse a un usuario del Workspace; ahí ve su equipo asignado con fotos (las hojas impresas no llevan fotos).
  *   Calendario  : meses con las producciones programadas; clic en un día para agendar.
  *   Producciones: lista; cada una se arma en pasos (General · Objetivos · Crew · Apoyo · Cronograma · Recursos · Clima · Hojas).
  *   Crew        : responsables + el equipo del inventario que se le asignó a cada uno (avisa si ya está ocupado ese día o en mantenimiento).
@@ -44,19 +45,27 @@
     warn: '<path d="M12 4 2.5 20h19L12 4Z"/><path d="M12 10v4.5M12 17.5v.01"/>', down2: '<path d="M12 4v11M7 11l5 5 5-5M4 20h16"/>', print: '<path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="7" rx="1"/>',
     wa: '<path d="M21 12a9 9 0 0 1-13.4 7.8L3 21l1.3-4.4A9 9 0 1 1 21 12Z"/>', cloud: '<path d="M7 18a4.5 4.5 0 0 1-.5-9A6 6 0 0 1 18 10a4 4 0 0 1-.5 8Z"/>', search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
     star: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9Z"/>', lock: '<rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>', hist: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"/>',
+    gimbal: '<rect x="6" y="3" width="12" height="7" rx="2"/><path d="M12 10v3M8.5 13h7l-1 8h-5Z"/>',
+    puzzle: '<path d="M10 4a2 2 0 1 1 4 0v2h4v4h-2a2 2 0 1 0 0 4h2v4h-4v-2a2 2 0 1 0-4 0v2H6v-4h2a2 2 0 1 0 0-4H6V6h4V4Z"/>',
+    sd: '<path d="M7 3h8l4 4v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M9 7v3M12 7v3M15 7v3"/>',
+    guitar: '<path d="m19 5-6 6M17 3l4 4"/><path d="M11.5 9.5c-2-1-4.5 0-5.5 2s-3 1.5-3.5 3.5.5 4 2.5 5 4 .5 5.5-1 .5-3.5 2-4.5 1.5-3.5-.5-5Z"/><circle cx="9" cy="15" r="1.2"/>',
+    phone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z"/>',
     film: '<rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M7 3v18M17 3v18M3 12h18M3 7.5h4M3 16.5h4M17 7.5h4M17 16.5h4"/>', refresh: '<path d="M20 11a8 8 0 0 0-14.5-4M4 4v4h4M4 13a8 8 0 0 0 14.5 4M20 20v-4h-4"/>', file: '<path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5M9 13h7M9 17h7"/>'
   };
   const ico = (k, s) => { const e = el('span', { class: 'pd-i' }); e.innerHTML = '<svg viewBox="0 0 24 24" width="' + (s || 18) + '" height="' + (s || 18) + '" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (IC[k] || '') + '</svg>'; return e; };
   const btn = (txt, k, fn, cls, title) => el('button', { type: 'button', class: 'btn btn-sm ' + (cls || 'btn-ghost'), onclick: fn, title: title || null }, k ? ico(k, 17) : null, txt ? ' ' + txt : null);
 
+  /* cada área tiene su color y su ícono propios, para reconocerla de un vistazo */
   const CATS = [
-    { k: 'camaras', n: 'Cámaras', c: '#8B1A2A', i: 'cam', p: 'FSCAM' }, { k: 'lentes', n: 'Lentes', c: '#B8782A', i: 'lens', p: 'FSLEN' },
-    { k: 'iluminacion', n: 'Iluminación', c: '#C9A227', i: 'bulb', p: 'FSIL' }, { k: 'sonido', n: 'Sonido', c: '#3F7F6B', i: 'mic', p: 'FSSO' },
-    { k: 'movimiento', n: 'Estabilizadores', c: '#4A7FB5', i: 'move', p: 'FSMOV' }, { k: 'soportes', n: 'Soportes y pedestales', c: '#7A5FA8', i: 'tripod', p: 'FSTAND' },
-    { k: 'baterias', n: 'Baterías', c: '#5E9E6B', i: 'batt', p: 'FSBAT' }, { k: 'accesorios', n: 'Accesorios', c: '#A0654B', i: 'tool', p: 'FSACC' },
-    { k: 'almacenamiento', n: 'Almacenamiento', c: '#5B6B7A', i: 'drive', p: 'FSDV' }, { k: 'informatica', n: 'Informática', c: '#6A5ACD', i: 'laptop', p: 'FSINF' },
-    { k: 'instrumentos', n: 'Instrumentos', c: '#B0446A', i: 'music', p: 'FSACMY' }
+    { k: 'camaras', n: 'Cámaras', c: '#8B1A2A', i: 'cam', p: 'FSCAM' }, { k: 'lentes', n: 'Lentes', c: '#E0771F', i: 'lens', p: 'FSLEN' },
+    { k: 'iluminacion', n: 'Iluminación', c: '#E3B200', i: 'bulb', p: 'FSIL' }, { k: 'sonido', n: 'Sonido', c: '#0E9384', i: 'mic', p: 'FSSO' },
+    { k: 'movimiento', n: 'Estabilizadores', c: '#2F6FDB', i: 'gimbal', p: 'FSMOV' }, { k: 'soportes', n: 'Soportes y pedestales', c: '#7A4FC4', i: 'tripod', p: 'FSTAND' },
+    { k: 'baterias', n: 'Baterías', c: '#4FA23A', i: 'batt', p: 'FSBAT' }, { k: 'accesorios', n: 'Accesorios', c: '#9A6B43', i: 'puzzle', p: 'FSACC' },
+    { k: 'almacenamiento', n: 'Almacenamiento', c: '#5B6B7A', i: 'sd', p: 'FSDV' }, { k: 'informatica', n: 'Informática', c: '#1795B8', i: 'laptop', p: 'FSINF' },
+    { k: 'instrumentos', n: 'Instrumentos', c: '#C2347F', i: 'guitar', p: 'FSACMY' }
   ];
+  /* color de texto legible sobre el color del área */
+  const sobre = c => { const n = parseInt(String(c).slice(1), 16), l = (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255; return l > 0.62 ? '#252528' : '#FFFFFF'; };
   const CAT = Object.fromEntries(CATS.map(c => [c.k, c]));
   const EST_INV = { disponible: ['Disponible', '#5E9E6B'], mantenimiento: ['En mantenimiento', '#C9A227'], reparacion: ['En reparación', '#D95A6A'], extraviado: ['Extraviado', '#8B1A2A'], baja: ['De baja', '#7B7B7B'] };
   const EST_PROD = { programada: ['Programada', '#B8A06A'], confirmada: ['Confirmada', '#5E9E6B'], en_curso: ['En curso', '#4A7FB5'], completada: ['Completada', '#7B7B7B'], cancelada: ['Cancelada', '#D95A6A'] };
@@ -65,7 +74,7 @@
   const ROLES_APOYO = ['Iluminación', 'Actor / Actriz', 'Botarga', 'Talento', 'Modelo', 'Maquillaje', 'Vestuario', 'Asistente', 'Chofer', 'Otro'];
   const TIPOS_MANT = [['revision', 'Revisión'], ['limpieza', 'Limpieza'], ['calibracion', 'Calibración'], ['firmware', 'Actualización de firmware'], ['reparacion', 'Reparación'], ['bateria', 'Cambio de batería / accesorio'], ['otro', 'Otro']];
   const TIPO_MANT = Object.fromEntries(TIPOS_MANT);
-  const VISTAS = [['cal', 'Calendario', 'cal'], ['lista', 'Producciones', 'film'], ['inv', 'Inventario', 'box'], ['mant', 'Mantenimiento', 'wrench'], ['prot', 'Protección', 'shield']];
+  const VISTAS = [['cal', 'Calendario', 'cal'], ['lista', 'Producciones', 'film'], ['mio', 'Mi equipo', 'user'], ['inv', 'Inventario', 'box'], ['mant', 'Mantenimiento', 'wrench'], ['prot', 'Protección', 'shield']];
   const PASOS = [['gen', 'General', 'file'], ['obj', 'Objetivos', 'star'], ['crew', 'Crew', 'users'], ['apo', 'Apoyo', 'user'], ['cro', 'Cronograma', 'clock'], ['rec', 'Recursos', 'box'], ['cli', 'Clima', 'cloud'], ['doc', 'Hojas', 'print']];
   const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
   const MES3 = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -74,7 +83,7 @@
 
   const S = {
     vista: 'cal', items: [], priv: {}, mant: [], prods: [], aud: null, cargando: false, cargado: false, falta: false, error: '',
-    mes: null, q: '', cat: 'todas', est: 'todos', archivados: false, filtroProd: 'proximas', editando: null, paso: 'gen', sucio: false, urls: {}, verPrivado: true
+    usuarios: [], intent: new Set(), mes: null, q: '', cat: 'todas', est: 'todos', archivados: false, filtroProd: 'proximas', editando: null, paso: 'gen', sucio: false, urls: {}, verPrivado: true
   };
   let host = null, ctx = null, css1 = false, logoURL = null, modalAbierto = null;
 
@@ -120,6 +129,7 @@
       ]);
       S.items = a; S.priv = Object.fromEntries(b.map(x => [x.item_id, x])); S.mant = c; S.prods = d; S.falta = false; S.error = '';
       S.cargado = true;
+      if (ctx.usuarios) { try { S.usuarios = (await ctx.usuarios()) || []; } catch (e) { S.usuarios = []; } }
       firmarThumbs();
     } catch (e) {
       if (e.status === 404 || /prod_|PGRST205|schema cache|does not exist/i.test(e.message || '')) S.falta = true; else S.error = e.message || 'No se pudo cargar';
@@ -317,6 +327,79 @@
 .pd .pd-doc .bt{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
 .pd .pd-doc .btn{background:rgba(245,242,238,.14);color:#F5F2EE;border-color:rgba(217,194,140,.6)}
 .pd .pd-doc .btn:hover{background:rgba(245,242,238,.26)}
+/* ---- identidad por área ---- */
+.pd .pd-it{border-top:5px solid var(--c)}
+.pd .pd-catb{display:inline-flex;gap:6px;align-items:center;padding:3px 12px 3px 9px;border-radius:99px;background:var(--c);color:var(--on,#fff);font-size:.86rem;font-weight:700;width:fit-content;box-shadow:0 5px 9px -6px var(--c)}
+.pd .pd-cat[aria-pressed=true]{color:var(--on,#fff)}
+.pd .pd-cat[aria-pressed=true] .pd-i,.pd .pd-cat[aria-pressed=true] small{color:var(--on,#fff)}
+.pd .pd-foto{cursor:pointer;background:linear-gradient(150deg,color-mix(in srgb,var(--c) 34%,var(--soft)),var(--soft)) center/cover no-repeat}
+.pd .ph0{display:grid;place-items:center;width:92px;height:92px;border-radius:50%;background:var(--c);color:var(--on,#fff);box-shadow:0 14px 22px -12px var(--c),0 0 0 6px color-mix(in srgb,var(--c) 22%,transparent)}
+.pd .pd-foto .sku{display:inline-flex;gap:6px;align-items:center;border:0;cursor:copy;background:var(--c);color:var(--on,#fff);padding:4px 11px 4px 9px}
+.pd .pd-foto .sku .cp{opacity:.75;display:inline-flex}
+.pd .pd-foto .sku:hover .cp{opacity:1}
+.pd .pd-foto .hint,.pd .ph .hint{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:6px;background:rgba(37,37,40,.5);color:#fff;font-weight:700;opacity:0;transition:opacity .18s;pointer-events:none}
+.pd .pd-foto:hover .hint,.pd .ph:hover .hint,.pd .pd-foto.drop .hint,.pd .ph.drop .hint{opacity:1}
+.pd .pd-foto.drop,.pd .ph.drop{outline:3px dashed var(--oro);outline-offset:-6px}
+.pd .pd-it .cu{align-content:start}
+.pd .pd-it .mm{min-height:1.3em}
+.pd .pd-nb{background:var(--oro);color:#252528;border-radius:99px;padding:0 7px;font-weight:700;font-size:.82rem}
+/* ---- Mi equipo ---- */
+.pd .pd-mio{margin-bottom:14px}
+.pd .pd-mio .mh{display:grid;grid-template-columns:70px minmax(0,1fr);gap:14px;align-items:center;margin-bottom:12px}
+.pd .pd-mio h4{margin:0 0 4px;font-size:1.15rem}
+.pd .mg{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.pd .mi{border-radius:16px;overflow:hidden;border:1px solid var(--line);border-top:5px solid var(--c);background:var(--surface);box-shadow:0 12px 22px -18px rgba(0,0,0,.7)}
+.pd .mi .fo{position:relative;aspect-ratio:4/3;background:linear-gradient(150deg,color-mix(in srgb,var(--c) 34%,var(--soft)),var(--soft)) center/cover no-repeat;display:grid;place-items:center}
+.pd .mi .sku{position:absolute;left:10px;top:10px;display:inline-flex;gap:6px;align-items:center;border:0;cursor:copy;background:var(--c);color:var(--on,#fff);padding:4px 11px 4px 9px;border-radius:99px;font-weight:700;letter-spacing:.07em;font-size:.88rem}
+.pd .mi .tx{padding:11px 13px 14px;display:grid;gap:5px;justify-items:start}
+@media print{.pd .pd-mio{display:none!important}}
+/* ---- ficha del artículo (mismo lenguaje que el formulario de comentarios) ---- */
+.pd-fi{--c:#8B1A2A;--on:#fff;display:flex;flex-direction:column;min-height:0;flex:1;background:#FBF9F4;color:#252528;--line:rgba(37,37,40,.14);--muted:#6a675f}
+.pd-fi .fh{flex:none;display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:16px 20px;background:linear-gradient(120deg,color-mix(in srgb,var(--c) 88%,#fff),var(--c));color:var(--on);border-bottom:3px solid rgba(255,255,255,.28)}
+.pd-fi .fh .ib{flex:none;width:54px;height:54px;border-radius:16px;display:grid;place-items:center;background:rgba(255,255,255,.2);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.45)}
+.pd-fi .fh .tt{min-width:0;flex:1 1 200px}
+.pd-fi .fh .cod{font-family:'Bebas Neue',Impact,sans-serif;font-size:1.9rem;letter-spacing:.08em;line-height:1}
+.pd-fi .fh h3{margin:2px 0 0;font-size:1.1rem;font-weight:700;line-height:1.2;overflow-wrap:anywhere}
+.pd-fi .fh .pd-sp{flex:0 0 0}
+.pd-fi .fbtn{display:inline-flex;gap:7px;align-items:center;min-height:42px;padding:0 16px;border-radius:999px;border:1.5px solid rgba(255,255,255,.55);background:rgba(255,255,255,.14);color:var(--on);font-weight:700;font-size:.98rem;cursor:pointer;transition:background .2s,border-color .2s}
+.pd-fi .fbtn:hover{background:rgba(255,255,255,.28)}
+.pd-fi .fbtn.sol{background:#FBF9F4;color:#252528;border-color:#FBF9F4;box-shadow:0 4px 0 rgba(0,0,0,.18)}
+.pd-fi .fbtn.sol:hover{background:#fff}
+.pd-fi .fbtn.ic{width:42px;padding:0;justify-content:center}
+.pd-fi .fb{flex:1;min-height:0;overflow:auto;padding:18px 20px 26px;display:grid;gap:16px;align-content:start;grid-auto-rows:max-content}
+.pd-fi .hero{display:grid;grid-template-columns:230px minmax(0,1fr);gap:18px;align-items:start}
+.pd-fi .ph{position:relative;aspect-ratio:4/3;border-radius:20px;overflow:hidden;cursor:pointer;display:grid;place-items:center;border:1.5px solid var(--line);background:linear-gradient(150deg,color-mix(in srgb,var(--c) 30%,#fff),#F1EDE4) center/cover no-repeat;box-shadow:0 18px 30px -22px rgba(37,37,40,.7)}
+.pd-fi .ph .ver{position:absolute;left:10px;bottom:10px;display:inline-flex;gap:6px;align-items:center;border:0;border-radius:99px;padding:5px 12px;background:rgba(37,37,40,.78);color:#fff;font-size:.88rem;cursor:pointer;z-index:2}
+.pd-fi .res{display:grid;gap:12px;align-content:start}
+.pd-fi .pl{display:flex;gap:8px;flex-wrap:wrap}
+.pd-fi .mini{display:grid;gap:7px;color:var(--muted);font-size:.96rem}
+.pd-fi .mini span{display:flex;gap:8px;align-items:center}
+.pd-fi .grp{flex:none;background:#fff;border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:0 2px 0 var(--line),0 26px 40px -34px rgba(94,16,28,.55)}
+.pd-fi .grp>h4{margin:0;display:flex;gap:9px;align-items:center;flex-wrap:wrap;padding:13px 16px;font-family:'Bebas Neue',Impact,sans-serif;font-weight:400;font-size:1.35rem;letter-spacing:.07em;background:linear-gradient(180deg,#FBF9F4,#fff);border-bottom:1px solid var(--line)}
+.pd-fi .grp>h4 .pd-i{color:var(--c)}
+.pd-fi .grp>h4 small{font-family:'Lato',system-ui,sans-serif;font-size:.8rem;letter-spacing:0;color:var(--muted);font-weight:400}
+.pd-fi .grp>h4 .pd-sp{flex:1}
+.pd-fi .rw{display:grid;grid-template-columns:170px minmax(0,1fr);gap:12px;align-items:center;min-height:58px;padding:8px 16px;border-top:1px solid var(--line)}
+.pd-fi .grp>h4+.rw{border-top:0}
+.pd-fi .rw>label{font-size:.76rem;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.pd-fi .rw .v{min-height:42px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:1.04rem;overflow-wrap:anywhere;min-width:0}
+.pd-fi .rw .v.m{align-items:flex-start;white-space:pre-wrap;padding-top:9px;min-height:96px}
+.pd-fi .rw .nd{color:#b3aea2}
+.pd-fi .rw input,.pd-fi .rw select,.pd-fi .rw textarea{width:100%;height:42px;padding:0 13px;border:1.5px solid var(--line);border-radius:12px;background:#fff;color:#252528;box-shadow:inset 0 2px 4px rgba(37,37,40,.06);font-size:1.04rem;transition:border-color .2s,box-shadow .2s}
+.pd-fi .rw textarea{height:96px;padding:10px 13px;resize:none;line-height:1.45}
+.pd-fi .rw input:focus,.pd-fi .rw select:focus,.pd-fi .rw textarea:focus{outline:0;border-color:#8B1A2A;box-shadow:inset 0 2px 4px rgba(37,37,40,.04),0 0 0 4px rgba(139,26,42,.13)}
+.pd-fi .cd{display:inline-flex;gap:10px;align-items:center;font-weight:700;letter-spacing:.08em}
+.pd-fi .cpb{display:inline-grid;place-items:center;width:32px;height:32px;border-radius:10px;border:1.5px solid var(--line);background:#FBF9F4;color:var(--muted);cursor:copy}
+.pd-fi .cpb:hover{border-color:var(--c);color:var(--c)}
+.pd-fi .grp.priv>h4 .pd-i{color:#B8A06A}
+.pd-fi .vac{margin:0;padding:14px 16px}
+.pd-fi .tb{overflow:auto;padding:4px 10px 10px}
+.pd-fi .rw.uso{grid-template-columns:110px minmax(0,1fr);min-height:48px}
+.pd-fi .rw.uso b{color:var(--c)}
+.pd-fi .pie{display:flex;justify-content:center;padding-top:4px}
+@media(max-width:620px){.pd-fi .hero{grid-template-columns:1fr}.pd-fi .rw{grid-template-columns:1fr;gap:4px;padding:10px 14px}.pd-fi .rw.uso{grid-template-columns:1fr}.pd-fi .rw .v.m{min-height:96px}.pd-fi .fh{padding:12px 14px}}
+.pd-mo:has(.pd-fi){background:#FBF9F4}
+
 /* modal y cajón */
 .pd-bg{position:fixed;inset:0;z-index:120;background:rgba(10,10,12,.66);display:flex;justify-content:flex-end;backdrop-filter:blur(2px)}
 .pd-bg.c{justify-content:center;align-items:center;padding:14px}
@@ -367,17 +450,24 @@
     return el('span', {}, e, el('datalist', { id }, lista.map(x => el('option', { value: x }))));
   }
 
-  function cerrarModal() { if (modalAbierto) { modalAbierto.remove(); modalAbierto = null; } }
+  let guardModal = null;
+  function cerrarModal(forzar) {
+    if (!forzar && guardModal && !guardModal()) return false;
+    guardModal = null;
+    if (modalAbierto) { modalAbierto.remove(); modalAbierto = null; }
+    return true;
+  }
   function modal(titulo, ancho, cuerpo, acciones, tipo) {
-    cerrarModal();
-    const bg = el('div', { class: 'pd-bg ' + (tipo === 'c' ? 'c' : '') });
-    const caja = el('div', { class: tipo === 'c' ? 'pd-mo' : 'pd-dr', style: ancho ? 'width:min(' + ancho + ',100%)' : '' });
-    const hd = el('div', { class: 'pd-hd' }, el('h3', {}, titulo), acciones || [], btn('', 'x', cerrarModal, 'btn-ghost', 'Cerrar'));
-    caja.append(hd, cuerpo); bg.append(caja);
+    cerrarModal(true);
+    const bg = el('div', { class: 'pd-bg pd ' + (tipo === 'c' || tipo === 'f' ? 'c' : '') });
+    const caja = el('div', { class: tipo === 'c' || tipo === 'f' ? 'pd-mo' : 'pd-dr', style: ancho ? 'width:min(' + ancho + ',100%)' : '' });
+    const hd = tipo === 'f' ? null : el('div', { class: 'pd-hd' }, el('h3', {}, titulo), acciones || [], btn('', 'x', () => cerrarModal(), 'btn-ghost', 'Cerrar'));
+    if (hd) caja.append(hd, cuerpo); else caja.append(cuerpo);
+    bg.append(caja);
     bg.addEventListener('mousedown', e => { if (e.target === bg) cerrarModal(); });
-    const esc = e => { if (e.key === 'Escape') { cerrarModal(); document.removeEventListener('keydown', esc); } }; document.addEventListener('keydown', esc);
+    const esc = e => { if (e.key === 'Escape') { if (!modalAbierto || modalAbierto !== bg) { document.removeEventListener('keydown', esc); return; } if (cerrarModal()) document.removeEventListener('keydown', esc); } }; document.addEventListener('keydown', esc);
     document.body.append(bg); modalAbierto = bg;
-    return { bg, caja, hd, titulo: t => { hd.querySelector('h3').textContent = t; } };
+    return { bg, caja, hd, titulo: t => { if (hd) hd.querySelector('h3').textContent = t; } };
   }
 
   /* ---------- pantalla principal ---------- */
@@ -391,9 +481,9 @@
     if (S.editando) { editor(); window.scrollTo(0, y); return; }
     host.append(el('div', { class: 'pd-top' }, el('h2', { class: 'pd-h' }, ico('film', 30), 'Producciones'), el('span', { class: 'pd-sp' }),
       btn('Nueva producción', 'plus', () => nueva(hoy()), 'btn-gold')));
-    host.append(el('div', { class: 'pd-nav', role: 'tablist' }, VISTAS.filter(v => v[0] !== 'prot' || esDir()).map(([k, n, i]) => el('button', { type: 'button', role: 'tab', 'aria-pressed': String(S.vista === k), onclick: () => { S.vista = k; if (k === 'prot' && !S.aud) cargarAud(); pintar(); } }, ico(i, 18), n))));
+    host.append(el('div', { class: 'pd-nav', role: 'tablist' }, VISTAS.filter(v => v[0] !== 'prot' || esDir()).map(([k, n, i]) => el('button', { type: 'button', role: 'tab', 'aria-pressed': String(S.vista === k), onclick: () => { S.vista = k; if (k === 'prot' && !S.aud) cargarAud(); pintar(); } }, ico(i, 18), n, k === 'mio' && misAsignaciones().n ? el('small', { class: 'pd-nb' }, misAsignaciones().n) : null))));
     if (S.cargando && !S.cargado) { host.append(el('div', { class: 'pd-vacio' }, 'Cargando…')); return; }
-    ({ cal: vCal, lista: vLista, inv: vInv, mant: vMant, prot: vProt })[S.vista]();
+    ({ cal: vCal, lista: vLista, mio: vMio, inv: vInv, mant: vMant, prot: vProt })[S.vista]();
     window.scrollTo(0, y);
   }
 
@@ -448,6 +538,42 @@
           p.cliente ? el('span', {}, ico('user', 16), p.cliente) : null, p.ubicacion ? el('span', {}, ico('pin', 16), p.ubicacion) : null,
           el('span', {}, ico('users', 16), (p.crew || []).length + ' crew · ' + (p.apoyo || []).length + ' apoyo'), el('span', {}, ico('box', 16), n + ' equipos')), el('div', { style: 'margin-top:8px' }, pill(EST_PROD[p.estado][0], EST_PROD[p.estado][1]))),
         el('div', { class: 'pd-acc' }, btn('Abrir', 'edit', () => abrir(p.id), 'btn-gold'), btn('Crew', 'print', () => verDoc(p, 'crew'), 'btn-ghost', 'Hoja de llamado del equipo'), btn('Apoyo', 'print', () => verDoc(p, 'apoyo'), 'btn-ghost', 'Hoja de llamado del equipo de apoyo'), btn('', 'copy', () => duplicar(p), 'btn-ghost', 'Duplicar'))));
+    });
+  }
+
+  /* ---------- Mi equipo: lo que le asignaron a quien está conectado (con fotos; no se imprime) ---------- */
+  const miUid = () => { try { return (ctx.uid && ctx.uid()) || ''; } catch (e) { return ''; } };
+  function misAsignaciones() {
+    const yo = miUid(), r = { n: 0, l: [] };
+    if (!yo) return r;
+    S.prods.filter(p => p.estado !== 'cancelada' && dif(p.fecha, hoy()) >= -1).sort((a, b) => a.fecha.localeCompare(b.fecha)).forEach(p => {
+      (p.crew || []).filter(m => m && m.user_id === yo).forEach(m => { const its = (m.equipo || []).map(item).filter(Boolean); r.l.push({ p, m, its }); r.n += its.length; });
+    });
+    return r;
+  }
+  function opcionesAcceso() {
+    const o = [['', 'Sin acceso (solo aparece en la hoja)']];
+    if (miUid() && esDir()) o.push([miUid(), 'Yo (director)']);
+    (S.usuarios || []).filter(u => u.activo !== false && u.user_id !== miUid()).forEach(u => o.push([u.user_id, u.nombre || u.usuario || 'Sin nombre']));
+    return o;
+  }
+  function vMio() {
+    const A = misAsignaciones();
+    host.append(el('div', { class: 'pd-aviso' }, ico('lock', 17), ' Esta vista es solo tuya: aquí ves, con fotos, el equipo que te asignaron en cada producción. Las fotos no salen en las hojas de llamado impresas.'));
+    if (!A.l.length) { host.append(el('div', { class: 'pd-card pd-vacio' }, ico('box', 32), 'Por ahora no tienes equipo asignado.', el('br'), 'Cuando te asignen equipo en una producción, aparecerá aquí con su foto.')); return; }
+    const paths = A.l.flatMap(x => x.its.flatMap(i => [i.foto_path, i.foto_thumb])).filter(Boolean), falt = paths.filter(pp => !urlDe(pp) && !S.intent.has(pp));
+    if (falt.length) { falt.forEach(pp => S.intent.add(pp)); firmar(falt).then(() => { if (S.vista === 'mio' && !S.editando && host && host.isConnected) pintar(); }); }
+    A.l.forEach(({ p, m, its }) => {
+      host.append(el('div', { class: 'pd-card pd-mio' },
+        el('div', { class: 'mh' }, el('div', { class: 'pd-fecha' }, el('b', {}, pf(p.fecha).getDate()), el('span', {}, MES3[pf(p.fecha).getMonth()])),
+          el('div', {}, el('h4', {}, el('span', { class: 'pd-cod' }, p.codigo || ''), '  ', p.titulo), el('div', { class: 'pd-meta' }, el('span', {}, ico('cal', 16), nombreDia(p.fecha) + ' · ' + cuando(p.fecha)), (m.llegada || p.hora_llamado) ? el('span', {}, ico('clock', 16), 'Llegada ' + hh(m.llegada || p.hora_llamado)) : null, p.ubicacion ? el('span', {}, ico('pin', 16), p.ubicacion) : null, m.rol ? el('span', {}, ico('user', 16), m.rol) : null))),
+        its.length ? el('div', { class: 'mg' }, its.map(i => {
+          const cc = CAT[i.categoria] || { c: '#888', i: 'box', n: i.categoria }, u = urlDe(i.foto_path || i.foto_thumb);
+          return el('div', { class: 'mi', style: '--c:' + cc.c + ';--on:' + sobre(cc.c) },
+            el('div', { class: 'fo', style: u ? 'background-image:url(' + u + ')' : '' }, u ? null : el('span', { class: 'ph0' }, ico(cc.i, 40)),
+              el('button', { type: 'button', class: 'sku', title: 'Copiar el código', onclick: () => copiar(i.sku, 'Código copiado · ' + i.sku) }, ico(cc.i, 15), i.sku, el('span', { class: 'cp' }, ico('copy', 14)))),
+            el('div', { class: 'tx' }, pillCat(cc), el('b', {}, i.descripcion), el('div', { class: 'pd-muted' }, [i.marca, i.modelo].filter(Boolean).join(' · ')), i.notas ? el('div', { class: 'pd-muted', style: 'font-size:.9rem' }, i.notas) : null, i.propiedad === 'prestado' ? pill('Préstamo ' + (i.dueno || ''), '#7A5FA8') : null, i.ubicacion ? el('div', { class: 'pd-muted', style: 'font-size:.9rem' }, 'Guardado en: ' + i.ubicacion) : null));
+        })) : el('p', { class: 'pd-muted', style: 'margin:10px 0 0' }, 'Estás en esta producción, pero aún no te asignaron equipo.')));
     });
   }
 
@@ -558,7 +684,7 @@
         if (!m.equipo.length) asig.append(el('span', { class: 'pd-muted' }, 'Sin equipo asignado'));
       };
       pintaAsig(); firmar(m.equipo.map(id => { const i = item(id); return i && fotoDe(i); })).then(pintaAsig);
-      return el('div', { style: 'padding-right:70px;display:grid;gap:12px' }, el('div', { class: 'pd-fg' }, campo('Responsable', inp(m, 'nombre', 'text', { placeholder: 'Nombre' })), campo('Rol', combo(m, 'rol', ROLES_CREW)), campo('Contacto', inp(m, 'contacto', 'tel')), campo('Llegada', inp(m, 'llegada', 'time')), campo('Observaciones', inp(m, 'obs'), 'full')),
+      return el('div', { style: 'padding-right:70px;display:grid;gap:12px' }, el('div', { class: 'pd-fg' }, campo('Responsable', inp(m, 'nombre', 'text', { placeholder: 'Nombre' })), campo('Rol', combo(m, 'rol', ROLES_CREW)), campo('Contacto', inp(m, 'contacto', 'tel')), campo('Llegada', inp(m, 'llegada', 'time')), campo('Acceso al Workspace (verá su equipo con fotos)', sel(m, 'user_id', opcionesAcceso()), 'full'), campo('Observaciones', inp(m, 'obs'), 'full')),
         el('div', {}, el('div', { style: 'font-weight:700;margin-bottom:8px' }, 'Equipo asignado del inventario'), asig, el('div', { style: 'margin-top:10px' }, btn('Elegir equipo del inventario', 'box', () => elegirEquipo(E, m, pintaAsig), 'btn-gold'))));
     }, () => ({ id: uid(), nombre: '', rol: '', contacto: '', llegada: E.hora_llamado || '', obs: '', equipo: [] }), 'Agregar responsable'));
   }
@@ -651,7 +777,7 @@
     if (E._nuevo || S.sucio) c.append(el('div', { class: 'pd-aviso' }, 'Hay cambios sin guardar. Al abrir una hoja se guarda la producción primero.'));
     if (falt.length) c.append(el('div', { class: 'pd-aviso' }, 'Aún falta: ' + falt.join(', ') + '.'));
     c.append(el('div', { class: 'pd-docs' },
-      docCard(E, 'crew', 'Hoja de llamado · Crew', 'Nuestro equipo: responsables, el equipo del inventario asignado a cada uno con foto, check de salida y regreso, objetivos, clima, cronograma y recursos.', 'users'),
+      docCard(E, 'crew', 'Hoja de llamado · Crew', 'Nuestro equipo: responsables, el equipo asignado a cada uno (sin fotos: las ve cada persona en su acceso), check de salida y regreso, objetivos, clima, cronograma y recursos.', 'users'),
       docCard(E, 'apoyo', 'Hoja de llamado · Apoyo', 'Iluminación, actores, botarga y talentos: horario de llegada, traslado, vestuario, set, clima, cronograma e instrucciones. Sin inventario.', 'user')));
   }
   function docCard(E, tipo, titulo, desc, i) {
@@ -662,8 +788,7 @@
     const X = { items: {}, fotos: {}, logo: await logo() };
     if (tipo === 'crew') {
       const ids = [...new Set((p.crew || []).flatMap(m => m.equipo || []))]; ids.forEach(id => { const i = item(id); if (i) X.items[id] = i; });
-      await firmar(ids.map(id => X.items[id] && fotoDe(X.items[id])));
-      await Promise.all(ids.map(async id => { const i = X.items[id], u = i && urlDe(fotoDe(i)); if (u) { try { X.fotos[id] = await aDataURL(u); } catch (e) { /* sin foto */ } } }));
+      /* las fotos NO van en la hoja impresa: cada persona las ve en su acceso (pestaña «Mi equipo») */
     }
     return X;
   }
@@ -698,11 +823,27 @@
   }
 
   /* ---------- inventario ---------- */
+  const copiar = async (txt, msg) => {
+    try { await navigator.clipboard.writeText(txt); }
+    catch (e) { const t = el('textarea', { style: 'position:fixed;opacity:0' }); t.value = txt; document.body.append(t); t.select(); try { document.execCommand('copy'); } catch (er) { /* */ } t.remove(); }
+    toast(msg || 'Copiado · ' + txt);
+  };
+  const pillCat = (cc, extra) => el('span', { class: 'pd-catb', style: '--c:' + cc.c + ';--on:' + sobre(cc.c) }, ico(cc.i, 15), extra || cc.n);
+  /* elige un archivo de imagen desde un clic o desde arrastrar y soltar */
+  function zonaFoto(nodo, alElegir) {
+    const f = el('input', { type: 'file', accept: 'image/*', style: 'display:none', onchange: e => { const fl = e.target.files[0]; e.target.value = ''; if (fl) alElegir(fl); } });
+    nodo.append(f);
+    nodo.addEventListener('click', e => { if (e.target.closest('[data-nofoto]')) return; f.click(); });
+    ['dragenter', 'dragover'].forEach(ev => nodo.addEventListener(ev, e => { e.preventDefault(); nodo.classList.add('drop'); }));
+    ['dragleave', 'drop'].forEach(ev => nodo.addEventListener(ev, e => { e.preventDefault(); nodo.classList.remove('drop'); }));
+    nodo.addEventListener('drop', e => { const fl = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (fl && /^image\//.test(fl.type)) alElegir(fl); });
+  }
+
   function vInv() {
     const act = S.items.filter(i => !i.archivado);
     host.append(el('div', { class: 'pd-stats' }, stat('box', '#8B1A2A', act.length, 'artículos'), stat('check', '#5E9E6B', act.filter(i => i.estado === 'disponible').length, 'disponibles'), stat('wrench', '#C9A227', act.filter(i => ['mantenimiento', 'reparacion'].includes(i.estado)).length, 'en taller')));
     const cats = el('div', { class: 'pd-cats' });
-    [['todas', 'Todo', null, act.length]].concat(CATS.map(x => [x.k, x.n, x, act.filter(i => i.categoria === x.k).length])).forEach(([k, n, x, cnt]) => { if (k !== 'todas' && !cnt) return; cats.append(el('button', { type: 'button', class: 'pd-cat', style: x ? '--c:' + x.c : '', 'aria-pressed': String(S.cat === k), onclick: () => { S.cat = k; pintar(); } }, x ? ico(x.i, 17) : null, n, ' ', el('small', {}, cnt))); });
+    [['todas', 'Todo', null, act.length]].concat(CATS.map(x => [x.k, x.n, x, act.filter(i => i.categoria === x.k).length])).forEach(([k, n, x, cnt]) => { if (k !== 'todas' && !cnt) return; cats.append(el('button', { type: 'button', class: 'pd-cat', style: x ? '--c:' + x.c + ';--on:' + sobre(x.c) : '', 'aria-pressed': String(S.cat === k), onclick: () => { S.cat = k; pintar(); } }, x ? ico(x.i, 17) : null, n, ' ', el('small', {}, cnt))); });
     host.append(el('div', { class: 'pd-filtros' }, el('span', { class: 'pd-buscar' }, ico('search', 18), el('input', { class: 'pd-in', placeholder: 'Buscar por código, nombre, marca, modelo o serie…', value: S.q, oninput: e => { S.q = e.target.value; clearTimeout(vInv.t); vInv.t = setTimeout(() => { pintar(); const i = $('.pd-buscar input'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 250); } })),
       el('select', { class: 'pd-in', style: 'width:auto', onchange: e => { S.est = e.target.value; pintar(); } }, [['todos', 'Todos los estados']].concat(Object.entries(EST_INV).map(([k, v]) => [k, v[0]])).map(([k, n]) => el('option', { value: k, selected: S.est === k }, n))),
       el('label', { class: 'pd-cat' }, el('input', { type: 'checkbox', checked: S.archivados, onchange: e => { S.archivados = e.target.checked; pintar(); } }), 'Ver archivados'),
@@ -713,52 +854,117 @@
     const g = el('div', { class: 'pd-grid' }); host.append(g);
     l.forEach(i => {
       const cc = CAT[i.categoria] || { c: '#888', i: 'box', n: i.categoria }, u = urlDe(fotoDe(i)), pm = proximoMant(i.id), venc = pm && pm < hoy(), prox = usosDe(i.id).find(p => p.fecha >= hoy());
-      const inpf = el('input', { type: 'file', accept: 'image/*', style: 'display:none', onchange: async e => { const f = e.target.files[0]; e.target.value = ''; try { await subirFoto(i, f); pintar(); } catch (er) { toast('No se pudo subir: ' + (er.message || er)); } } });
-      g.append(el('div', { class: 'pd-it' + (i.archivado ? ' arch' : ''), style: '--c:' + cc.c, onclick: e => { if (e.target.closest('.cam')) return; itemForm(i.id); } },
-        el('div', { class: 'pd-foto', style: u ? 'background-image:url(' + u + ')' : '' }, u ? null : ico(cc.i, 54), el('span', { class: 'sku' }, i.sku), el('span', { class: 'est' }, i.estado !== 'disponible' ? pill(EST_INV[i.estado][0], EST_INV[i.estado][1]) : null),
-          el('button', { type: 'button', class: 'cam', title: u ? 'Cambiar foto' : 'Subir foto', onclick: () => inpf.click() }, ico('cam', 20)), inpf),
-        el('div', { class: 'cu' }, el('h4', {}, i.descripcion), el('div', { class: 'mm' }, [i.marca, i.modelo].filter(Boolean).join(' · ') || cc.n),
+      const foto = el('div', { class: 'pd-foto', title: u ? 'Clic para cambiar la foto' : 'Clic para agregar la foto', style: u ? 'background-image:url(' + u + ')' : '' },
+        u ? null : el('span', { class: 'ph0' }, ico(cc.i, 40)),
+        el('button', { type: 'button', class: 'sku', 'data-nofoto': '1', title: 'Copiar el código ' + i.sku, onclick: e => { e.stopPropagation(); copiar(i.sku, 'Código copiado · ' + i.sku); } }, ico(cc.i, 15), i.sku, el('span', { class: 'cp' }, ico('copy', 14))),
+        el('span', { class: 'est', 'data-nofoto': '1' }, i.estado !== 'disponible' ? pill(EST_INV[i.estado][0], EST_INV[i.estado][1]) : null),
+        el('span', { class: 'hint' }, ico('cam', 26), u ? 'Cambiar foto' : 'Agregar foto'),
+        el('span', { class: 'cam' }, ico('cam', 20)));
+      zonaFoto(foto, async fl => { try { await subirFoto(i, fl); pintar(); } catch (er) { toast('No se pudo subir: ' + (er.message || er)); } });
+      g.append(el('div', { class: 'pd-it' + (i.archivado ? ' arch' : ''), style: '--c:' + cc.c + ';--on:' + sobre(cc.c), onclick: e => { if (e.target.closest('.pd-foto')) return; itemForm(i.id); } }, foto,
+        el('div', { class: 'cu' }, pillCat(cc), el('h4', {}, i.descripcion), el('div', { class: 'mm' }, [i.marca, i.modelo].filter(Boolean).join(' · ') || ' '),
           el('div', { class: 'tags' }, i.propiedad === 'prestado' ? pill('Préstamo ' + (i.dueno || ''), '#7A5FA8') : null, venc ? pill('Mantenimiento vencido', '#D95A6A', 'warn') : pm ? pill('Mant. ' + fcorta(pm), '#C9A227', 'wrench') : null, prox ? pill(prox.codigo + ' · ' + fcorta(prox.fecha), '#4A7FB5', 'cal') : null, i.archivado ? pill('Archivado', '#7B7B7B') : null))));
     });
   }
 
   function siguienteSku(cat) { const p = (CAT[cat] || {}).p || 'FSX', n = S.items.filter(i => i.sku.startsWith(p + '-')).map(i => parseInt(i.sku.split('-')[1], 10) || 0); return p + '-' + String(Math.max(0, ...n) + 1).padStart(2, '0'); }
 
+  /* ---------- ficha del artículo: se abre para leer, y se edita con el botón «Editar» ---------- */
   function itemForm(id) {
     const nuevo = !id, base = id ? item(id) : { sku: '', categoria: S.cat !== 'todas' ? S.cat : 'camaras', descripcion: '', marca: '', modelo: '', notas: '', propiedad: 'propio', dueno: '', estado: 'disponible', ubicacion: '', archivado: false };
-    const E = clone(base), P = Object.assign({ serie: '', fecha_compra: '', factura: '', notas_privadas: '' }, nuevo ? {} : clone(S.priv[id] || {}));
-    Object.keys(P).forEach(k => { if (P[k] == null) P[k] = ''; });
+    let E = clone(base), P = Object.assign({ serie: '', fecha_compra: '', factura: '', notas_privadas: '' }, nuevo ? {} : clone(S.priv[id] || {}));
+    Object.keys(P).forEach(k => { if (P[k] == null) P[k] = ''; ['marca', 'modelo', 'notas', 'dueno', 'ubicacion'].forEach(z => { if (E[z] == null) E[z] = ''; }); });
     if (nuevo) E.sku = siguienteSku(E.categoria);
-    const cuerpo = el('div', { class: 'pd-bd' });
-    const foto = el('div', {});
+    let modo = nuevo ? 'edit' : 'ver', pendiente = null, previa = '', foto0 = JSON.stringify([E, P]);
+    const cambios = () => JSON.stringify([E, P]) !== foto0 || !!pendiente;
+    const cab = el('div', { class: 'fh' }), cuerpo = el('div', { class: 'fb' });
+    const raiz = el('div', { class: 'pd-fi' }, cab, cuerpo);
+    const m = modal('', '780px', raiz, null, 'f');
+    guardModal = () => modo !== 'edit' || !cambios() || confirm('Hay cambios sin guardar. ¿Cerrar sin guardar?');
+    const cat = () => CAT[E.categoria] || { c: '#888', i: 'box', n: E.categoria };
+    const tinte = () => { const c = cat(); raiz.style.cssText = '--c:' + c.c + ';--on:' + sobre(c.c); };
+
+    /* helpers de campo: mismo alto de fila en lectura y en edición, así nada se mueve */
+    const ti = (o, k, ph, tipo) => { const e = el('input', { type: tipo || 'text', value: o[k] == null ? '' : o[k], placeholder: ph || '' }); e.addEventListener('input', () => { o[k] = e.value; }); return e; };
+    const ta = (o, k, ph) => { const e = el('textarea', { placeholder: ph || '' }); e.value = o[k] == null ? '' : o[k]; e.addEventListener('input', () => { o[k] = e.value; }); return e; };
+    const se = (o, k, ops, alCambiar) => { const e = el('select', {}, ops.map(([v, n]) => el('option', { value: v }, n))); e.value = o[k]; e.addEventListener('change', () => { o[k] = e.value; if (alCambiar) alCambiar(); }); return e; };
+    const rw = (lbl, ver, edit, cls) => el('div', { class: 'rw' }, el('label', {}, lbl), el('div', { class: 'v ' + (cls || '') }, modo === 'edit' && edit ? edit : ver));
+    const tx = v => (v === '' || v == null) ? el('span', { class: 'nd' }, '—') : document.createTextNode(v);
+
+    const pintaCab = () => {
+      tinte(); cab.innerHTML = '';
+      const c = cat();
+      cab.append(el('span', { class: 'ib' }, ico(c.i, 30)),
+        el('div', { class: 'tt' }, el('span', { class: 'cod' }, E.sku || 'Nuevo artículo'), el('h3', {}, (nuevo && !base.descripcion && !E.descripcion) ? 'Nuevo artículo · ' + c.n : (modo === 'edit' && !E.descripcion ? 'Sin descripción' : E.descripcion))),
+        el('span', { class: 'pd-sp' }),
+        ...(modo === 'ver'
+          ? [el('button', { type: 'button', class: 'fbtn', onclick: () => copiar(E.sku, 'Código copiado · ' + E.sku) }, ico('copy', 17), 'Copiar código'), el('button', { type: 'button', class: 'fbtn sol', onclick: () => { modo = 'edit'; pintaTodo(); } }, ico('edit', 17), 'Editar')]
+          : [el('button', { type: 'button', class: 'fbtn', onclick: cancelar }, 'Cancelar'), el('button', { type: 'button', class: 'fbtn sol', onclick: guardarItem }, ico('check', 17), 'Guardar')]),
+        el('button', { type: 'button', class: 'fbtn ic', title: 'Cerrar', onclick: () => cerrarModal() }, ico('x', 18)));
+    };
+
     const pintaFoto = () => {
-      foto.innerHTML = ''; const it = nuevo ? null : item(id), u = it && urlDe(it.foto_path || it.foto_thumb), cc = CAT[E.categoria] || { c: '#888', i: 'box' };
-      const f = el('input', { type: 'file', accept: 'image/*', style: 'display:none', onchange: async e => { const fl = e.target.files[0]; e.target.value = ''; if (!fl) return; try { await subirFoto(item(id), fl); pintaFoto(); } catch (er) { toast('No se pudo subir: ' + (er.message || er)); } } });
-      foto.append(el('div', { class: 'pd-foto', style: '--c:' + cc.c + ';border-radius:16px;' + (u ? 'background-image:url(' + u + ')' : '') }, u ? null : ico(cc.i, 60)),
-        el('div', { style: 'display:flex;gap:8px;margin-top:10px;flex-wrap:wrap' }, nuevo ? el('span', { class: 'pd-muted' }, 'Guarda el artículo y después podrás subir su foto.') : [btn(u ? 'Cambiar foto' : 'Subir foto', 'cam', () => f.click(), 'btn-gold'), u ? btn('Ver grande', 'img', () => window.open(u, '_blank', 'noopener')) : null], f));
-      if (!nuevo && !u && (item(id).foto_path || item(id).foto_thumb)) firmar([item(id).foto_path, item(id).foto_thumb]).then(pintaFoto);
+      const it = nuevo ? null : item(id), u = previa || (it && urlDe(it.foto_path || it.foto_thumb)), c = cat();
+      const ph = el('div', { class: 'ph' + (u ? ' con' : ''), style: u ? 'background-image:url(' + u + ')' : '' },
+        u ? null : el('span', { class: 'ph0' }, ico(c.i, 54)),
+        el('span', { class: 'hint' }, ico('cam', 28), u ? 'Cambiar foto' : 'Clic para agregar la foto'),
+        u && !previa ? el('button', { type: 'button', class: 'ver', 'data-nofoto': '1', onclick: e => { e.stopPropagation(); window.open(u, '_blank', 'noopener'); } }, ico('img', 15), 'Ver grande') : null);
+      zonaFoto(ph, async fl => {
+        if (nuevo) { pendiente = fl; if (previa) URL.revokeObjectURL(previa); previa = URL.createObjectURL(fl); pintaCuerpo(); return; }
+        try { await subirFoto(item(id), fl); pintaCuerpo(); pintar(); } catch (er) { toast('No se pudo subir: ' + (er.message || er)); }
+      });
+      if (!nuevo && !u && (it.foto_path || it.foto_thumb)) firmar([it.foto_path, it.foto_thumb]).then(() => { if (modalAbierto) pintaCuerpo(); });
+      return ph;
     };
-    const eqs = el('div', {}), mt = el('div', {});
-    const pintaMant = () => {
-      mt.innerHTML = ''; if (nuevo) return;
-      const l = S.mant.filter(m => m.item_id === id), usos = usosDe(id);
-      mt.append(el('h3', { class: 'pd-sec' }, ico('wrench', 22), 'Mantenimiento'), btn('Registrar mantenimiento', 'plus', () => formMant(id, () => { pintaMant(); pintar(); }), 'btn-gold'));
-      if (!l.length) mt.append(el('p', { class: 'pd-muted' }, 'Sin registros todavía.'));
-      else mt.append(el('table', { class: 'pd-t', style: 'margin-top:10px' }, el('tr', {}, ['Fecha', 'Tipo', 'Detalle', 'Costo', 'Próximo'].map(h => el('th', {}, h))), l.map(m => el('tr', {}, el('td', {}, fcorta(m.fecha)), el('td', {}, TIPO_MANT[m.tipo] || m.tipo), el('td', {}, m.descripcion || '', m.responsable ? el('div', { class: 'pd-muted' }, m.responsable) : null), el('td', {}, m.costo ? q2(m.costo) : '—'), el('td', {}, m.proximo ? fcorta(m.proximo) : '—')))));
-      mt.append(el('h3', { class: 'pd-sec' }, ico('film', 22), 'Producciones donde se usa'));
-      mt.append(usos.length ? usos.map(p => el('div', { class: 'pd-aviso', style: 'border-color:var(--line);background:var(--soft)' }, el('b', {}, p.codigo), ' · ', p.titulo, ' · ', fcorta(p.fecha))) : el('p', { class: 'pd-muted' }, 'Todavía no está asignado a ninguna producción.'));
+
+    const pintaCuerpo = () => {
+      cuerpo.innerHTML = '';
+      const c = cat(), pm = nuevo ? null : proximoMant(id), usos = nuevo ? [] : usosDe(id);
+      cuerpo.append(el('div', { class: 'hero' }, pintaFoto(),
+        el('div', { class: 'res' },
+          el('div', { class: 'pl' }, pillCat(c), pill(EST_INV[E.estado][0], EST_INV[E.estado][1]), E.propiedad === 'prestado' ? pill('Préstamo' + (E.dueno ? ' · ' + E.dueno : ''), '#7A5FA8') : pill('Propio de Faro', '#B8A06A'), E.archivado ? pill('Archivado', '#7B7B7B') : null),
+          el('p', { class: 'pd-muted', style: 'margin:0' }, 'Toca la foto para agregarla o cambiarla.' + (nuevo ? ' Se sube al guardar.' : '')),
+          !nuevo ? el('div', { class: 'mini' }, el('span', {}, ico('wrench', 16), pm ? (pm < hoy() ? 'Mantenimiento vencido · ' : 'Próximo mantenimiento · ') + fcorta(pm) : 'Sin mantenimiento programado'), el('span', {}, ico('film', 16), usos.length ? 'Usado en ' + usos.length + (usos.length === 1 ? ' producción' : ' producciones') : 'Aún sin producciones')) : null)));
+
+      cuerpo.append(el('div', { class: 'grp' }, el('h4', {}, 'Identificación'),
+        rw('Área', pillCat(c), se(E, 'categoria', CATS.map(x => [x.k, x.n]), () => { if (nuevo) E.sku = siguienteSku(E.categoria); pintaTodo(); })),
+        rw('Código (SKU)', el('span', { class: 'cd' }, E.sku, el('button', { type: 'button', class: 'cpb', title: 'Copiar', onclick: () => copiar(E.sku, 'Código copiado · ' + E.sku) }, ico('copy', 15))), (() => { const e = ti(E, 'sku'); e.addEventListener('input', () => { E.sku = e.value.trim().toUpperCase(); }); return e; })()),
+        rw('Descripción *', tx(E.descripcion), ti(E, 'descripcion', 'Filtro ND variable')),
+        rw('Marca', tx(E.marca), ti(E, 'marca')), rw('Modelo', tx(E.modelo), ti(E, 'modelo'))));
+
+      cuerpo.append(el('div', { class: 'grp' }, el('h4', {}, 'Estado y ubicación'),
+        rw('Estado', pill(EST_INV[E.estado][0], EST_INV[E.estado][1]), se(E, 'estado', Object.entries(EST_INV).map(([k, v]) => [k, v[0]]), () => pintaCab())),
+        rw('Guardado en', tx(E.ubicacion), ti(E, 'ubicacion', 'Estudio, mochila 1, bodega…')),
+        rw('Propiedad', tx(E.propiedad === 'prestado' ? 'Prestado por otra persona' : 'Propio de Faro'), se(E, 'propiedad', [['propio', 'Propio de Faro'], ['prestado', 'Prestado por otra persona']])),
+        rw('Dueño', tx(E.propiedad === 'prestado' ? E.dueno : ''), ti(E, 'dueno', 'Si es prestado: ¿de quién?')),
+        rw('Notas', tx(E.notas), ta(E, 'notas', 'Medidas, kit incluido, detalles…'), 'm')));
+
+      if (esDir()) cuerpo.append(el('div', { class: 'grp priv' }, el('h4', {}, ico('lock', 16), 'Datos privados', el('small', {}, 'Tabla aparte · nunca salen en las hojas de llamado')),
+        rw('Número de serie', tx(P.serie), ti(P, 'serie')), rw('Fecha de compra', tx(P.fecha_compra ? fcorta(P.fecha_compra) : ''), ti(P, 'fecha_compra', '', 'date')),
+        rw('Factura', tx(P.factura), ti(P, 'factura', 'FEL-000')), rw('Notas privadas', tx(P.notas_privadas), ta(P, 'notas_privadas'), 'm')));
+
+      if (!nuevo) {
+        const mt = el('div', { class: 'grp' }), l = S.mant.filter(x => x.item_id === id);
+        mt.append(el('h4', {}, ico('wrench', 16), 'Mantenimiento', el('span', { class: 'pd-sp' }), btn('Registrar', 'plus', () => formMant(id, () => { pintar(); itemForm(id); }), 'btn-gold')));
+        if (!l.length) mt.append(el('p', { class: 'pd-muted vac' }, 'Sin registros todavía.'));
+        else mt.append(el('div', { class: 'tb' }, el('table', { class: 'pd-t' }, el('tr', {}, ['Fecha', 'Tipo', 'Detalle', 'Costo', 'Próximo'].map(h => el('th', {}, h))), l.map(x => el('tr', {}, el('td', {}, fcorta(x.fecha)), el('td', {}, TIPO_MANT[x.tipo] || x.tipo), el('td', {}, x.descripcion || '', x.responsable ? el('div', { class: 'pd-muted' }, x.responsable) : null), el('td', {}, x.costo ? q2(x.costo) : '—'), el('td', {}, x.proximo ? fcorta(x.proximo) : '—'))))));
+        cuerpo.append(mt);
+        cuerpo.append(el('div', { class: 'grp' }, el('h4', {}, ico('film', 16), 'Producciones donde se usa'),
+          usos.length ? usos.map(p => el('div', { class: 'rw uso' }, el('b', {}, p.codigo), el('span', {}, p.titulo + ' · ' + fcorta(p.fecha)))) : el('p', { class: 'pd-muted vac' }, 'Todavía no está asignado a ninguna producción.')));
+        cuerpo.append(el('div', { class: 'pie' }, btn(base.archivado ? 'Desarchivar' : 'Archivar este artículo', 'trash', async () => {
+          try { const r = await send('PATCH', 'prod_inventario?id=eq.' + id, { archivado: !base.archivado }); S.items[S.items.findIndex(x => x.id === id)] = r[0]; toast(base.archivado ? 'Artículo restaurado' : 'Artículo archivado'); cerrarModal(true); pintar(); } catch (e) { toast(e.message); }
+        }, 'btn-ghost', 'Los artículos no se borran: se archivan')));
+      }
     };
-    const skuI = el('input', { class: 'pd-in', value: E.sku, oninput: e => { E.sku = e.target.value.trim().toUpperCase(); } });
-    cuerpo.append(foto, el('div', { class: 'pd-fg' },
-      campo('Categoría', (() => { const s = el('select', { class: 'pd-in' }, CATS.map(c => el('option', { value: c.k }, c.n))); s.value = E.categoria; s.addEventListener('change', () => { E.categoria = s.value; if (nuevo) { E.sku = siguienteSku(E.categoria); skuI.value = E.sku; } pintaFoto(); }); return s; })()),
-      campo('Código (SKU)', skuI),
-      campo('Descripción *', inp(E, 'descripcion'), 'full'), campo('Marca', inp(E, 'marca')), campo('Modelo', inp(E, 'modelo')),
-      campo('Estado', sel(E, 'estado', Object.entries(EST_INV).map(([k, v]) => [k, v[0]]))), campo('Ubicación / guardado en', inp(E, 'ubicacion', 'text', { placeholder: 'Estudio, mochila 1, bodega…' })),
-      campo('Propiedad', sel(E, 'propiedad', [['propio', 'Propio de Faro'], ['prestado', 'Prestado por otra persona']])), campo('Dueño (si es prestado)', inp(E, 'dueno', 'text', { placeholder: 'Barló CR' })),
-      campo('Notas / adicionales', area(E, 'notas', 2), 'full')),
-      esDir() && el('h3', { class: 'pd-sec' }, ico('lock', 22), 'Datos privados'), esDir() && el('p', { class: 'pd-muted', style: 'margin:0' }, 'Se guardan en una tabla aparte. Nunca salen en las hojas de llamado.'),
-      esDir() && el('div', { class: 'pd-fg' }, campo('Número de serie', inp(P, 'serie')), campo('Fecha de compra', inp(P, 'fecha_compra', 'date')), campo('Factura', inp(P, 'factura', 'text', { placeholder: 'FEL-000' })), campo('Notas privadas', area(P, 'notas_privadas', 2), 'full')), mt);
-    pintaFoto(); pintaMant();
+    const pintaTodo = () => { pintaCab(); pintaCuerpo(); };
+
+    const cancelar = () => {
+      if (nuevo) { cerrarModal(); return; }
+      if (cambios() && !confirm('¿Descartar los cambios?')) return;
+      E = clone(item(id)); ['marca', 'modelo', 'notas', 'dueno', 'ubicacion'].forEach(z => { if (E[z] == null) E[z] = ''; });
+      P = Object.assign({ serie: '', fecha_compra: '', factura: '', notas_privadas: '' }, clone(S.priv[id] || {})); Object.keys(P).forEach(k => { if (P[k] == null) P[k] = ''; });
+      foto0 = JSON.stringify([E, P]); modo = 'ver'; pintaTodo();
+    };
     const guardarItem = async () => {
       if (!E.descripcion.trim()) { toast('Falta la descripción'); return; } if (!E.sku) { toast('Falta el código'); return; }
       if (S.items.some(x => x.sku === E.sku && x.id !== id)) { toast('Ya existe un artículo con el código ' + E.sku); return; }
@@ -770,12 +976,12 @@
         else { r = await send('PATCH', 'prod_inventario?id=eq.' + id, cuerpoI); S.items[S.items.findIndex(x => x.id === id)] = r[0]; }
         const iid = r[0].id;
         if (esDir()) { const rp = await send('POST', 'prod_inv_privado', Object.assign({ item_id: iid }, priv), { Prefer: 'resolution=merge-duplicates,return=representation' }); S.priv[iid] = (rp && rp[0]) || Object.assign({ item_id: iid }, priv); }
-        S.items.sort((a, b) => a.sku.localeCompare(b.sku, 'es', { numeric: true })); toast('Guardado · ' + E.sku); cerrarModal(); pintar();
-        if (nuevo) itemForm(iid);
+        if (nuevo && pendiente) { try { await subirFoto(r[0], pendiente); } catch (er) { toast('Se guardó, pero la foto no subió: ' + (er.message || er)); } }
+        S.items.sort((a, b) => a.sku.localeCompare(b.sku, 'es', { numeric: true })); toast('Guardado · ' + E.sku);
+        guardModal = null; cerrarModal(true); pintar(); itemForm(iid);
       } catch (e) { toast('No se pudo guardar: ' + (e.message || e)); }
     };
-    const arch = nuevo ? null : btn(base.archivado ? 'Desarchivar' : 'Archivar', 'trash', async () => { try { const r = await send('PATCH', 'prod_inventario?id=eq.' + id, { archivado: !base.archivado }); S.items[S.items.findIndex(x => x.id === id)] = r[0]; toast(base.archivado ? 'Artículo restaurado' : 'Artículo archivado'); cerrarModal(); pintar(); } catch (e) { toast(e.message); } }, 'btn-ghost', 'Los artículos no se borran: se archivan');
-    modal(nuevo ? 'Nuevo artículo' : E.sku + ' · ' + E.descripcion, '640px', cuerpo, [arch, btn('Guardar', 'check', guardarItem, 'btn-gold')]);
+    pintaTodo();
   }
 
   /* ---------- mantenimiento ---------- */

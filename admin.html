@@ -867,8 +867,8 @@ summary{transition:color .18s}
 <script src="cupones-admin.js"></script>
 <script src="recursos-docentes.js?v=20261026a"></script>
 <script src="musicpro.js?v=20261026d"></script>
-<script src="producciones-doc.js?v=20261026a"></script>
-<script src="producciones.js?v=20261026a"></script>
+<script src="producciones-doc.js?v=20261101a"></script>
+<script src="producciones.js?v=20261101a"></script>
 <script src="produccion-cliente.js?v=20261101a"></script>
 <script src="subtitulos-motor.js?v=20261101b"></script>
 <script src="subtitulos-mov.js?v=20261101b"></script>
@@ -4928,7 +4928,7 @@ function rsnTab(){try{FaroResenas.iniciar($('#rsn-body'),rsnCtx())}catch(e){cons
 function rdTab(){try{FaroRecursosDoc.iniciar($('#rd-body'),{api:(p,o)=>api(p,o),raw:async(p,i)=>{if(S&&S.exp-60000<Date.now())await refresh();i=i||{};return fetch(SB.url+p,{method:i.method||'GET',headers:Object.assign({apikey:SB.key,Authorization:'Bearer '+(S?S.access:SB.key)},i.headers||{}),body:i.body})},toast,errText,sbUrl:SB.url})}catch(e){console.error(e);toast('No se pudo abrir Recursos docentes')}}
 function mpTab(){try{FaroMusicPro.iniciar($('#mp-body'),{api:(p,o)=>api(p,o),toast,errText})}catch(e){console.error(e);toast('No se pudo abrir Music Pro')}}
 /* ---------- Producciones (producciones.js · producciones-doc.js · sql/producciones.sql · solo el director) ---------- */
-function prdTab(){try{FaroProd.iniciar($('#prd-body'),{owner:()=>!!ME.owner,api:(p,o)=>api(p,o),raw:async(p,i)=>{if(S&&S.exp-60000<Date.now())await refresh();i=i||{};return fetch(SB.url+p,{method:i.method||'GET',headers:Object.assign({apikey:SB.key,Authorization:'Bearer '+(S?S.access:SB.key)},i.headers||{}),body:i.body})},toast,errText,sbUrl:SB.url})}catch(e){console.error(e);toast('No se pudo abrir Producciones')}}
+function prdTab(){try{FaroProd.iniciar($('#prd-body'),{owner:()=>!!ME.owner,uid:()=>ME.uid||'',usuarios:async()=>{if(!ME.owner)return[];try{const r=await api('/rest/v1/admin_equipo?select=user_id,nombre,usuario,activo&order=creado.asc');return r.ok?await r.json():[]}catch(e){return[]}},api:(p,o)=>api(p,o),raw:async(p,i)=>{if(S&&S.exp-60000<Date.now())await refresh();i=i||{};return fetch(SB.url+p,{method:i.method||'GET',headers:Object.assign({apikey:SB.key,Authorization:'Bearer '+(S?S.access:SB.key)},i.headers||{}),body:i.body})},toast,errText,sbUrl:SB.url})}catch(e){console.error(e);toast('No se pudo abrir Producciones')}}
 function sbtTab(){try{FaroSubs.iniciar($('#sbt-body'),{toast})}catch(e){console.error(e);toast('No se pudo abrir Subtítulos')}}
 function cupTab(){try{FaroCupones.iniciar($('#cup-body'),{api:(p,o)=>api(p,o),toast,errText})}catch(e){console.error(e);toast('No se pudo abrir Cupones')}}
 async function enPatch(tabla,lista,id,body){

@@ -129,7 +129,7 @@
   .kv span{color:#6A655C}
   .kv b{font-weight:700;overflow-wrap:anywhere}
   .equipo{display:grid;gap:8px;margin-top:10px}
-  .eq{display:grid;grid-template-columns:54px 1fr auto;gap:10px;align-items:center;padding:7px 9px;border-radius:10px;background:#FBF9F5;box-shadow:0 0 0 1px rgba(37,37,40,.1) inset}
+  .eq{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:7px 9px;border-radius:10px;background:#FBF9F5;box-shadow:0 0 0 1px rgba(37,37,40,.1) inset}
   .eq .foto{width:54px;height:54px;border-radius:9px;background:#EDE8DE center/cover no-repeat;box-shadow:0 4px 8px -4px rgba(0,0,0,.5),0 0 0 1px rgba(37,37,40,.14);display:grid;place-items:center;color:#9a937f;font-size:11px}
   .eq .sku{font-size:13px;font-weight:700;letter-spacing:.08em;color:#8B1A2A}
   .eq .ds{font-size:14px;line-height:1.25;font-weight:700}
@@ -212,7 +212,7 @@
     else {
       html += '<div class="grid2" style="grid-template-columns:1fr">' + crew.map(m => {
         const eq = (m.equipo || []).map(id => items[id]).filter(Boolean);
-        const eqHtml = eq.length ? '<div class="equipo">' + eq.map(it => '<div class="eq sep"><div class="foto"' + (fotos[it.id] ? ' style="background-image:url(' + fotos[it.id] + ')"' : '') + '>' + (fotos[it.id] ? '' : 'sin foto') + '</div><div><div class="sku">' + esc(it.sku) + (it.propiedad === 'prestado' ? ' · PRÉSTAMO' + (it.dueno ? ' ' + esc(it.dueno) : '') : '') + '</div><div class="ds">' + esc(it.descripcion) + '</div><div class="mm">' + esc([it.marca, it.modelo].filter(Boolean).join(' · ')) + (it.notas ? ' — ' + esc(it.notas) : '') + '</div></div><div class="chk"><span><i></i>Sale</span><span><i></i>Regresa</span></div></div>').join('') + '</div>' : '<div class="vacio">Sin equipo asignado</div>';
+        const eqHtml = eq.length ? '<div class="equipo">' + eq.map(it => '<div class="eq sep"><div><div class="sku">' + esc(it.sku) + (it.propiedad === 'prestado' ? ' · PRÉSTAMO' + (it.dueno ? ' ' + esc(it.dueno) : '') : '') + '</div><div class="ds">' + esc(it.descripcion) + '</div><div class="mm">' + esc([it.marca, it.modelo].filter(Boolean).join(' · ')) + (it.notas ? ' — ' + esc(it.notas) : '') + '</div></div><div class="chk"><span><i></i>Sale</span><span><i></i>Regresa</span></div></div>').join('') + '</div>' : '<div class="vacio">Sin equipo asignado</div>';
         return '<div class="card persona"><div class="ph"><div class="av">' + esc((m.nombre || '?').trim().charAt(0).toUpperCase()) + '</div><div><div class="nm">' + esc(m.nombre || 'Por asignar') + '</div><span class="rol">' + esc(m.rol || 'Responsable') + '</span></div><div class="llg">Llegada<b>' + esc(hora12(m.llegada || p.hora_llamado)) + '</b></div></div><div class="pb"><div class="kv">' + (m.contacto ? '<span>Contacto</span><b>' + esc(m.contacto) + '</b>' : '') + '<span>Equipo</span><b>' + eq.length + (eq.length === 1 ? ' artículo' : ' artículos') + ' a su cargo</b>' + (m.obs ? '<span>Obs.</span><b>' + nl(m.obs) + '</b>' : '') + '</div>' + eqHtml + '</div></div>';
       }).join('') + '</div>';
     }
