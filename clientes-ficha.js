@@ -37,6 +37,7 @@ document.head.append(s)}
 const nCli=()=>(AC.list.cli||[]);
 const vDe=id=>FC.vinc.filter(v=>v.cliente_id===id);
 const fdt=d=>{try{return new Date(d).toLocaleDateString('es-GT',{day:'numeric',month:'short',year:'numeric'})}catch(e){return ''}};
+const corpCuentas=()=>(EN.cuentas||[]).filter(x=>x.tipo!=='galeria');
 const cuentasDe=c=>(EN.cuentas||[]).filter(x=>x.cliente_id===c.id);
 
 async function fcCargar(){
@@ -92,12 +93,12 @@ window.renderFichas=function(box){
   const est=AC.list.est||[],cl=nCli();
   const card=el('div',{class:'card'});
   const seg=el('div',{class:'fc-seg',role:'group','aria-label':'Tipo de cliente'});
-  [['studios','Faro Studios',cl.length,'camera'],['academy','Academy',est.length,'cap']].forEach(([k,t,n,i])=>
+  [['studios','Faro Studios',cl.length,'camera'],['corp','Corporativo',corpCuentas().length,'film'],['academy','Academy',est.length,'cap']].forEach(([k,t,n,i])=>
     seg.append(el('button',{type:'button',class:'chip','aria-pressed':String(FC.seg===k),onclick:()=>{FC.seg=k;FC.q='';redo()}},icoEl(i),t+' · '+n)));
   card.append(seg);
   if(!FC.ok)card.append(el('p',{class:'msg'},'Falta crear la tabla de vínculos (sql/clientes-vinculos.sql). Mientras tanto puedes ver la lista y la galería, pero no guardar etapas.'));
   const redo=()=>{const b=$('#cl-body');b.textContent='';window.renderFichas(b)};
-  const q=el('input',{type:'search',placeholder:FC.seg==='studios'?'Buscar cliente o proyecto…':'Buscar alumno…','aria-label':'Buscar',value:FC.q});
+  const q=el('input',{type:'search',placeholder:FC.seg==='academy'?'Buscar alumno…':FC.seg==='corp'?'Buscar empresa o agencia…':'Buscar cliente o proyecto…','aria-label':'Buscar',value:FC.q});
   q.addEventListener('input',()=>{FC.q=q.value;pintaLista()});
   const bar=el('div',{class:'fc-bar'},q);
   if(FC.seg==='studios')bar.append(el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:()=>{AC.sel.cl='cli';AC.edit=null;renderGrp('cl')}},icoEl('plus'),' Agregar cliente'));
@@ -123,6 +124,19 @@ window.renderFichas=function(box){
             el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:()=>ficha(c.id)},'Abrir ficha'),
             el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>{AC.sel.cl='cli';AC.edit=c.id;renderGrp('cl')}},'Editar datos'))));
       });
+    }else if(FC.seg==='corp'){
+      const rows=corpCuentas().filter(c=>!t||norm(c.nombre+' '+(c.usuario||'')).includes(t));
+      if(!rows.length)lista.append(el('p',{class:'muted'},corpCuentas().length?'Nada coincide con la búsqueda.':'Todavía no hay clientes corporativos. Se crean en Entregas (empresa o agencia).'));
+      rows.forEach(c=>{
+        const ps=(EN.proy||[]).filter(p=>p.cuenta_id===c.user_id);
+        const dots=el('div',{class:'fc-dots'},
+          el('span',{class:'fc-dot ok'},icoEl('users'),(EN_TIPOS[c.tipo]||[c.tipo])[0]),
+          el('span',{class:'fc-dot'+(ps.length?' ok':'')},icoEl('folder'),ps.length+' proyecto'+(ps.length===1?'':'s')),
+          el('span',{class:'fc-dot'+(c.activo?' ok':'')},icoEl('key'),c.activo?'Acceso activo':'Acceso desactivado'));
+        const acts=el('div',{class:'fc-acts'});
+        if(ps.length&&window.FaroProdCli)acts.append(el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:()=>FaroProdCli.abrir(ps[0].id)},icoEl('file'),' Plataforma de producción'));
+        ps.forEach(p=>acts.append(el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>enEditor(p.id)},icoEl('folder'),' '+p.titulo+' · archivos')));
+        lista.append(el('div',{class:'item'},el('b',{},c.nombre),el('small',{},'Usuario '+c.usuario+(c.whatsapp?' · '+c.whatsapp:'')),dots,acts))});
     }else{
       const rows=est.filter(a=>!t||norm(a.nombre+' '+(a.apodo||'')).includes(t));
       if(!rows.length)lista.append(el('p',{class:'muted'},est.length?'Nada coincide con la búsqueda.':'Todavía no hay alumnos.'));
