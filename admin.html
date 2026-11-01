@@ -876,6 +876,7 @@ summary{transition:color .18s}
 <script src="cupones-admin.js"></script>
 <script src="recursos-docentes.js?v=20261026a"></script>
 <script src="musicpro.js?v=20261026d"></script>
+<script src="clientes-ficha.js?v=20261101a"></script>
 <script src="producciones-doc.js?v=20261101a"></script>
 <script src="producciones.js?v=20261101a"></script>
 <script src="produccion-cliente.js?v=20261101a"></script>
@@ -943,7 +944,7 @@ const IC={
 };
 const ico=(n,cls)=>'<svg class="sv'+(cls?' '+cls:'')+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(IC[n]||IC.file)+'</svg>';
 function icoEl(n,cls){const s=document.createElement('span');s.className='ico';s.innerHTML=ico(n,cls);return s}
-const ENT_IC={tabl:'chart',asg:'link',est:'cap',enc:'users',doc:'user',vin:'link',acc:'key',tar:'clipboard',eva:'edit',prac:'mic',hab:'star',logro:'award',reco:'bulb',clase:'calendar',mat:'book',dip:'award',fac:'card',cli:'camera',clacc:'key',cldoc:'file',chat:'message',clchat:'message'};
+const ENT_IC={tabl:'chart',asg:'link',est:'cap',enc:'users',doc:'user',vin:'link',acc:'key',tar:'clipboard',eva:'edit',prac:'mic',hab:'star',logro:'award',reco:'bulb',clase:'calendar',mat:'book',dip:'award',fac:'card',fic:'users',cli:'camera',clacc:'key',cldoc:'file',chat:'message',clchat:'message'};
 $$('[data-i]').forEach(e=>{e.innerHTML=ico(e.dataset.i)});
 const isoD=(y,m,d)=>new Date(Date.UTC(y,m,d)).toISOString().slice(0,10);
 const today=()=>new Date().toLocaleDateString('en-CA',{timeZone:'America/Guatemala'});
@@ -1322,7 +1323,7 @@ function renderCot(){
 function render(){renderCal();renderDay();renderRes();renderSem();renderAcc();renderCot();try{renderDash()}catch(e){console.error(e)}try{avisosPintar()}catch(e){}}
 
 /* ---------- ACADEMY · CLIENTES · SITIO (portales y configuración) ---------- */
-const AC={ok:true,list:{},sel:{ac:'tabl',cl:'cli'},edit:null,filtro:'',chat:{est:'',canal:'alumno',cli:''},cfg:{}};
+const AC={ok:true,list:{},sel:{ac:'tabl',cl:'fic'},edit:null,filtro:'',chat:{est:'',canal:'alumno',cli:''},cfg:{}};
 const AREAS=[['musica','Música'],['ingles','Inglés']];
 /* Instrumentos y niveles: siempre se eligen de la lista, nunca se escriben. El portal activa herramientas según estos valores. */
 const INSTR=[['canto','Canto'],['acustica','Guitarra acústica'],['clasica','Guitarra clásica'],['electrica','Guitarra eléctrica'],['bajo','Bajo'],['bateria','Batería'],['piano','Piano'],['ukelele','Ukelele'],['produccion','Producción musical']];
@@ -1422,7 +1423,7 @@ const ENT={
     {k:'titulo',l:'Título',req:1},{k:'ruta',l:'Archivo (máx. 50 MB)',t:'file',folder:''}],
     row:r=>[r.titulo+' · '+r.tipo,acN('cli',r.cliente_id)]}
 };
-const GRP={ac:['tabl','est','enc','doc','asg','vin','acc','tar','eva','prac','hab','logro','reco','clase','mat','dip','fac','chat'],cl:['cli','clacc','cldoc','clchat']};
+const GRP={ac:['tabl','est','enc','doc','asg','vin','acc','tar','eva','prac','hab','logro','reco','clase','mat','dip','fac','chat'],cl:['fic','cli','clacc','cldoc','clchat']};
 function acN(k,id){const x=(AC.list[k]||[]).find(r=>r.id===id);return x?(x.apodo||x.nombre):'(borrado)'}
 function accHas(fk,id){return (AC.list.acc||[]).some(c=>c[fk]===id)}
 function accTxt(rol,fk,id,tok){const c=(AC.list.acc||[]).find(x=>x[fk]===id);return c?((tok?'acceso con ':'usuario ')+c.usuario+(c.activo?'':' (desactivado)')):'sin acceso todavía'}
@@ -1662,7 +1663,7 @@ const ACG=[
   ['seg','Seguimiento','chart','Tablero, tareas, evaluaciones y logros',['tabl','tar','eva','prac','hab','logro','reco']],
   ['cla','Clases y material','calendar','Programa, material y diplomas',['clase','mat','dip']],
   ['cob','Cobros y mensajes','card','Facturas, saldos y chats',['fac','chat']]];
-const acEtq=k=>k==='tabl'?'Tablero del alumno':k==='chat'?'Mensajes':k==='clchat'?'Buzón':k==='clacc'?'Accesos de clientes':ENT[k].t;
+const acEtq=k=>k==='tabl'?'Tablero del alumno':k==='chat'?'Mensajes':k==='clchat'?'Buzón':k==='clacc'?'Accesos de clientes':k==='fic'?'Fichas':ENT[k].t;
 function acNav(chips){
   chips.className='acnav';
   const act=ACG.find(x=>x[4].includes(AC.sel.ac))||ACG[0];
@@ -1683,6 +1684,7 @@ function renderGrp(g){
   const k=AC.sel[g];
   if(k==='tabl')return renderTablero(box);
   if(k==='prac')return renderPracticas(box);
+  if(k==='fic'){if(typeof renderFichas==='function')return renderFichas(box);AC.sel.cl='cli';return renderGrp(g)}
   if(k==='clacc')return renderClAccesos(box);
   if(k==='chat'||k==='clchat')return renderChat(box,k);
   const e=ENT[k];let rows=AC.list[k]||[];
