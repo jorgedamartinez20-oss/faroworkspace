@@ -669,7 +669,7 @@ async function gAbrirDescarga(modo,una){
     $('#gdt',m).innerHTML=Object.entries(tams).map(([k,t])=>{
       const x=info(k),ap=dim&&dim.est?'≈ ':'';
       const mp=x.w?ap+(x.w*x.h/1e6).toFixed(1)+' megapíxeles':'—',res=x.w?ap+x.w+' × '+x.h+' px':'Se mide al abrir';
-      return '<button data-t="'+k+'" aria-pressed="'+(S.tam===k)+'"><b>'+t.n+'</b><span>'+t.uso+'</span><em>'+res+'</em><span>'+mp+'</span><span>'+(x.mb?'≈ '+(x.mb<10?x.mb.toFixed(1):Math.round(x.mb))+' MB por foto':'')+'</span></button>'}).join('');
+      return '<button data-t="'+k+'" aria-pressed="'+(S.tam===k)+'"><b>'+t.n+'</b><span>'+t.uso+'</span><em>'+res+'</em><span>'+mp+'</span><span>'+(x.mb?(x.mb<.1?'< 0.1':'≈ '+(x.mb<10?x.mb.toFixed(1):Math.round(x.mb)))+' MB por foto':'')+'</span></button>'}).join('');
     const n=cantidad(),tot=info(S.tam).mb*n;
     $('#gdn',m).innerHTML='<b>'+n+(n===1?' foto':' fotos')+' · tamaño '+tams[S.tam].n+(tot&&n>1?' · aprox. '+(tot<10?tot.toFixed(1):Math.round(tot))+' MB en total':'')+'</b><br>'+(S.modo==='una'?'Se guarda en tu dispositivo. En el teléfono toca la foto y elige “Guardar en Fotos”.':'Se descarga en un archivo ZIP. En iPhone es mejor bajar por listas o una por una.')+' “Alta” se ve perfecta en pantalla; “Original” es para imprimir en grande.';
     $('#gdot',m).textContent=S.modo==='una'?'Descargar foto':'Descargar '+n+' fotos';

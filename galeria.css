@@ -521,3 +521,13 @@ html.gpal::before{display:none!important}
 /* ---- Editorial: marco blanco en cada foto (con cualquier paleta) ---- */
 .ged .gph{background:#fff;border:1px solid rgba(37,37,40,.1)}
 .ged .gph>button.ver{outline:1px solid rgba(37,37,40,.1)}
+/* ---- pantallas muy angostas (320 px): el encabezado cabe completo ---- */
+@media(max-width:350px){
+  .gtop{gap:4px;padding:8px}
+  .gtop .iso{height:22px}
+  .gtop .gb{min-width:36px;min-height:36px;padding:4px 7px}
+  .gtop .gvista{padding:2px}
+  .gtop .gvista button{min-width:30px;min-height:30px;padding:3px 6px}
+  .gvista .ico{width:16px;height:16px}
+}
+.gmc .x{top:24px;right:14px;z-index:6}
