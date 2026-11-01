@@ -21,7 +21,7 @@ const GPAL={
   marfil:{n:'Marfil',bg:'#F5F2EE',tx:'#252528',ac:'#8B1A2A',luz:'clara',nota:'Alto contraste'},
   oliva:{n:'Oliva',bg:'#2F3626',tx:'#DCDCC4',ac:'#B9B67A',luz:'oscura',nota:'Suave'},
   salvia:{n:'Salvia',bg:'#E4E8DC',tx:'#4A5440',ac:'#7C8A64',luz:'clara',nota:'Suave'},
-  rosa:{n:'Rosa pastel',bg:'#FFBFC9',tx:'#5A242B',ac:'#B44858',luz:'clara',nota:'Suave'},
+  rosa:{n:'Rosa pastel',bg:'#F6E4E4',tx:'#6A4A50',ac:'#C98A94',luz:'clara',nota:'Suave'},
   palo:{n:'Palo de rosa',bg:'#3A1F28',tx:'#F8E9EC',ac:'#E7A9B6',luz:'oscura',nota:'Alto contraste'},
   mar:{n:'Mar profundo',bg:'#0E2A36',tx:'#EAF4F5',ac:'#7FC8C8',luz:'oscura',nota:'Alto contraste'},
   espuma:{n:'Espuma de mar',bg:'#DCEBEA',tx:'#2F5559',ac:'#4F9A9C',luz:'clara',nota:'Suave'},
