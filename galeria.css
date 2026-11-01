@@ -470,3 +470,6 @@ html.gpal::before{display:none!important}
 .glb .bar span{flex:1 1 auto;white-space:nowrap;min-width:max-content;padding-right:6px}
 .glb .bar button{flex:none}
 @media(max-width:560px){.glb .bar button.pri .t{display:none}.glb .bar button.pri{padding:6px 14px}.glb .bar{gap:6px}}
+
+/* ---- el código de descuento se desbloquea al dejar la reseña ---- */
+.gcod.lock{display:none!important}

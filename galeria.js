@@ -285,7 +285,7 @@ function gChequeaFin(){
 /* a mitad de la galería el regalo se abre solo una vez (por sesión) y se cierra solo; la pestaña se queda */
 function gChequeaMedio(){
   const c=document.getElementById('gcod');
-  if(!c||G.codVisto||!G.abierta||!G.finOk||document.querySelector('.gt,.gm,.glb,.gdr'))return;
+  if(!c||c.classList.contains('lock')||G.codVisto||!G.abierta||!G.finOk||document.querySelector('.gt,.gm,.glb,.gdr'))return;
   if(gSS(gKey('faro_cod'))){G.codVisto=true;return}
   const mu=document.getElementById('gmu');if(!mu)return;
   const r=mu.getBoundingClientRect(),medio=r.top+r.height*.5;
@@ -298,7 +298,8 @@ function gChequeaMedio(){
 function gCodigoHtml(cfg){
   const cod=String(cfg.codigo||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,12);if(!cod)return '';
   const n=+cfg.descuento,dt=n>0?n+'% de descuento':'tu descuento';
-  return '<aside class="gcod" id="gcod" aria-label="Código de descuento"><button class="tb" id="gcodb" aria-expanded="false" aria-controls="gcodp">'+ic('gift')+'<span class="vt">Tu código</span></button>'
+  const lock=!PREVIA&&!gLS(gKey('faro_res'));
+  return '<aside class="gcod'+(lock?' lock':'')+'" id="gcod" aria-label="Código de descuento"><button class="tb" id="gcodb" aria-expanded="false" aria-controls="gcodp">'+ic('gift')+'<span class="vt">Tu código</span></button>'
     +'<div class="pn" id="gcodp"><div class="in2"><button class="gcx" id="gcodx" type="button" aria-label="Cerrar">'+ic('x')+'</button><small>DESCUENTO PARA TI</small><b class="cdg">'+esc(cod)+'</b>'
     +'<p>Menciona este código al reservar tu próxima sesión y recibe <b>'+esc(dt)+'</b>.</p><p class="gvig">Vigencia de 5 meses desde la entrega de tu galería · tiene 2 usos: uno para ti y otro para un amigo.</p>'
     +'<div class="row"><button class="gbtn p" id="gcodc">'+ic('copy')+' Copiar</button><button class="gbtn" id="gcodw">'+ic('wa')+' Usarlo</button></div></div></div></aside>';
@@ -799,7 +800,7 @@ function gConfirmaSalir(){
 function gAbrirResena(manual){
   if(document.querySelector('.gm,.gt'))return;
   const m=gModal('<div class="top"></div><div class="bd" style="justify-items:stretch"><div class="eti" style="text-align:center">GRACIAS POR CONFIAR EN NOSOTROS</div><h2>¿Qué te pareció tu galería?</h2>'
-    +'<p style="margin:0 auto">Nos ayudarías mucho con una reseña. La usamos en nuestras redes y en la web, en “Lo dicen nuestros clientes”, y así más personas nos conocen.</p>'
+    +'<p style="margin:0 auto">Nos ayudarías mucho con una reseña. La usamos en nuestras redes y en la web, en “Lo dicen nuestros clientes”, y así más personas nos conocen.'+(G.cfg&&G.cfg.codigo&&!gLS(gKey('faro_res'))?' <b>Como agradecimiento, al enviarla se desbloquea tu código de descuento.</b>':'')+'</p>'
     +'<div class="stars" id="grs"></div>'
     +'<div class="grid2"><input type="text" id="grn" placeholder="Tu nombre" maxlength="60" value="'+esc(ST.perfil.nombre||'')+'"><input type="text" id="grt" placeholder="Tipo de sesión" maxlength="60" value="'+esc(ST.p.titulo||'')+'"></div>'
     +'<textarea id="grx" placeholder="Cuéntanos cómo fue la experiencia y cómo te sientes con tus fotos…" maxlength="1500"></textarea>'
@@ -815,7 +816,12 @@ function gAbrirResena(manual){
   $('#gre',m).onclick=async()=>{
     const b=$('#gre',m);b.disabled=true;b.textContent='Enviando…';
     let good=false;try{const r=await api('/rest/v1/en_resenas',{method:'POST',body:{proyecto_id:ST.p.id,nombre:$('#grn',m).value.trim().slice(0,60),sesion:$('#grt',m).value.trim().slice(0,60),estrellas:n,texto:$('#grx',m).value.trim().slice(0,1500),autoriza:true},headers:{Prefer:'return=minimal'}});good=r.ok}catch(e){}
-    if(good){gLS(gKey('faro_res'),'1');m.cierra0();toast('¡Gracias! Tu reseña nos ayuda muchísimo');gProgramaPromo()}
+    if(good){gLS(gKey('faro_res'),'1');m.cierra0();
+      const cg=document.getElementById('gcod');
+      if(cg&&cg.classList.contains('lock')){cg.classList.remove('lock');G.codVisto=true;gSS(gKey('faro_cod'),'1');toast('¡Gracias! Desbloqueaste tu código de descuento');
+        setTimeout(()=>{cg.classList.add('abre');const b=document.getElementById('gcodb');if(b)b.setAttribute('aria-expanded','true')},700)}
+      else toast('¡Gracias! Tu reseña nos ayuda muchísimo');
+      gProgramaPromo()}
     else{b.disabled=false;b.textContent='Enviar reseña';toast('No se pudo enviar. Intenta otra vez en un momento.')}
   };
 }
