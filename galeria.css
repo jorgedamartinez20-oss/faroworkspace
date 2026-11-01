@@ -459,3 +459,9 @@ html.gpal::before{display:none!important}
 .gvista .ico,.gvista .ico *{stroke-width:1.1}
 
 .gt svg.fl{display:none}
+
+/* ---- pestaña del código: del alto de su contenido (no se estira) y el carrito nunca queda encima ---- */
+.gcod{top:38%}
+.gcod:not(.abre) .tb{align-self:flex-start;min-height:190px}
+.gcod.abre~.gbolsa{opacity:0;pointer-events:none}
+@media(max-height:560px){.gcod{top:max(76px,calc(100% - 330px))}}

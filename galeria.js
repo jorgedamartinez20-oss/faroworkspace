@@ -372,6 +372,10 @@ async function gMusicaPrep(){
     if(SES&&SES.exp-60000<Date.now())await refreshSes();
     const r=await fetch(FILES+'/api/mi/musica',{method:'POST',headers:{Authorization:'Bearer '+SES.access,'Content-Type':'application/json'},body:JSON.stringify({proyecto:ST.p.id})});
     if(!r.ok)return;const j=await r.json();const lista=j.musicas||(j.musica?[j.musica]:[]);if(!lista.length||!$('#gmus'))return;
+    /* orden aleatorio en cada entrada (y nunca empieza con la misma que la vez anterior) */
+    for(let i=lista.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[lista[i],lista[j]]=[lista[j],lista[i]]}
+    if(lista.length>1&&gLS(gKey('faro_ult'))===lista[0].nombre){const t=lista[0];lista[0]=lista[1];lista[1]=t}
+    gLS(gKey('faro_ult'),lista[0].nombre);
     G.lista=lista;G.mi=0;G.meta=[];
     const au=new Audio();au.preload='auto';au.volume=.6;au.muted=gLS(gKey('faro_mus'))==='0';au.src=lista[0].url;G.au=au;
     gMusicaTitulo();
