@@ -346,6 +346,27 @@ function seccionAcceso(c,pintar,D){
   sec.append(box);return sec}
 
 /* ---------- galería y entregas ---------- */
+
+/* Al vincular una entrega: trae de la cuenta y sus proyectos lo que falte en la ficha (nunca pisa lo que ya escribiste) */
+const TIPOS_SES=[[/boda|matrimonio/i,'Boda'],[/gradu/i,'Graduación'],[/xv|quince/i,'XV años'],[/famil/i,'Familiar'],[/bautiz|comuni[oó]n/i,'Bautizo / Comunión'],[/pareja|compromiso|preboda/i,'Pareja'],[/cumple/i,'Cumpleaños'],[/retrato|book|personal/i,'Retrato'],[/navide/i,'Navideña'],[/evento/i,'Evento'],[/sesi[oó]n/i,'Sesiones']];
+async function sincronizarDatos(c,cuenta,quieto){
+  try{
+    const ps=(EN.proy||[]).filter(p=>p.cuenta_id===cuenta.user_id).slice().sort((a,b)=>String(a.creado).localeCompare(String(b.creado)));
+    const ct=String(cuenta.contacto||''),us=String(cuenta.usuario||''),mail=/@/.test(us)?us:/@/.test(ct)?ct:'';
+    const tel=String(cuenta.whatsapp||'').replace(/\D/g,'').length>=8?String(cuenta.whatsapp).trim():(!/@/.test(ct)&&ct.replace(/\D/g,'').length>=8?ct.trim():'');
+    const p0=ps[0],tit=p0?p0.titulo:'';
+    const tipo=(TIPOS_SES.find(([re])=>re.test(tit))||[])[1]||'';
+    const ses=sesDe(c.id).filter(x=>x.fecha).sort((a,b)=>String(a.fecha).localeCompare(String(b.fecha)))[0];
+    const fecha=ses?ses.fecha:(p0&&p0.creado?String(p0.creado).slice(0,10):'');
+    const cand={correo:mail,whatsapp:tel,proyecto:tit,tipo,fecha,galeria_url:''},nom={correo:'correo',whatsapp:'WhatsApp',proyecto:'proyecto',tipo:'tipo de sesión',fecha:'fecha'};
+    const body={},hechos=[];
+    for(const k of Object.keys(cand)){if(cand[k]&&!String(c[k]||'').trim()){body[k]=cand[k];hechos.push(nom[k])}}
+    if(!hechos.length){if(!quieto)toast('La ficha ya tenía todos los datos; no se cambió nada');return[]}
+    await acPatch('cl_clientes',c.id,body);Object.assign(c,body);
+    if(!quieto)toast('Datos traídos de la entrega: '+hechos.join(', '));return hechos
+  }catch(e){if(!quieto)toast('No se pudieron traer los datos');return[]}
+}
+
 function seccionEntregas(c,pintar,D){
   const sec=el('div',{class:'fc-sec'},el('h4',{},'Galería y entregas'),el('small',{class:'muted'},'Aquí enlazas lo que ya hiciste. No se mueve ni se cambia ninguna galería.'));
   const ct=cuentasDe(c);
@@ -356,6 +377,7 @@ function seccionEntregas(c,pintar,D){
       el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:()=>{D.cerrar();enEditor(p.id)}},'Abrir galería'))));
     if(!ps.length)box.append(el('p',{class:'muted',style:'margin:8px 0 0'},'Esta cuenta aún no tiene proyectos.'));
     box.append(el('div',{class:'fc-acts'},
+      el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:async()=>{await sincronizarDatos(c,x,false);pintar();refrescaLista()}},'Traer datos de la entrega'),
       el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>{D.cerrar();enPreparar(c)}},'Administrar Entregas'),
       el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:async()=>{
         if(!confirm('¿Desvincular esta cuenta de '+c.nombre+'?\n\nLa galería, sus archivos y su acceso NO se tocan; solo deja de aparecer en esta ficha.'))return;
@@ -368,7 +390,7 @@ function seccionEntregas(c,pintar,D){
     const sel=el('select',{'aria-label':'Entrega existente'},el('option',{value:''},'— elige una entrega que ya hiciste —'),...libres.map(x=>el('option',{value:x.user_id},x.nombre+' · '+(EN_TIPOS[x.tipo]||[x.tipo])[0]+' · '+(EN.proy||[]).filter(p=>p.cuenta_id===x.user_id).length+' proyecto(s)')));
     const go=el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:async()=>{
       const x=libres.find(y=>y.user_id===sel.value);if(!x){toast('Elige una entrega');return}
-      go.disabled=true;try{if(await enPatchCuenta(x,{cliente_id:c.id})){toast('Entrega vinculada a '+c.nombre);pintar();refrescaLista()}}finally{go.disabled=false}}},'Vincular entrega');
+      go.disabled=true;try{if(await enPatchCuenta(x,{cliente_id:c.id})){const h=await sincronizarDatos(c,x,true);toast('Entrega vinculada a '+c.nombre+(h.length?' · se trajeron: '+h.join(', '):''));pintar();refrescaLista()}}finally{go.disabled=false}}},'Vincular entrega');
     mini.append(el('b',{},'Vincular entrega existente'),el('small',{},'Cuentas de Entregas que todavía no pertenecen a ningún cliente.'),sel,go);
   }else mini.append(el('small',{},ct.length?'No quedan más entregas sueltas por vincular.':'No hay entregas sueltas para vincular.'));
   sec.append(mini);
