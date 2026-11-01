@@ -214,10 +214,15 @@ async function gAbrirMuro(silencio){
     if(bv){await bv;await gEspera(150);gTutorial(true)}
   }
 }
+/* nombre de la persona fotografiada: el que escribe Faro en el diseño de la galería; si no hay, la primera palabra del nombre del acceso */
+function gNombreSaludo(){
+  const c=String(G.cfg&&G.cfg.nombre||'').trim();
+  return c||String(ST.perfil&&ST.perfil.nombre||'').split(' ')[0];
+}
 /* carta de bienvenida de Faro, antes del tutorial */
 function gBienvenida(){
   return new Promise(res=>{
-    const nom=(ST.perfil&&ST.perfil.nombre||'').split(' ')[0];
+    const nom=gNombreSaludo();
     const cuerpo=String(G.cfg.bienvenida||'').trim();
     const parr=cuerpo?cuerpo.split(/\n+/).map(t=>'<p>'+esc(t)+'</p>').join('')
       :'<p>Gracias por confiarnos un momento que te importa. Cuidamos cada foto como si fuera nuestra, y esperamos que al verlas vuelvas a sentir ese día.</p><p>Esta galería es tuya: guarda tus favoritas, descárgalas en alta calidad y compártelas con quien quieras.</p><p>Antes de empezar, te mostramos en un minuto cómo moverte por ella.</p>';
@@ -750,7 +755,7 @@ function gProgramaPromo(){
 }
 function gAbrirPromo(recordatorio){
   if(recordatorio)gSS(gKey('faro_promo'),'1');
-  const nom=(ST.perfil.nombre||'').split(' ')[0];
+  const nom=gNombreSaludo();
   const txt='Te recomiendo a Faro Studios 📸 Si les escribes de mi parte'+(nom?' ('+nom+')':'')+' tienes 15% de descuento en tu primera sesión. '+GWEB;
   const m=gModal('<div class="split"><div class="lado"><div><span class="iso"></span><div class="gr">15%</div><small>PARA LOS DOS</small></div></div><div><div class="top"></div><div class="bd" style="justify-items:center"><div class="eti">GANAN LOS DOS</div><h2>Recomiéndanos y ahorran los dos</h2>'
     +'<p style="margin:0">Si nos recomiendas con alguien, <b>tú tienes 15% de descuento en tu próxima sesión</b> y tu amigo recibe <b>15% en la suya</b>. Aplica para clientes actuales y futuros.</p>'
