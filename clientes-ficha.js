@@ -190,7 +190,7 @@ function ficha(id){
 }
 
 function seccionEtapas(c,pintar){
-  const sec=el('div',{class:'fc-sec'},el('h4',{},'Etapas'),el('small',{class:'muted'},'Solo las ves tú; el cliente no las ve.'));
+  const sec=el('div',{class:'fc-sec'},el('h4',{},'Etapas'),el('small',{class:'muted'},'Tu control interno. Al subir un archivo aquí puedes marcar que el cliente también lo vea en su Mi espacio.'));
   ETAPAS.forEach(([k,n,i,d])=>{
     const its=vDe(c.id).filter(v=>v.etapa===k);
     const box=el('div',{class:'fc-et '+(its.length?'ok':'pend')});
@@ -229,9 +229,15 @@ function formEtapa(c,etapa,nombre,modo,pintar){
       const file=f.files[0];if(!file){toast('Elige un archivo');return}
       if(!etq.value.trim())etq.value=file.name;
       go.disabled=true;
-      try{const ruta=await subir(c,file);await guardar({etiqueta:etq.value.trim(),ruta,nota:nota.value.trim()||null},go)}
+      try{const ruta=await subir(c,file);
+        if(ver.checked){const tp=etapa==='contrato'?'contrato':etapa==='factura'?'factura':'otro';
+          const r=await api('/rest/v1/cl_documentos',{method:'POST',body:{cliente_id:c.id,tipo:tp,titulo:etq.value.trim(),ruta},headers:{Prefer:'return=representation'}});
+          if(r.ok){const j=await r.json();(AC.list.cldoc=AC.list.cldoc||[]).unshift(j[0]||{})}else toast(await errText(r))}
+        await guardar({etiqueta:etq.value.trim(),ruta,nota:nota.value.trim()||null},go)}
       catch(e){toast(e.message||'No se pudo subir')}finally{go.disabled=false}}},'Subir y guardar');
-    w.append(el('small',{},'Se guarda en la carpeta privada del cliente (R2). Máx. 50 MB.'),f,etq,nota,go);return w}
+    const ver=el('input',{type:'checkbox'});ver.checked=etapa==='contrato'||etapa==='factura';
+    w.append(el('small',{},'Se guarda en la carpeta privada del cliente (R2). Máx. 50 MB.'),f,etq,nota,
+      el('label',{style:'display:flex;gap:10px;align-items:center;font-weight:700'},ver,'Que el cliente también lo vea en su Mi espacio'),go);return w}
   /* vincular existente (a mano) */
   const sel=el('select',{'aria-label':'Documento existente'},el('option',{value:''},'Cargando lo que ya tienes…'));
   const info={};
@@ -421,7 +427,7 @@ function seccionEntregas(c,pintar,D){
 
 /* ---------- documentos cargados (los ve el cliente en su espacio) ---------- */
 function seccionDocs(c,pintar){
-  const sec=el('div',{class:'fc-sec'},el('h4',{},'Documentos y entregas cargados'),el('small',{class:'muted'},'Lo que subes aquí lo ve el cliente en su espacio.'));
+  const sec=el('div',{class:'fc-sec'},el('h4',{},'Documentos para el cliente'),el('small',{class:'muted'},'Lo que subes aquí lo ve el cliente en su espacio.'));
   const ds=(AC.list.cldoc||[]).filter(d=>d.cliente_id===c.id);
   if(!ds.length)sec.append(el('p',{class:'muted'},'Todavía no hay documentos cargados.'));
   ds.forEach(d=>sec.append(el('div',{class:'fc-it'},el('span',{},el('b',{style:'font-weight:600'},d.titulo),el('small',{style:'display:block;opacity:.75'},d.tipo+' · '+fdt(d.creado))),
