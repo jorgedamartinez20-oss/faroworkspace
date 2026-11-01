@@ -851,6 +851,7 @@ summary{transition:color .18s}
 <script src="musicpro.js?v=20261026d"></script>
 <script src="producciones-doc.js?v=20261026a"></script>
 <script src="producciones.js?v=20261026a"></script>
+<script src="produccion-cliente.js?v=20261101a"></script>
 <script>
 const SB={url:'https://keivqvsgdfhthouzlqxo.supabase.co',key:'sb_publishable_5nj3M7rjQs3phGU6u2uNqw_3tjTL6PE'};
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
@@ -4822,7 +4823,7 @@ async function enExif(file){
   return out;
 }
 /* Enlace que se le manda al cliente: siempre el de la web principal (la vista previa interna sigue usando el entregas.html de este mismo sitio) */
-const enUrl=()=>'https://www.farostudios.net/entregas';
+const enUrl=c=>'https://www.farostudios.net/'+(c&&c.tipo!=='galeria'?'produccion':'entregas');
 const enMmss=s=>{s=Math.max(0,Math.floor(s||0));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
 const enTipoArch=n=>MAT_VER.img.test(n)?'imagen':MAT_VER.vid.test(n)?'video':MAT_VER.aud.test(n)?'audio':MAT_VER.pdf.test(n)?'pdf':'otro';
 const enCuenta=id=>EN.cuentas.find(c=>c.user_id===id);
@@ -4942,7 +4943,7 @@ function renderEn(){
         el('span',{class:'tag '+(c.tipo==='galeria'?(p.visible?'confirmada':''):EN_EST[p.estado][1])},c.tipo==='galeria'?(p.visible?'Publicada':'Oculta'):EN_EST[p.estado][0])))});
     if(!ps.length)l.append(el('p',{class:'muted',style:'font-size:.85rem;margin:6px 0'},'Aún no tiene proyectos.'));
     card.append(l,el('div',{style:'margin-top:10px;display:flex;gap:6px;flex-wrap:wrap'},
-      enBtn('Nuevo proyecto','plus',()=>enNuevoProyecto(c)),enBtn('Ver acceso','key',()=>enVerAcceso(c)),
+      enBtn('Nuevo proyecto','plus',()=>enNuevoProyecto(c)),c.tipo!=='galeria'&&ps.length&&window.FaroProdCli?enBtn('Ficha de producción','file',()=>FaroProdCli.abrir(ps[0].id),'btn-gold'):null,enBtn('Ver acceso','key',()=>enVerAcceso(c)),
       enBtn(c.activo?'Desactivar':'Activar',null,async()=>{if(await enPatchCuenta(c,{activo:!c.activo}))renderEn()}),
       enBtn('Eliminar acceso','trash',()=>enEliminarCuenta(c),'btn-red')));
     g.append(card);
@@ -4970,10 +4971,10 @@ async function enPatchCuenta(c,body){
 
 /* ---------- nuevo acceso ---------- */
 function enMensajeAcceso(c,usuario,clave){
-  return 'Hola '+c.nombre.split(' ')[0]+', este es tu acceso a Entregas de Faro Studios, donde verás '+(c.tipo==='galeria'?'y descargarás tus fotos y videos':'tu material, dejarás tus correcciones y descargarás lo aprobado')+':\n\nEnlace: '+enUrl()+'\nCorreo: '+usuario+'\nContraseña: '+clave+'\n\nGuarda estos datos. Faro Studios';
+  return 'Hola '+c.nombre.split(' ')[0]+', este es tu acceso a Entregas de Faro Studios, donde verás '+(c.tipo==='galeria'?'y descargarás tus fotos y videos':'tu material, dejarás tus correcciones y descargarás lo aprobado')+':\n\nEnlace: '+enUrl(c)+'\nCorreo: '+usuario+'\nContraseña: '+clave+'\n\nGuarda estos datos. Faro Studios';
 }
 const enCuentaDe=r=>EN.cuentas.find(c=>c.cliente_id===r.id);
-const enEstadoCli=r=>{const c=enCuentaDe(r);if(!c)return 'Entregas: sin preparar';const n=EN.proy.filter(p=>p.cuenta_id===c.user_id).length;return 'Entregas: '+EN_TIPOS[c.tipo][0]+' · '+n+' proyecto'+(n===1?'':'s')};
+const enEstadoCli=r=>{const c=enCuentaDe(r);if(!c)return 'Entregas: sin preparar';const n=EN.proy.filter(p=>p.cuenta_id===c.user_id).length;return (c.tipo==='galeria'?'Entregas: ':'Producción: ')+EN_TIPOS[c.tipo][0]+' · '+n+' proyecto'+(n===1?'':'s')};
 const enTipoSugerido=r=>{const t=String((r&&r.tipo)||'')+' '+String((r&&r.proyecto)||'');return /boda|xv|quince|gradua|sesi[oó]n|retrato|familia|evento|bautizo|cumple/i.test(t)?'galeria':'empresa'};
 async function enPreparar(r){
   if(!EN.cargado)await enCargar();
@@ -5042,7 +5043,7 @@ function enCredenciales(c,usuario,clave,D){
   D=D||enDrawer('Acceso de '+c.nombre);D.titulo('Acceso de '+c.nombre);D.body.textContent='';
   const msg=enMensajeAcceso(c,usuario,clave),tel=telWA(c.whatsapp);
   D.body.append(el('div',{class:'msg',style:'background:rgba(226,190,70,.18);border-color:var(--amar)'},'La contraseña queda guardada solo en este navegador para que puedas volver a verla con "Ver acceso". Si cambias de equipo tendrás que regenerarla.'),
-    el('div',{class:'field'},el('span',{class:'lab'},'Enlace'),el('div',{class:'item',style:'word-break:break-all'},enUrl())),
+    el('div',{class:'field'},el('span',{class:'lab'},'Enlace'),el('div',{class:'item',style:'word-break:break-all'},enUrl(c))),
     el('div',{class:'field'},el('span',{class:'lab'},'Usuario (correo)'),el('div',{class:'item',style:'font:700 1.3rem/1.2 monospace;letter-spacing:.05em;word-break:break-all'},usuario)),
     el('div',{class:'field'},el('span',{class:'lab'},'Contraseña'),el('div',{class:'item',style:'font:700 1.3rem/1.2 monospace;letter-spacing:.05em'},clave)),
     el('div',{style:'display:flex;gap:8px;flex-wrap:wrap;margin-top:8px'},enBtn('Copiar mensaje','link',()=>copyTxt(msg),'btn-gold'),
@@ -5427,7 +5428,7 @@ function enPrevia(pid){
 
 /* ---------- editor del proyecto ---------- */
 function enMensajeAviso(c,p,tipo){
-  const n=c.nombre.split(' ')[0],u=enUrl();
+  const n=c.nombre.split(' ')[0],u=enUrl(c);
   if(tipo==='galeria')return 'Hola '+n+', tu galería «'+p.titulo+'» ya está lista. Entra aquí con tu usuario y contraseña para verla y descargarla en máxima calidad: '+u+'\n\nFaro Studios';
   if(tipo==='ronda')return 'Hola '+n+', subimos la nueva versión de «'+p.titulo+'» con tus cambios (ronda '+p.ronda+'). Revísala aquí: '+u+'\n\nFaro Studios';
   if(tipo==='final')return 'Hola '+n+', tus archivos finales de «'+p.titulo+'» están aprobados y listos para descargar: '+u+'\n\nFaro Studios';
@@ -5506,6 +5507,7 @@ function enEditor(pid){
       if(p.estado==='aprobado')top.append(enBtn('Marcar como entregado','check',async()=>{if(await enPatch('en_proyectos','proy',pid,{estado:'entregado'})){enBadge();renderEn();pintar();enAvisoPrompt(c,p,'final')}},'btn-gold'));
       if(p.estado==='aprobado'||p.estado==='entregado')top.append(enBtn('Avisar: ya puede descargar','send',()=>enAvisoPrompt(c,p,'final')));
     }
+    if(!gal&&window.FaroProdCli)top.append(enBtn('Ficha de producción','file',()=>FaroProdCli.abrir(pid),'btn-gold'));
     D.body.append(top);
     const izq=el('div',{style:'display:grid;gap:10px;min-width:0'}),der=el('div',{style:'display:grid;gap:10px;min-width:0'});
     const eg2=el('div',{class:gal?'eg2':'',style:gal?'margin-top:6px':''},izq,der);D.body.append(eg2);
@@ -5627,7 +5629,7 @@ function enEditor(pid){
           el('label',{class:'wchk',style:'padding:0',title:'El cliente lo ve'},chkEl(a.habilitado,async v=>{await enPatch('en_archivos','arch',a.id,{habilitado:v})}),'Visible'),
           el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>mover(-1),'aria-label':'Subir'},'↑'),el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>mover(1),'aria-label':'Bajar'},'↓'),
           enBtn('Ver','image',()=>matVer('privado',a.key).catch(e=>toast(e.message))),
-          el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>re.click()},icoEl('refresh'),' Reemplazar'),re,
+          el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>(!gal&&window.FaroProdCli)?FaroProdCli.abrir(pid,'prod'):re.click()},icoEl('refresh'),gal?' Reemplazar':' Nueva versión'),re,
           el('button',{class:'btn btn-ghost btn-sm',type:'button','aria-label':'Borrar',onclick:async()=>{
             if(!confirm('¿Borrar "'+a.nombre+'"? También se borra el archivo de R2.'))return;
             try{await fjson('/api/objeto?bucket=privado&key='+encodeURIComponent(a.key),{method:'DELETE'})}catch(e){if(!/No existe/.test(e.message))toast('Aviso: '+e.message)}
