@@ -39,7 +39,7 @@
   const MODELOS = [['Xenova/whisper-tiny', 'Rápido · ~40 MB'], ['Xenova/whisper-base', 'Equilibrado · ~75 MB'], ['Xenova/whisper-small', 'Preciso · ~250 MB']];
   const CDN = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3';
 
-  const S = { file: null, url: '', dur: 0, vw: 0, vh: 0, cues: [], sel: null, paleta: 'marfil', trans: 'fundido', guias: true, prop: '', msg: '', progreso: null, ocupado: false, raw: [], modelo: MODELOS[1][0], idioma: 'spanish' };
+  const S = { file: null, url: '', dur: 0, vw: 0, vh: 0, cues: [], sel: null, paleta: 'marfil', trans: 'fundido', guias: true, prop: '', msg: '', progreso: null, ocupado: false, raw: [], modelo: MODELOS[1][0], idioma: 'spanish', expRes: 'fhd', expFps: 30, cancela: false };
   let host = null, wk = null, css1 = false, video = null, cv = null, ctx2 = null, raf = 0, last = null, drag = null, poster = null, rec = null;
   const thumbs = [];
 
@@ -231,9 +231,61 @@
     requestAnimationFrame(pintaF);
   }
 
+
+  /* ---------- secuencia de imágenes PNG con transparencia (overlay para Premiere / DaVinci) ---------- */
+  const par = n => Math.max(2, Math.round(n / 2) * 2);
+  function medidasExport() {
+    const ar = (S.vw || 9) / (S.vh || 16); const v = S.vw < S.vh;
+    if (S.expRes === 'proxy') return { w: par(S.vw || 540), h: par(S.vh || 960) };
+    const lado = { hd: v ? 720 : 1280, fhd: v ? 1080 : 1920, uhd: v ? 2160 : 3840 }[S.expRes] || 1080;
+    return v ? { w: lado, h: par(lado / ar) } : { w: lado, h: par(lado / ar) };
+  }
+  const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  const crc32 = u8 => { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+  /* zip sin compresión (los PNG ya vienen comprimidos); guarda los archivos como Blob para no duplicar memoria */
+  function zipSimple() {
+    const partes = [], central = []; let off = 0; const enc = new TextEncoder();
+    return {
+      async add(nombre, blob) {
+        const u8 = new Uint8Array(await blob.arrayBuffer()), nm = enc.encode(nombre), crc = crc32(u8);
+        const h = new DataView(new ArrayBuffer(30)); h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true); h.setUint16(10, 0, true); h.setUint16(12, 0x21, true);
+        h.setUint32(14, crc, true); h.setUint32(18, u8.length, true); h.setUint32(22, u8.length, true); h.setUint16(26, nm.length, true); h.setUint16(28, 0, true);
+        partes.push(h.buffer, nm, blob); central.push({ nm, crc, len: u8.length, off }); off += 30 + nm.length + u8.length;
+      },
+      fin() {
+        let cd = 0; const bloques = []; central.forEach(f => {
+          const h = new DataView(new ArrayBuffer(46)); h.setUint32(0, 0x02014b50, true); h.setUint16(4, 20, true); h.setUint16(6, 20, true); h.setUint16(8, 0x0800, true); h.setUint16(10, 0, true); h.setUint16(12, 0, true); h.setUint16(14, 0x21, true);
+          h.setUint32(16, f.crc, true); h.setUint32(20, f.len, true); h.setUint32(24, f.len, true); h.setUint16(28, f.nm.length, true); h.setUint32(42, f.off, true); bloques.push(h.buffer, f.nm); cd += 46 + f.nm.length;
+        });
+        const e = new DataView(new ArrayBuffer(22)); e.setUint32(0, 0x06054b50, true); e.setUint16(8, central.length, true); e.setUint16(10, central.length, true); e.setUint32(12, cd, true); e.setUint32(16, off, true);
+        return new Blob(partes.concat(bloques, [e.buffer]), { type: 'application/zip' });
+      }
+    };
+  }
+  async function exportarSecuencia() {
+    if (!S.cues.length || S.ocupado) return; const { w, h } = medidasExport(), fps = S.expFps, N = Math.ceil(S.dur * fps), nombre = base() + '-subtitulos';
+    try { await document.fonts.load('400 40px Lato'); } catch (e) {}
+    let dir = null, zip = null;
+    if (window.showDirectoryPicker) { try { const raiz = await window.showDirectoryPicker({ mode: 'readwrite' }); dir = await raiz.getDirectoryHandle(nombre, { create: true }); } catch (e) { if (e && e.name === 'AbortError') return; dir = null; } }
+    if (!dir) zip = zipSimple();
+    const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'); S.ocupado = true; S.cancela = false; pintarBotones(); video.pause();
+    try {
+      for (let i = 0; i < N; i++) {
+        if (S.cancela) throw new Error('Cancelado'); const t = i / fps; x.clearRect(0, 0, w, h);
+        S.cues.forEach(cc => { if (t >= cc.s && t <= cc.e) M.dibujar(x, w, h, cc, t, proy()); });
+        const blob = await new Promise(r => c.toBlob(r, 'image/png')); const nom = nombre + '_' + String(i).padStart(5, '0') + '.png';
+        if (dir) { const fh = await dir.getFileHandle(nom, { create: true }); const wr = await fh.createWritable(); await wr.write(blob); await wr.close(); } else await zip.add(nombre + '/' + nom, blob);
+        if (i % 6 === 0) progreso('Generando imágenes con transparencia… ' + (i + 1) + ' / ' + N, (i + 1) / N * 100);
+      }
+      if (zip) { const a = el('a', { href: URL.createObjectURL(zip.fin()), download: nombre + '.zip' }); document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000); }
+      aviso(dir ? 'Listo: ' + N + ' imágenes en la carpeta «' + nombre + '»' : 'Listo: ' + N + ' imágenes en un .zip (descomprímelo)');
+    } catch (e) { aviso(e && e.message === 'Cancelado' ? 'Exportación cancelada' : 'No pude exportar: ' + (e && e.message)); console.error(e); }
+    finally { S.ocupado = false; progreso(null); pintarBotones(); }
+  }
+
   /* ---------- pantalla ---------- */
   function sel(opts, val, fn) { const s = el('select', { onchange: e => fn(e.target.value) }, opts.map(o => el('option', { value: o[0] }, o[1]))); s.value = val; return s; }
-  function pintarBotones() { const b = $('#sb-trans', host); if (b) { b.disabled = S.ocupado || !S.file; } const r = $('#sb-rec', host); if (r) r.disabled = !!rec || !S.cues.length; }
+  function pintarBotones() { const b = $('#sb-trans', host); if (b) { b.disabled = S.ocupado || !S.file; } const r = $('#sb-rec', host); if (r) r.disabled = !!rec || !S.cues.length; const q = $('#sb-seq', host); if (q) q.disabled = S.ocupado || !S.cues.length; }
   function pintarSel() { const z = $('#sb-selpanel', host); if (z) { z.replaceChildren(panelSel()); } $$cues(); }
   function $$cues() { host.querySelectorAll('.sb-cue').forEach(n => n.classList.toggle('sel', n.dataset.id === S.sel)); host.querySelectorAll('.sb-tl i').forEach(n => n.classList.toggle('sel', n.dataset.id === S.sel)); host.querySelectorAll('.sb-th').forEach(n => n.classList.toggle('on', !!selCue() && n.dataset.id === selCue().estilo)); }
   function panelSel() {
@@ -315,8 +367,12 @@
     const cExp = el('div', { class: 'card' }, el('h2', {}, el('span', { class: 'n' }, '6'), 'Exportar'),
       el('p', { class: 'muted', style: 'margin:0 0 10px' }, 'Cuando quedes conforme, descarga el proyecto y pídeme en el chat el overlay transparente (.mov) a la resolución original de tu video; ahí va el mismo diseño, sin perder calidad.'),
       el('div', { class: 'sb-row' }, btn('Descargar proyecto (.json)', 'down', () => { descargar(base() + '-subtitulos.json', 'application/json', proyectoJSON()); aviso('Súbelo al chat y escríbeme «overlay» para generarlo en calidad pro'); }, 'btn-gold'),
+        el('button', { type: 'button', class: 'btn btn-sm btn-gold', id: 'sb-seq', onclick: exportarSecuencia, disabled: !S.cues.length || S.ocupado }, ico('film', 16), ' Secuencia PNG transparente'),
         btn('Subtítulos .srt', 'file', () => descargar(base() + '.srt', 'text/plain', M.aSRT(S.cues))), btn('Copiar texto', 'copy', () => { try { navigator.clipboard.writeText(S.cues.map(c => c.palabras.map(w => w.t).join(' ')).join('\n')); aviso('Texto copiado'); } catch (e) {} }),
         el('button', { type: 'button', class: 'btn btn-sm btn-ghost', id: 'sb-rec', onclick: grabarRevision, disabled: !S.cues.length }, ico('rec', 16), ' Video de revisión (.webm)')),
+      el('div', { class: 'sb-row', style: 'margin-top:10px' }, el('label', { class: 'sb-l' }, 'Tamaño de la secuencia', sel([['proxy', 'Igual que el video cargado'], ['hd', 'HD'], ['fhd', 'Full HD (recomendado)'], ['uhd', '4K']], S.expRes, v => { S.expRes = v; const m = medidasExport(); const t = $('#sb-med', host); if (t) t.textContent = m.w + '×' + m.h; })),
+        el('label', { class: 'sb-l' }, 'Cuadros por segundo', sel([[24, '24'], [25, '25'], [30, '30'], [60, '60']], S.expFps, v => { S.expFps = +v; })), el('span', { class: 'sb-tag', id: 'sb-med', style: 'align-self:end' }, medidasExport().w + '×' + medidasExport().h), btn('Cancelar', 'x', () => { S.cancela = true; })),
+      el('p', { class: 'muted', style: 'margin:8px 0 0;font-size:.86rem' }, 'La secuencia es una imagen PNG por cuadro con fondo transparente, desde el segundo 0 del video. En Chrome elige una carpeta; en otros navegadores baja un .zip. Ponle el mismo fps que tu proyecto. En Premiere: Importar → primera imagen → «Secuencia de imágenes». En DaVinci: arrastra la carpeta al Media Pool.'),
       el('p', { class: 'muted', style: 'margin:10px 0 0;font-size:.86rem' }, 'El video de revisión se graba en tiempo real con tu video en baja calidad y los subtítulos quemados; sirve para mostrarlo o aprobarlo, no es el entregable final.'));
 
     const der = el('div', { class: 'sb-der' }, cVideo, cTexto, cProp, galeria, cLista, cExp);
