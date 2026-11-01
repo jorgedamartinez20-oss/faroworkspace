@@ -31,7 +31,22 @@ if(!document.getElementById('fc-css')){const s=document.createElement('style');s
 '.fc-it{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0;border-top:1px dashed var(--line);margin-top:8px}.fc-it span{flex:1 1 160px;min-width:0;word-break:break-word}'+
 '.fc-mini{margin-top:10px;padding:10px;border:1px dashed var(--oro);border-radius:10px;display:grid;gap:8px}'+
 '.fc-sec{margin-top:22px}.fc-sec h4{margin:0 0 4px;font-size:1.15rem}'+
-'.fc-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}';
+'.fc-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}'+
+/* estética de la ficha: tarjetas con profundidad y campos que no se mueven al escribir */
+'.dbody{scrollbar-gutter:stable;overflow-anchor:none}'+
+'.fc-sec{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px 18px;box-shadow:0 14px 26px -20px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.5)}'+
+'.fc-sec>h4,.fc-sec>summary{font:400 1.45rem/1.1 var(--display);letter-spacing:.05em;margin:0 0 6px}'+
+'.fc-sec>summary{list-style:none;display:flex;align-items:center;gap:10px;font-weight:400!important;font-size:1.45rem!important}.fc-sec>summary::-webkit-details-marker{display:none}'+
+'.fc-sec>summary::before{content:"";width:9px;height:9px;border-right:2px solid var(--oro);border-bottom:2px solid var(--oro);transform:rotate(-45deg);transition:transform .2s}'+
+'.fc-sec[open]>summary::before{transform:rotate(45deg)}'+
+'.fc-sec input:not([type=checkbox]):not([type=radio]):not([type=file]),.fc-sec select,.fc-sec textarea,.fc-mini input:not([type=checkbox]):not([type=radio]):not([type=file]),.fc-mini select,.fc-mini textarea{box-sizing:border-box;display:block;width:100%;min-height:48px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--input);color:var(--text);font-size:1rem;line-height:1.3;box-shadow:inset 0 2px 5px -3px rgba(0,0,0,.35);transform:none!important;animation:none!important}'+
+'.fc-sec textarea,.fc-mini textarea{min-height:84px;resize:vertical}'+
+'.fc-sec input:focus,.fc-sec select:focus,.fc-sec textarea:focus,.fc-mini input:focus,.fc-mini select:focus,.fc-mini textarea:focus{border-color:var(--oro);box-shadow:inset 0 2px 5px -3px rgba(0,0,0,.35),0 0 0 3px var(--hov-2)}'+
+'.fc-sec .field{display:grid;gap:6px;margin-top:12px}.fc-sec .field>label,.fc-mini label{font-size:.98rem;font-weight:700;color:var(--text)}'+
+'.fc-sec .field input[type=checkbox]{display:inline-block;width:auto;min-height:0}'+
+'.fc-mini{background:var(--soft);border:1px dashed var(--oro);border-radius:14px;padding:14px;gap:10px;box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}'+
+'.fc-mini>summary{list-style:none;cursor:pointer}.fc-mini>summary::-webkit-details-marker{display:none}'+
+'.fc-et{border-radius:14px;box-shadow:0 10px 20px -16px rgba(0,0,0,.5)}';
 document.head.append(s)}
 
 const nCli=()=>(AC.list.cli||[]);
