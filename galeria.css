@@ -455,3 +455,5 @@ html.gpal::before{display:none!important}
   .gal{padding-bottom:0!important}
   .gmus,.gbolsa{bottom:max(18px,env(safe-area-inset-bottom))}
 }
+
+.gvista .ico,.gvista .ico *{stroke-width:1.1}
