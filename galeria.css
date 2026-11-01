@@ -340,3 +340,15 @@ html:has(.gal.pre),body:has(.gal.pre){overflow:hidden;height:100%;overscroll-beh
 .chk[aria-checked="true"] i,.sel .it[aria-checked="true"] i{color:var(--g-brt)}
 /* hilo para que el relleno de marca se separe del fondo cuando son parecidos (paletas oscuras) */
 .gmc .btn2.b,.gcod .gbtn.p,.gbtn.p{border-color:var(--g-ln)}
+
+
+/* ===== Portada como encabezado, una vez abierta la galería =====
+   · el botón «Ver galería» ya no hace falta: se esconde
+   · si la portada es una foto de la galería (sale abajo en su orden) el encabezado se quita y la barra queda sólida desde el inicio */
+.gal.abierta .gcov .fpb{display:none}
+.gal.abierta.sinenc .gcov{display:none}
+.gal.abierta.sinenc .gmuro{padding-top:74px}
+
+/* tarjetas, tutorial y listas (papel claro de la paleta): su relleno de marca puede ser distinto al de la página */
+:root{--g-cbr:#8B1A2A;--g-cbrt:#F5F2EE}
+.gmc,.gt .cd,.gdr .pn,.gcod .pn{--g-br:var(--g-cbr);--g-brt:var(--g-cbrt)}

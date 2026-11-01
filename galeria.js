@@ -71,9 +71,17 @@ function gAplica(cfg){
   const tm=gTema(GPAL[cfg.paleta]?cfg.paleta:'marfil',pal);
   r.setProperty('--g-br',tm.br);r.setProperty('--g-brt',tm.brt);r.setProperty('--g-ink',tm.ink);r.setProperty('--g-hd',tm.hd);r.setProperty('--g-hdt',tm.hdt);
   r.setProperty('--g-ln',tm.ln);r.setProperty('--g-iso',tm.iso);r.setProperty('--g-br-rgb',tm.rgb);
+  /* dentro de las tarjetas el papel es claro: si el relleno de marca es marfil se cambia a grafito para que se vea */
+  r.setProperty('--g-cbr',tm.br===GMAR?GGRA:tm.br);r.setProperty('--g-cbrt',tm.br===GMAR?GMAR:tm.brt);
   r.setProperty('--g-ft',fu.d);r.setProperty('--g-ft2',fu.b);r.setProperty('--g-up',fu.up);r.setProperty('--g-ls',fu.ls);
   if(!document.getElementById('gfont-'+(cfg.fuente||'faro'))){const l=document.createElement('link');l.id='gfont-'+(cfg.fuente||'faro');l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family='+fu.gf+'&display=swap';document.head.append(l)}
   document.body.className='g';document.body.style.background=pal.bg;document.body.style.color=pal.tx;
+  /* ventanas, tutorial y listas (se anexan al body): papel y tinta salen de la paleta. Paleta clara → papel = fondo aclarado, tinta = su texto.
+     Paleta oscura → se invierte (papel = su texto claro, tinta = su fondo oscuro), así siempre se lee. */
+  const mz=(a,b,k)=>'#'+gHex(a).map((v,i)=>Math.round(v*(1-k)+gHex(b)[i]*k).toString(16).padStart(2,'0')).join('');
+  const clara=pal.luz==='clara';
+  document.body.style.setProperty('--papel',clara?mz(pal.bg,'#FFFFFF',.55):mz(pal.tx,'#FFFFFF',.35));
+  document.body.style.setProperty('--pizarra',clara?pal.tx:pal.bg);
 }
 
 /* ---------- precios sugeridos de impresión (quetzales) ---------- */
@@ -110,9 +118,19 @@ function gModal(html,ancho){
 }
 const gX='<button class="x" data-x aria-label="Cerrar">'+ic('x')+'</button>';
 
+/* Vista inicial de la galería. Lo que el cliente elige con los botones se recuerda, pero solo mientras Faro no cambie la vista inicial en Workspace:
+   si la cambia, vale la nueva (se guarda «vista elegida|vista inicial de ese momento»). */
+function gVistaInicial(cfg){
+  const d=cfg.vista||'editorial';
+  if(!PREVIA){const g=String(gLS(gKey('faro_vista'))||'').split('|');if(g[0]&&(g[1]||'')===d)return g[0]}
+  return d;
+}
+/* La portada subida «solo para la portada» no está en la galería: queda como encabezado. La que es una foto de la galería sale abajo, en su orden,
+   y al abrir la galería el encabezado se quita para no repetirla. */
+const gPortadaAparte=()=>{const id=G.cfg&&G.cfg.portada;return !!(id&&gAparte().has(id))};
 /* ================= VISTA PRINCIPAL ================= */
 async function vistaGaleria(){
-  const p=ST.p,cfg=p.config||{};G.cfg=cfg;G.vista=(PREVIA?null:gLS(gKey('faro_vista')))||cfg.vista||'editorial';G.filtro=null;G.fin=false;G.promoVisto=false;G.abierta=false;G.carro=[];G.pre=null;G.quiere=false;
+  const p=ST.p,cfg=p.config||{};G.cfg=cfg;G.vista=gVistaInicial(cfg);G.filtro=null;G.fin=false;G.promoVisto=false;G.abierta=false;G.carro=[];G.pre=null;G.quiere=false;
   if(G.au){try{G.au.pause()}catch(e){}G.au=null}
   gAplica(cfg);
   const fotos=ST.arch,portada=fotos.find(a=>a.id===cfg.portada)||gImgs()[0]||fotos[0];
@@ -145,10 +163,10 @@ async function vistaGaleria(){
   $('#gay').onclick=()=>{$('#gmu').scrollIntoView({behavior:'auto'});setTimeout(()=>gTutorial(false),120)};
   $('#glis').onclick=gAbrirListas;$('#gdl').onclick=()=>gAbrirDescarga('todas');
   $('#gbolsa').onclick=gAbrirBolsa;$('#gresb').onclick=()=>gAbrirResena(true);$('#gprb').onclick=gAbrirBolsa;
-  document.querySelectorAll('#gvista button').forEach(b=>b.onclick=()=>{G.vista=b.dataset.v;gLS(gKey('faro_vista'),G.vista);gPintaMuro()});
+  document.querySelectorAll('#gvista button').forEach(b=>b.onclick=()=>{G.vista=b.dataset.v;gLS(gKey('faro_vista'),G.vista+'|'+(G.cfg.vista||'editorial'));gPintaMuro()});
   const tp=$('#gtp'),ga=document.querySelector('.gal');
   if(G.onScroll)removeEventListener('scroll',G.onScroll);
-  G.onScroll=()=>{const x=scrollY>24;tp.classList.toggle('sol',x);ga.classList.toggle('sol',x);gChequeaMedio();gChequeaFin()};
+  G.onScroll=()=>{const x=scrollY>24||ga.classList.contains('sinenc');tp.classList.toggle('sol',x);ga.classList.toggle('sol',x);gChequeaMedio();gChequeaFin()};
   addEventListener('scroll',G.onScroll,{passive:true});G.onScroll();
   G.finOk=false;G.codVisto=false;gCodigoLiga();
   /* en segundo plano solo los enlaces (pesan casi nada); las fotos no se descargan hasta abrir la galería */
@@ -198,7 +216,7 @@ async function gAbrirMuro(silencio){
     try{await Promise.all([G.pre||enlaces(ST.arch.map(a=>a.id)),gCargarListas()]);await enlaces(ST.arch.map(a=>a.id))}catch(e){}
     try{G.carro=JSON.parse(gLS(gKey('faro_bolsa'))||'[]').filter(x=>ST.arch.some(a=>a.id===x.id))}catch(e){}
     G.abierta=true;const g=document.querySelector('.gal');if(!g){if(cor)cor.fin();return}
-    g.classList.remove('pre','go');g.classList.add('abierta');
+    g.classList.remove('pre','go');g.classList.add('abierta');g.classList.toggle('sinenc',!gPortadaAparte());
     gPintaMuro();gContratoPinta();gContadores();
     const mp=$('#gmus');if(mp&&G.au)mp.hidden=false;
     /* la portada queda como encabezado corto, arriba */
