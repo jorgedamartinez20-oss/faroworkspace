@@ -287,7 +287,17 @@ body.dots .top,.top{background:var(--borgona);-webkit-backdrop-filter:none;backd
 @media (max-width:640px){.top{gap:10px}.brandn img{height:34px}.brandn .tag{font-size:1.0625rem;padding-left:10px;letter-spacing:.1em}.swp a{padding:9px 9px;font-size:.75rem}.swp{padding:3px}.top .btn.s span,.top #bsal{padding-inline:12px}}
 </style>
 <style id="faro-pre"></style>
-<script>(function(){try{var q=new URLSearchParams(location.search).get('previa')||'';var c=JSON.parse(localStorage.getItem(q?'faro_pal_'+q:'faro_pal_last')||'null');if(c&&/^#[0-9a-f]{6}$/i.test(c.bg)&&/^#[0-9a-f]{6}$/i.test(c.tx)){document.getElementById('faro-pre').textContent='html,body{background:'+c.bg+'!important;color:'+c.tx+'!important}'}}catch(e){}})()</script>
+<script>(function(){try{
+var q=new URLSearchParams(location.search).get('previa')||'',on=!!q;
+try{on=on||!!sessionStorage.getItem('faro_ent')||!!sessionStorage.getItem('faro_handoff')}catch(e){}
+if(!on)return;
+var c=null;try{c=JSON.parse(localStorage.getItem(q?'faro_pal_'+q:'faro_pal_last')||'null')}catch(e){}
+var ok=c&&/^#[0-9a-f]{6}$/i.test(c.bg)&&/^#[0-9a-f]{6}$/i.test(c.tx);
+var st=document.getElementById('faro-pre');
+/* mientras carga: sin brillo decorativo ni textos de espera; fondo liso del color de la paleta (o neutro si es la primera vez) */
+st.textContent='html::before{display:none!important}#app{visibility:hidden}html,body{background:'+(ok?c.bg:'#1d1d20')+'!important}';
+setTimeout(function(){st.textContent=''},12000);
+}catch(e){}})()</script>
 <link rel="stylesheet" href="portada.css?v=20261031b">
 <link rel="stylesheet" href="galeria.css?v=20261031k">
 </head>
@@ -603,7 +613,7 @@ function previaBoot(){
 })();
 </script>
 <script src="portada.js?v=20261031b"></script>
-<script src="galeria.js?v=20261031n"></script>
+<script src="galeria.js?v=20261031o"></script>
 <script>
 /* onda al hacer click en botones, tarjetas y filas */
 (function(){

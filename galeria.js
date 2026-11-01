@@ -863,6 +863,7 @@ function gTutorial(primera){
   const tec=e=>{if(e.key==='Escape')fin(false)};addEventListener('keydown',tec);
   const pos=()=>{
     const p=pasos[k],el=gqs(p.s);
+    t.querySelector('.cd').style.width='';
     const hl=t.querySelector('.hl'),pl=t.querySelector('.pl'),cd=t.querySelector('.cd'),W=innerWidth,H=innerHeight,cw=cd.offsetWidth,ch=cd.offsetHeight;
     const r=el&&el.getBoundingClientRect();
     if(!el||!r.width||!r.height||r.bottom<0||r.top>H){
@@ -883,11 +884,18 @@ function gTutorial(primera){
     const tapa=(px,py,m)=>px<r.right+pad+m&&px+cw>r.left-pad-m&&py<r.bottom+pad+m&&py+ch>r.top-pad-m;
     if(tapa(x,y,6)){
       const cx=cl(r.left+r.width/2-cw/2,12,W-cw-12),cy=cl(r.top+r.height/2-ch/2,12,H-ch-12);
-      for(const m of [G0,26]){
-        const c=[{x:cx,y:r.top-pad-m-ch},{x:cx,y:r.bottom+pad+m},{x:r.left-pad-m-cw,y:cy},{x:r.right+pad+m,y:cy}]
-          .filter(q=>q.x>=12&&q.y>=12&&q.x+cw<=W-12&&q.y+ch<=H-12&&!tapa(q.x,q.y,6));
-        if(c.length){x=c[0].x;y=c[0].y;break}
+      const libre=q=>q.x>=12&&q.y>=12&&q.x+(q.w||cw)<=W-12&&q.y+ch<=H-12;
+      let sol=null;
+      for(const m of [G0,26,10]){
+        const c=[{x:cx,y:r.top-pad-m-ch},{x:cx,y:r.bottom+pad+m},{x:r.left-pad-m-cw,y:cy},{x:r.right+pad+m,y:cy}].filter(q=>libre(q)&&!tapa(q.x,q.y,6));
+        if(c.length){sol=c[0];break}
       }
+      /* pegada arriba o abajo de la pantalla */
+      if(!sol)sol=[{x:cx,y:12},{x:cx,y:H-ch-12}].find(q=>!tapa(q.x,q.y,6));
+      /* o a la izquierda del objetivo con la tarjeta más angosta */
+      if(!sol){const w=Math.floor(r.left-pad-16-12);if(w>=230){cd.style.width=w+'px';const h2=cd.offsetHeight;sol={x:12,y:cl(r.top+r.height/2-h2/2,12,H-h2-12)}}}
+      if(!sol){const w=Math.floor(W-(r.right+pad+16)-12);if(w>=230){cd.style.width=w+'px';const h2=cd.offsetHeight;sol={x:r.right+pad+16,y:cl(r.top+r.height/2-h2/2,12,H-h2-12)}}}
+      if(sol){x=sol.x;y=sol.y}
     }
     cd.style.left=x+'px';cd.style.top=y+'px';
     /* flecha corta y curva: nace cerca del objetivo (o en el borde de la tarjeta si está cerca) y termina en su marco */
