@@ -392,5 +392,35 @@ function seccionDocs(c,pintar){
   return sec}
 
 function refrescaLista(){try{if(AC.sel.cl==='fic'){const b=$('#cl-body');if(b&&b.isConnected){b.textContent='';window.renderFichas(b)}}}catch(e){}}
+
+/* Enlaza un documento (cotización / confirmación / recibo) a la ficha del cliente elegido al crearlo */
+window.fcVincularDoc=async function(g,clienteId){
+  try{
+    if(!FC.cargado)await fcCargar();
+    if(!FC.ok||!g||!g.id||!clienteId)return;
+    const etapa=g.tipo==='cotizacion'?'cotizacion':g.tipo==='confirmacion'?'confirmacion':'factura';
+    const ya=FC.vinc.find(v=>v.ref_tabla==='doc_documentos'&&v.ref_id===g.id);
+    if(ya){if(ya.cliente_id===clienteId)return;
+      const r=await api('/rest/v1/cl_vinculos?id=eq.'+ya.id,{method:'PATCH',body:{cliente_id:clienteId},headers:{Prefer:'return=minimal'}});
+      if(r.ok){ya.cliente_id=clienteId;toast('Enlazado a la ficha del cliente')}return}
+    const r=await api('/rest/v1/cl_vinculos',{method:'POST',body:{cliente_id:clienteId,etapa,ref_tabla:'doc_documentos',ref_id:g.id,etiqueta:(g.numero||'')+' · '+(g.cliente||'')},headers:{Prefer:'return=representation'}});
+    if(!r.ok){toast(await errText(r));return}
+    const j=await r.json();FC.vinc.push(j[0]||j);toast('Enlazado a la ficha del cliente');refrescaLista()
+  }catch(e){}
+};
+/* Reserva de la agenda → cliente ya creado: crea (o mueve) la sesión de su ficha */
+window.fcVincularReserva=async function(r,clienteId){
+  try{
+    if(!FC.cargado)await fcCargar();
+    if(!FC.okS){toast('Falta correr clientes-sesiones.sql');return}
+    const ya=FC.ses.find(x=>x.agenda_id===r.id);
+    if(ya){const x=await api('/rest/v1/cl_sesiones?id=eq.'+ya.id,{method:'PATCH',body:{cliente_id:clienteId},headers:{Prefer:'return=minimal'}});
+      if(!x.ok){toast(await errText(x));return}ya.cliente_id=clienteId;toast('Reserva movida a la ficha elegida');refrescaLista();return}
+    const x=await api('/rest/v1/cl_sesiones',{method:'POST',body:{cliente_id:clienteId,titulo:(r.categoria||'Sesión')+(r.nombre?' · '+r.nombre:''),fecha:r.fecha||null,hora:r.hora||null,agenda_id:r.id},headers:{Prefer:'return=representation'}});
+    if(!x.ok){toast(await errText(x));return}
+    const j=await x.json();FC.ses.push(j[0]||j);toast('Reserva enlazada: la sesión ya está en la ficha');refrescaLista()
+  }catch(e){toast('No se pudo enlazar')}
+};
+window.fcClienteDeReserva=function(r){const s=(FC.ses||[]).find(x=>x.agenda_id===r.id);return s?s.cliente_id:''};
 window.fcRecargar=async function(){FC.cargado=false;await fcCargar()};
 })();

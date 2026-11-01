@@ -871,12 +871,12 @@ summary{transition:color .18s}
 <script src="correo.js"></script>
 <script src="contrato-doc.js?v=20261026a"></script>
 <script src="contratos.js?v=20261026a"></script>
-<script src="documentos.js"></script>
+<script src="documentos.js?v=20261101c"></script>
 <script src="resenas-admin.js"></script>
 <script src="cupones-admin.js"></script>
 <script src="recursos-docentes.js?v=20261026a"></script>
 <script src="musicpro.js?v=20261026d"></script>
-<script src="clientes-ficha.js?v=20261101b"></script>
+<script src="clientes-ficha.js?v=20261101c"></script>
 <script src="producciones-doc.js?v=20261101a"></script>
 <script src="producciones.js?v=20261101a"></script>
 <script src="produccion-cliente.js?v=20261101a"></script>
@@ -1237,10 +1237,20 @@ function renderRes(){
         el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:()=>showVoucher(r)},'Ver comprobante'),
         el('a',{class:'btn btn-ghost btn-sm',target:'_blank',rel:'noopener',href:waLink(r,'Hola '+r.nombre.split(' ')[0]+', te escribimos de Faro Studios. Recibimos tu reserva '+r.codigo+' para el '+fdate(r.fecha)+' a las '+hh(r.hora)+'.')},'Escribir por WhatsApp'),
         el('a',{class:'btn btn-ghost btn-sm',href:'mailto:'+encodeURIComponent(r.correo)+'?subject='+encodeURIComponent('Tu reserva '+r.codigo+' en Faro Studios')},'Correo'),
-        el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>darAccesoReserva(r)},'Dar acceso a su espacio'))));
+        el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>darAccesoReserva(r)},'Dar acceso a su espacio')),
+      typeof window.fcVincularReserva==='function'?selClienteReserva(r):null));
   });
   const p=D.agenda.filter(r=>r.estado==='pendiente').length,n=$('#npend');n.hidden=!p;n.textContent=p;
 }
+function selClienteReserva(r){
+  const sel=el('select',{'aria-label':'Cliente de tus fichas'});
+  const llena=()=>{sel.textContent='';sel.append(el('option',{value:''},'— Enlazar a un cliente ya creado —'));
+    (AC.list.cli||[]).slice().sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre))).forEach(c=>{const o=el('option',{value:c.id},c.nombre+(c.proyecto?' · '+c.proyecto:''));sel.append(o)});
+    const cur=window.fcClienteDeReserva(r);if(cur)sel.value=cur};
+  llena();
+  Promise.resolve(window.fcPre&&window.fcPre()).then(()=>{if(!(AC.list.cli||[]).length&&typeof loadAc==='function')return loadAc()}).then(llena).catch(()=>{});
+  sel.addEventListener('change',()=>{if(sel.value)window.fcVincularReserva(r,sel.value)});
+  return el('div',{class:'item',style:'margin-top:8px;display:grid;gap:4px'},el('small',{},'Cliente de tus fichas (la sesión aparece en su ficha y en su Mi espacio)'),sel)}
 async function darAccesoReserva(r){
   try{
     if(!AC.ok){await loadAc();if(!AC.ok){toast('Primero corre portal-faro.sql en Supabase');return}}

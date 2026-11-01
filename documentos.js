@@ -249,7 +249,7 @@ td.n{width:14mm}td.q{width:26mm}td.t{width:34mm;white-space:nowrap}
       condiciones: COND[tipo], formaPago: PAGO, estado: 'emitido'
     };
     if (base) {
-      ['moneda', 'cliente', 'tel', 'nit', 'correo', 'direccion', 'servicio', 'fecha', 'horaIni', 'horaFin', 'ubicacion', 'desc', 'descTipo', 'anticipoPct', 'cupon'].forEach(k => { if (base[k] != null && base[k] !== '') d[k] = base[k]; });
+      ['moneda', 'cliente', 'tel', 'nit', 'correo', 'direccion', 'servicio', 'fecha', 'horaIni', 'horaFin', 'ubicacion', 'desc', 'descTipo', 'anticipoPct', 'cupon', 'cliente_id'].forEach(k => { if (base[k] != null && base[k] !== '') d[k] = base[k]; });
       if (tipo === 'recibo') { d.anticipoPct = ''; d.desc = ''; if (base.ubicacion) d.ubicacion = base.ubicacion; d.fecha = hoy(); d.servicio = base.servicio || ''; }
       d.items = (base.items || []).map(i => ({ desc: i.desc, cant: tipo === 'recibo' ? '' : (i.cant || '1'), precio: i.precio, antes: false }));
       if (!d.items.length) d.items = [{ desc: '', cant: '1', precio: '', antes: false }];
@@ -278,6 +278,7 @@ td.n{width:14mm}td.q{width:26mm}td.t{width:34mm;white-space:nowrap}
       if (!r.ok) { ctx.toast(await ctx.errText(r)); return; }
       const g = (await r.json())[0];
       S.d = fila(g); ctx.toast('Guardado · ' + g.numero);
+      if (d.cliente_id && window.fcVincularDoc) window.fcVincularDoc(g, d.cliente_id);
       const i = S.docs.findIndex(x => x.id === g.id); if (i >= 0) S.docs[i] = g; else S.docs.unshift(g);
       if (imp) imprimir(S.d); else { S.vista = 'lista'; }
       pintar();
@@ -357,6 +358,28 @@ td.n{width:14mm}td.q{width:26mm}td.t{width:34mm;white-space:nowrap}
     const gc = sec('Cliente', 'edit');
     gc.append(dl);
     const alElegir = v => { const p = vistos.get((v || '').trim().toLowerCase()); if (!p) return; let cambio = false; ['tel', 'nit', 'correo', 'direccion'].forEach(k => { if (!d[k] && p[k]) { d[k] = p[k]; if (ins[k]) ins[k].value = p[k]; cambio = true; } }); if (cambio) refrescar(); };
+    /* cliente ya creado en Clientes › Fichas (opcional en cotización; recomendado en confirmación y recibo) */
+    if (typeof AC !== 'undefined') {
+      const sel = h('select', { 'aria-label': 'Cliente de las fichas' });
+      const llena = () => {
+        sel.textContent = '';
+        sel.append(h('option', { value: '' }, q ? '— Sin ficha (cotización libre) —' : '— Elige un cliente ya creado —'));
+        ((AC.list && AC.list.cli) || []).slice().sort((a, b) => String(a.nombre).localeCompare(String(b.nombre))).forEach(c => { const o = h('option', { value: c.id }, c.nombre + (c.proyecto ? ' · ' + c.proyecto : '')); if (d.cliente_id === c.id) o.selected = true; sel.append(o); });
+      };
+      llena();
+      if (!((AC.list && AC.list.cli) || []).length && typeof loadAc === 'function') Promise.resolve(loadAc()).then(llena).catch(() => {});
+      if (lock) sel.disabled = true;
+      sel.addEventListener('change', () => {
+        d.cliente_id = sel.value || '';
+        const c = ((AC.list && AC.list.cli) || []).find(x => x.id === sel.value); if (!c) return;
+        d.cliente = c.nombre || d.cliente; if (ins.cliente) ins.cliente.value = d.cliente;
+        if (c.correo && !d.correo) { d.correo = c.correo; if (ins.correo) ins.correo.value = c.correo; }
+        if (c.whatsapp && !d.tel) { d.tel = c.whatsapp; if (ins.tel) ins.tel.value = c.whatsapp; }
+        refrescar();
+      });
+      gc.append(h('div', { class: 'field' }, h('label', {}, 'Cliente de tus fichas'), sel,
+        h('small', { style: 'opacity:.75' }, q ? 'Opcional: la cotización puede ser libre. Si eliges un cliente, queda enlazada a su ficha.' : 'Al elegirlo se llenan sus datos y el documento queda enlazado a su ficha.')));
+    }
     gc.append(fld('Nombre del cliente', 'cliente', { list: 'fd-clientes', on: alElegir }));
     gc.append(h('div', { class: 'fd-g3' }, fld('Teléfono', 'tel', { im: 'tel' }), fld('NIT', 'nit'), fld('Correo', 'correo', { type: 'email' })));
     if (!rec) gc.append(fld('Dirección', 'direccion'));
