@@ -76,11 +76,11 @@ function gAplica(cfg){
   r.setProperty('--g-ft',fu.d);r.setProperty('--g-ft2',fu.b);r.setProperty('--g-up',fu.up);r.setProperty('--g-ls',fu.ls);
   if(!document.getElementById('gfont-'+(cfg.fuente||'faro'))){const l=document.createElement('link');l.id='gfont-'+(cfg.fuente||'faro');l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family='+fu.gf+'&display=swap';document.head.append(l)}
   document.body.className='g';document.body.style.background=pal.bg;document.body.style.color=pal.tx;
-  /* ventanas, tutorial y listas (se anexan al body): papel y tinta salen de la paleta. Paleta clara → papel = fondo aclarado, tinta = su texto.
+  /* ventanas, tutorial y listas (se anexan al body): papel y tinta salen de la paleta. Paleta clara → papel = el color de su fondo, tinta = su texto.
      Paleta oscura → se invierte (papel = su texto claro, tinta = su fondo oscuro), así siempre se lee. */
   const mz=(a,b,k)=>'#'+gHex(a).map((v,i)=>Math.round(v*(1-k)+gHex(b)[i]*k).toString(16).padStart(2,'0')).join('');
   const clara=pal.luz==='clara';
-  document.body.style.setProperty('--papel',clara?mz(pal.bg,'#FFFFFF',.55):mz(pal.tx,'#FFFFFF',.35));
+  document.body.style.setProperty('--papel',clara?pal.bg:pal.tx);
   document.body.style.setProperty('--pizarra',clara?pal.tx:pal.bg);
 }
 
