@@ -43,6 +43,7 @@ const GFUENTES={
   fina:{n:'Fina',d:"'Raleway',sans-serif",b:"'Raleway',sans-serif",gf:'Raleway:wght@300;400;500',up:'none',ls:'.06em',desc:'Raleway'},
   cine:{n:'Cine',d:"'Oswald',Impact,sans-serif",b:"'Lato',sans-serif",gf:'Oswald:wght@400;500&family=Lato:wght@300;400;700',up:'uppercase',ls:'.08em',desc:'Oswald + Lato'}
 };
+
 /* ---------- tema de marca por paleta ----------
    El borgoña original (#8B1A2A, matiz 351.5°) solo se usa donde armoniza de verdad con la paleta:
    · matiz dentro del arco áureo de 52.5° (360°/φ⁴) → Marfil, Rosa pastel, Palo de rosa, Terracota, Arena
@@ -50,10 +51,10 @@ const GFUENTES={
    El resto (Faro, Oliva, Salvia, Mar profundo, Espuma de mar, Lavanda) usa solo oro, marfil o grafito. */
 const GBOR='#8B1A2A',GORO='#B8A06A',GMAR='#F5F2EE',GGRA='#252528';
 const GTEMAS={
-  bor:{br:GBOR,brt:GMAR,ink:GBOR,hd:GBOR,hdt:GMAR,ln:GORO,iso:'#D9BE7E'},      /* borgoña + hilo dorado */
+  bor:{br:GBOR,brt:GMAR,ink:GBOR,hd:GBOR,hdt:GMAR,ln:GORO,iso:GMAR},      /* borgoña + hilo dorado */
   oro:{br:GORO,brt:GGRA,ink:GGRA,hd:'oscuro',hdt:GMAR,ln:GORO,iso:'#D9BE7E'},    /* oro sobre fondos oscuros */
   mar:{br:GMAR,brt:GGRA,ink:GGRA,hd:'oscuro',hdt:GMAR,ln:GMAR,iso:GMAR},         /* marfil sobre fondos oscuros */
-  gra:{br:GGRA,brt:GMAR,ink:GGRA,hd:GGRA,hdt:GMAR,ln:GORO,iso:'#D9BE7E'}         /* grafito sobre fondos claros */
+  gra:{br:GGRA,brt:GMAR,ink:GGRA,hd:GGRA,hdt:GMAR,ln:GORO,iso:GMAR}         /* grafito sobre fondos claros */
 };
 const GTEMA_DE={faro:'oro',marfil:'bor',oliva:'mar',salvia:'gra',rosa:'bor',palo:'bor',mar:'oro',espuma:'gra',cielo:'bor',arena:'bor',terracota:'bor',lavanda:'gra',
   blanco:'bor',noche:'oro',borgona:'oro'};
@@ -147,12 +148,13 @@ async function vistaGaleria(){
   APP.innerHTML='<div class="gal pre"><header class="gtop" id="gtp"><span class="iso"></span>'+cerrar+'<span class="sp"></span>'
     +'<div class="gvista" role="group" aria-label="Vista" id="gvista"><button data-v="editorial" aria-pressed="false">Editorial</button><button data-v="cuadricula" aria-pressed="false">Cuadrícula</button></div>'
     +'<button class="gb" id="glis" aria-label="Mis listas">'+ic('heart')+'<span class="t">Mis listas</span><span class="cnt" id="glc" hidden></span></button>'
-    +'<button class="gb" id="gdl" aria-label="Descargar">'+ic('dl')+'<span class="t">Descargar</span></button>'
+    +'<button class="gb pri" id="gdl" aria-label="Descargar">'+ic('dl')+'<span class="t">Descargar</span></button>'
     +'<button class="gb" id="gay" aria-label="Ayuda">'+ic('help')+'</button>'
     +'<button class="gb" id="gsal" aria-label="Salir">'+ic('out')+'<span class="t">Salir</span></button></header>'
+   +'<nav class="gbm" id="gbm" aria-label="Acciones principales"><button class="gbm-d" id="gdlm" type="button">'+ic('dl')+'<span>Descargar mis fotos</span></button><button class="gbm-l" id="glim" type="button" aria-label="Mis listas">'+ic('heart')+'<span class="cnt" id="glcm" hidden></span></button></nav>'
    +'<section class="gcov" id="gcv"></section>'
    +'<section class="gmuro" id="gmu"><div class="in">'+(cfg.mensaje?'<p class="cab">'+esc(cfg.mensaje)+'</p>':'')+'<div id="gfl"></div><div id="gcuerpo"></div>'
-   +'<div class="gfin" id="gfin"><span class="iso"></span><p>Gracias por dejarnos contar tu historia. Guarda tus favoritas, compártelas con quien quieras y si te gustó, cuéntanos cómo fue.</p><div class="row"><button class="gbtn p" id="gresb">'+ic('star')+' Dejar una reseña</button><button class="gbtn" id="gprb">'+ic('bag')+' Pedir impresiones</button></div></div></div>'
+   +'<div class="gfin" id="gfin"><span class="iso"></span><h2>Gracias por dejarnos contar tu historia</h2><p>Guarda tus favoritas, compártelas con quien quieras y, si te gustó, cuéntanos cómo fue.</p><div class="col"><button class="gbtn p big" id="gfdl" type="button">'+ic('dl')+' Descargar mis fotos</button><button class="gbtn" id="gresb" type="button">'+ic('star')+' Dejar una reseña</button><button class="lnk" id="gprb" type="button">'+ic('bag')+' Pedir impresiones</button></div></div></div>'
    +'<div class="gcon" id="gcon" hidden></div>'
    +'<footer class="gpie">© '+new Date().getFullYear()+' Faro Studios · farostudios.net<br>Todos los derechos reservados</footer></section>'
    +gCodigoHtml(cfg)
@@ -164,12 +166,12 @@ async function vistaGaleria(){
   $('#gsal').onclick=gConfirmaSalir;const gv=$('#gvol');if(gv)gv.onclick=()=>inicio();
   $('#bver').onclick=gAbrirMuro;
   $('#gay').onclick=()=>{$('#gmu').scrollIntoView({behavior:'auto'});setTimeout(()=>gTutorial(false),120)};
-  $('#glis').onclick=gAbrirListas;$('#gdl').onclick=()=>gAbrirDescarga('todas');
+  $('#glis').onclick=gAbrirListas;$('#gdl').onclick=()=>gAbrirDescarga('todas');$('#glim').onclick=gAbrirListas;$('#gdlm').onclick=()=>gAbrirDescarga('todas');$('#gfdl').onclick=()=>gAbrirDescarga('todas');
   $('#gbolsa').onclick=gAbrirBolsa;$('#gresb').onclick=()=>gAbrirResena(true);$('#gprb').onclick=gAbrirBolsa;
   document.querySelectorAll('#gvista button').forEach(b=>b.onclick=()=>{G.vista=b.dataset.v;gLS(gKey('faro_vista'),G.vista+'|'+(G.cfg.vista||'editorial'));gPintaMuro()});
   const tp=$('#gtp'),ga=document.querySelector('.gal');
   if(G.onScroll)removeEventListener('scroll',G.onScroll);
-  G.onScroll=()=>{const x=scrollY>24||ga.classList.contains('sinenc');tp.classList.toggle('sol',x);ga.classList.toggle('sol',x);gChequeaMedio();gChequeaFin()};
+  G.onScroll=()=>{const x=scrollY>24||ga.classList.contains('sinenc');tp.classList.toggle('sol',x);ga.classList.toggle('sol',x);gAjustaIconos();gChequeaMedio();gChequeaFin()};
   addEventListener('scroll',G.onScroll,{passive:true});G.onScroll();
   G.finOk=false;G.codVisto=false;gCodigoLiga();
   /* en segundo plano solo los enlaces (pesan casi nada); las fotos no se descargan hasta abrir la galería */
@@ -187,10 +189,25 @@ function gPortadaPinta(cfg,d){
   G.pc={estilo:cb.estilo||'centro',titulo:d.titulo,fecha:d.fecha,src:d.src,fx,fy,zoom:+cb.zoom>=1?+cb.zoom:1,ov:Math.max(0,Math.min(70,+cb.ov||0)),tam:Math.max(40,Math.min(160,+cb.tam||100)),movimiento:cb.mov!==false,pie:d.n+' fotografías · Galería privada'};
   const box=document.getElementById('gcv');if(!box||!window.FaroPortada)return;
   G.pcv=FaroPortada.render(box,G.pc,{boton:true,movimiento:false});
-  const m=()=>{const x=box.clientWidth<700;box.classList.toggle('fpph',x)};m();
-  if(G.pcR)removeEventListener('resize',G.pcR);G.pcR=m;addEventListener('resize',m);
+  const m=()=>{const x=box.clientWidth<700;box.classList.toggle('fpph',x);gAjustaIconos()};m();
+  if(G.pcR)removeEventListener('resize',G.pcR);G.pcR=m;addEventListener('resize',m);requestAnimationFrame(gAjustaIconos);
 }
 /* zoom out suave: arranca cuando la portada ya se ve (abierta=true: versión corta del encabezado) */
+/* logo y botones del encabezado quedan dentro del marco/margen del estilo de portada elegido */
+function gAjustaIconos(){
+  const tp=document.getElementById('gtp');if(!tp)return;
+  const f=document.querySelector('#gcv .fpf'),W=document.documentElement.clientWidth;
+  if(tp.classList.contains('sol')||!f||!W){tp.removeAttribute('data-ins');return}
+  const cv=document.querySelector('#gcv [data-s]');
+  if(cv&&cv.dataset.s==='marco'){const c=cv.getBoundingClientRect(),ex=c.width*.045+14;tp.dataset.ins='1';
+    tp.style.setProperty('--gpl',ex+'px');tp.style.setProperty('--gpr',ex+'px');tp.style.setProperty('--gpt',(c.height*.045+10)+'px');return}
+  const r=f.getBoundingClientRect(),pad=14;
+  if(r.width<W*.55||r.height<120){tp.removeAttribute('data-ins');return}   /* la foto no cubre el encabezado (estilos con papel): no se toca */
+  const L=r.left>3?r.left+pad:0,R=W-r.right>3?W-r.right+pad:0,T=r.top>3?r.top+8:0;
+  if(!L&&!R&&!T){tp.removeAttribute('data-ins');return}
+  tp.dataset.ins='1';
+  tp.style.setProperty('--gpl',(L||Math.min(30,Math.max(12,W*.03)))+'px');tp.style.setProperty('--gpr',(R||Math.min(30,Math.max(12,W*.03)))+'px');tp.style.setProperty('--gpt',(T||12)+'px');
+}
 function gPortadaMueve(abierta){
   const cv=G.pcv;if(!cv||!G.pc||!G.pc.movimiento)return;
   cv.classList.remove('fpg','fpa');void cv.offsetWidth;cv.classList.add('fpg');if(abierta)cv.classList.add('fpa');
@@ -375,8 +392,11 @@ function gMusicaPlay(){
   const q=au.play();
   if(q&&q.catch)q.catch(()=>{const reintenta=()=>{au.play().catch(()=>{})};document.addEventListener('pointerdown',reintenta,{once:true})});
 }
+G.lbId=null;
 function gContadores(){
-  const lc=$('#glc');if(lc){const n=ST.favs.size;lc.textContent=n;lc.hidden=!n}
+  const pc=$('#glbpc');if(pc){const n=G.lbId?gCantFoto(G.lbId):0;pc.textContent=n;pc.hidden=!n}
+  document.querySelectorAll('.gph').forEach(t=>{const b=t.querySelector('[data-id]');if(!b)return;const n=gCantFoto(b.dataset.id);let e=t.querySelector('.gpi');if(n){if(!e){e=document.createElement('span');e.className='gpi';t.append(e)}e.innerHTML=ic('bag')+'<b>'+n+'</b>'}else if(e)e.remove()});
+  const lc=$('#glc');if(lc){const n=ST.favs.size;lc.textContent=n;lc.hidden=!n;const lm=$('#glcm');if(lm){lm.textContent=n;lm.hidden=!n}}
   const bc=$('#gbc');if(bc){const n=G.carro.reduce((s,x)=>s+x.cant,0);bc.textContent=n;bc.hidden=!n}
 }
 
@@ -446,7 +466,7 @@ function gPintaMuro(){
   }else{
     cu.innerHTML='<div class="gcol">'+v.map((a,i)=>gTile(a,i)).join('')+'</div>';
   }
-  cu.querySelectorAll('img').forEach(im=>{const ok=()=>{im.classList.add('ok');gVaria(im);gArFija(im.closest('figure'),im.naturalWidth,im.naturalHeight)};im.complete?ok():im.onload=ok;im.onerror=()=>im.classList.add('ok')});
+  gContadores();cu.querySelectorAll('img').forEach(im=>{const ok=()=>{im.classList.add('ok');gVaria(im);gArFija(im.closest('figure'),im.naturalWidth,im.naturalHeight)};im.complete?ok():im.onload=ok;im.onerror=()=>im.classList.add('ok')});
   cu.querySelectorAll('.gph').forEach(t=>{
     t.querySelector('.ver').onclick=()=>gAbrirVisor(+t.dataset.i);
     t.querySelectorAll('.acts button').forEach(b=>b.onclick=e=>{e.stopPropagation();const a=ST.arch.find(x=>x.id===b.dataset.id);
@@ -484,8 +504,8 @@ function gAbrirVisor(i){
     lb.innerHTML='<div class="bar"><span>'+(k+1)+' / '+v.length+'</span>'
      +'<button id="glbh" data-id="'+a.id+'" class="'+(ST.favs.has(a.id)?'on':'')+'" aria-label="Guardar en una lista">'+ic('heart')+'<span class="t">Guardar</span></button>'
      +(img?'<button id="glbi" aria-label="A mi historia de Instagram">'+ic('ig')+'<span class="t">Historia</span></button>':'')
-     +'<button id="glbd" aria-label="Descargar">'+ic('dl')+'<span class="t">Descargar</span></button>'
-     +(img?'<button id="glbp" aria-label="Pedir impresión">'+ic('bag')+'<span class="t">Imprimir</span></button>':'')
+     +'<button id="glbd" class="pri" aria-label="Descargar">'+ic('dl')+'<span class="t">Descargar</span></button>'
+     +(img?'<button id="glbp" aria-label="Pedir impresión">'+ic('bag')+'<span class="t">Imprimir</span><span class="cnt" id="glbpc" hidden></span></button>':'')
      +'<button id="glbx" aria-label="Cerrar">'+ic('x')+'</button></div>'
      +'<div class="st"><button class="nv l" id="glbl" aria-label="Anterior">'+ic('prev')+'</button>'
      +(a.tipo==='video'?'<video controls autoplay playsinline src="'+esc(l.urlVer)+'"></video>':'<img alt="" src="'+esc(l.urlVer)+'">')
@@ -493,7 +513,7 @@ function gAbrirVisor(i){
     $('#glbx',lb).onclick=cierra;$('#glbl',lb).onclick=()=>ir(-1);$('#glbn',lb).onclick=()=>ir(1);
     $('#glbh',lb).onclick=()=>gAbrirGuardar(a);$('#glbd',lb).onclick=()=>gAbrirDescarga('una',a);
     const bi=$('#glbi',lb);if(bi)bi.onclick=()=>gAbrirHistoria(a);
-    const bp=$('#glbp',lb);if(bp)bp.onclick=()=>{gAgregaCarro(a.id);toast('Agregada a tus impresiones')};
+    G.lbId=a.id;gContadores();const bp=$('#glbp',lb);if(bp)bp.onclick=()=>{gAgregaCarro(a.id);gToastAcc('Agregada a tus impresiones','Quitar',()=>gQuitaCarro(a.id))};
     const ni=v[(k+1)%v.length],nl=gLink(ni.id);if(nl.urlVer&&ni.tipo==='imagen'){const pre=new Image();pre.src=nl.urlVer}};
   const ir=d=>{k=(k+d+v.length)%v.length;pinta()};
   const cierra=()=>{lb.remove();if(!document.querySelector('.gm,.gdr,.gt'))document.body.style.overflow='';removeEventListener('keydown',tecla)};
@@ -593,28 +613,48 @@ async function gReescala(blob,lado){
   return await new Promise(r=>c.toBlob(r,'image/jpeg',.92));
 }
 const gNombreBase=n=>String(n||'foto').replace(/\.[^.]+$/,'');
+/* lee solo los primeros bytes de un archivo (Range desde el byte 1: el servidor no lo cuenta como descarga) */
+async function gLeeInicio(url,max){
+  const r=await fetch(url,{headers:{Range:'bytes=1-'+max}});if(!r.ok)return null;
+  const rd=r.body.getReader(),out=new Uint8Array(max+2);let n=0;
+  while(n<max){const {done,value}=await rd.read();if(done)break;const t=Math.min(value.length,out.length-n);out.set(value.subarray(0,t),n);n+=t}
+  try{rd.cancel()}catch(e){}return out.subarray(0,n);
+}
+function gJpgDim(b){
+  let i=b[0]===0xFF&&b[1]===0xD8?2:b[0]===0xD8?1:-1;if(i<0)return null;
+  while(i+9<b.length){
+    if(b[i]!==0xFF){i++;continue}const m=b[i+1];if(m===0xFF){i++;continue}
+    if(m>=0xC0&&m<=0xCF&&m!==0xC4&&m!==0xC8&&m!==0xCC)return{h:(b[i+5]<<8)|b[i+6],w:(b[i+7]<<8)|b[i+8]};
+    if(m===0xD8||m===0x01||(m>=0xD0&&m<=0xD7)){i+=2;continue}
+    i+=2+((b[i+2]<<8)|b[i+3]);
+  }
+  return null;
+}
+/* qué archivo se baja: Web y redes sale de la copia de pantalla; Alta y Original, del original */
+const gFuente=(l,lado)=>lado&&lado<=2048?l.urlVer:(l.url||l.urlVer);
 async function gAbrirDescarga(modo,una){
   const imgs=gImgs();if(!imgs.length&&!una){toast('Aún no hay fotos para descargar');return}
   const ref=una||imgs[0];let dim=null,peso=0;
   const sinFija=!!una;
   const tams={original:{n:'Original',uso:'Para imprimir grande',lado:0},alta:{n:'Alta',uso:'Pantalla e impresión',lado:3600},web:{n:'Web y redes',uso:'WhatsApp e Instagram',lado:2048}};
   const S={modo:modo||'todas',tam:'alta',lista:(G.listas.find(l=>l.ids.size)||{}).id||null};
-  const m=gModal('<div class="top"></div><div class="bd" style="justify-items:stretch"><div class="eti" style="text-align:center">TUS FOTOS EN ALTA CALIDAD</div><h2>Descargar</h2><p style="margin:0 auto">Sin marcas de agua. Elige qué descargar y en qué tamaño.</p>'
+  const m=gModal('<div class="top"></div><div class="bd" style="justify-items:stretch;padding-top:58px"><div class="eti" style="text-align:center">TUS FOTOS EN ALTA CALIDAD</div><h2>Descargar</h2><p style="margin:0 auto">Sin marcas de agua. Elige qué descargar y en qué tamaño.</p>'
     +'<div class="modos" id="gdm"></div><div id="gdl2" style="display:grid;gap:10px"></div><div class="eti" style="text-align:center;margin-top:6px">ELIGE EL TAMAÑO</div><div class="tams" id="gdt"></div><div class="nota" id="gdn"></div>'
     +'<div id="gdp" hidden><div class="prog"><i id="gdb" style="width:0"></i></div><p id="gdq" style="margin:8px auto 0;font-size:.9rem"></p></div>'
-    +'<div class="acts" style="justify-content:space-between;margin-top:8px"><button class="txt" data-x>Cancelar</button><button class="btn2 p" id="gdo">'+ic('dl')+' <span id="gdot">Descargar</span></button></div></div>'+gX,true);
+    +'<div class="acts" style="justify-content:center;margin-top:8px"><button class="btn2 p" id="gdo">'+ic('dl')+' <span id="gdot">Descargar</span></button></div></div>'+gX,true);
   const cantidad=()=>S.modo==='una'?1:S.modo==='lista'?((G.listas.find(l=>l.id===S.lista)||{ids:new Set()}).ids.size):imgs.length;
   const pinta=()=>{
     const modos=sinFija?[['una','Esta foto']]:[['todas','Todas · ZIP'],['lista','Una lista']];
     $('#gdm',m).innerHTML=modos.map(x=>'<button data-m="'+x[0]+'" aria-pressed="'+(S.modo===x[0])+'">'+x[1]+'</button>').join('');
     $('#gdl2',m).innerHTML=S.modo==='lista'?(G.listas.length?'<div class="modos">'+G.listas.map(l=>'<button data-l="'+l.id+'" aria-pressed="'+(S.lista===l.id)+'">'+esc(l.nombre)+' · '+l.ids.size+'</button>').join('')+'</div>':'<p style="margin:0 auto">Todavía no tienes listas.</p>'):'';
     const wh=dim?dim:{w:0,h:0},mb0=peso?peso/1048576:0;
+    const info=k=>{const t=tams[k];let w=wh.w,h=wh.h,kk=1;if(t.lado&&w){kk=Math.min(1,t.lado/Math.max(w,h));w=Math.round(w*kk);h=Math.round(h*kk)}
+      return{w,h,mb:mb0?mb0*kk*kk*(kk<1?.9:1):0}};
     $('#gdt',m).innerHTML=Object.entries(tams).map(([k,t])=>{
-      let w=wh.w,h=wh.h;if(t.lado&&w){const kk=Math.min(1,t.lado/Math.max(w,h));w=Math.round(w*kk);h=Math.round(h*kk)}
-      const mp=w?(w*h/1e6).toFixed(1)+' megapíxeles':'—',res=w?w+' × '+h+' px':'Se mide al abrir';
-      const mb=mb0?(mb0*(w&&wh.w?(w*h)/(wh.w*wh.h):1)*(k==='original'?1:.9)):0;
-      return '<button data-t="'+k+'" aria-pressed="'+(S.tam===k)+'"><b>'+t.n+'</b><span>'+t.uso+'</span><em>'+res+'</em><span>'+mp+'</span><span>'+(mb?'≈ '+(mb<10?mb.toFixed(1):Math.round(mb))+' MB por foto':'')+'</span></button>'}).join('');
-    const n=cantidad(),tot=mb0?(n*mb0*(S.tam==='original'?1:(S.tam==='alta'?.45:.12))):0;
+      const x=info(k),ap=dim&&dim.est?'≈ ':'';
+      const mp=x.w?ap+(x.w*x.h/1e6).toFixed(1)+' megapíxeles':'—',res=x.w?ap+x.w+' × '+x.h+' px':'Se mide al abrir';
+      return '<button data-t="'+k+'" aria-pressed="'+(S.tam===k)+'"><b>'+t.n+'</b><span>'+t.uso+'</span><em>'+res+'</em><span>'+mp+'</span><span>'+(x.mb?'≈ '+(x.mb<10?x.mb.toFixed(1):Math.round(x.mb))+' MB por foto':'')+'</span></button>'}).join('');
+    const n=cantidad(),tot=info(S.tam).mb*n;
     $('#gdn',m).innerHTML='<b>'+n+(n===1?' foto':' fotos')+' · tamaño '+tams[S.tam].n+(tot&&n>1?' · aprox. '+(tot<10?tot.toFixed(1):Math.round(tot))+' MB en total':'')+'</b><br>'+(S.modo==='una'?'Se guarda en tu dispositivo. En el teléfono toca la foto y elige “Guardar en Fotos”.':'Se descarga en un archivo ZIP. En iPhone es mejor bajar por listas o una por una.')+' “Alta” se ve perfecta en pantalla; “Original” es para imprimir en grande.';
     $('#gdot',m).textContent=S.modo==='una'?'Descargar foto':'Descargar '+n+' fotos';
     m.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{S.modo=b.dataset.m;pinta()});
@@ -623,8 +663,12 @@ async function gAbrirDescarga(modo,una){
   };
   pinta();
   /* medidas reales de la primera foto */
-  (async()=>{try{const l=gLink(ref.id);if(!l.urlVer)return;const hd=await fetch(l.urlVer,{method:'HEAD'});peso=+hd.headers.get('content-length')||0;
-    const im=new Image();im.onload=()=>{dim={w:im.naturalWidth,h:im.naturalHeight};if(document.body.contains(m))pinta()};im.src=l.urlVer;if(document.body.contains(m))pinta()}catch(e){}})();
+  /* medidas del ORIGINAL (no de la copia de pantalla): peso por HEAD y dimensiones leyendo solo el encabezado del JPG (esas lecturas no cuentan como descarga) */
+  (async()=>{try{const l=gLink(ref.id);
+    if(l.url){try{const hd=await fetch(l.url,{method:'HEAD'});peso=+hd.headers.get('content-length')||0}catch(e){}
+      try{const b=await gLeeInicio(l.url,262144);const d=b&&gJpgDim(b);if(d){dim=d;pinta()}}catch(e){}}
+    if(!dim&&l.urlVer){const im=new Image();im.onload=()=>{dim={w:im.naturalWidth,h:im.naturalHeight,est:true};if(document.body.contains(m))pinta()};im.src=l.urlVer}
+    if(document.body.contains(m))pinta()}catch(e){}})();
   $('#gdo',m).onclick=async()=>{
     const ids=S.modo==='una'?[ref]:S.modo==='lista'?imgs.filter(a=>(G.listas.find(l=>l.id===S.lista)||{ids:new Set()}).ids.has(a.id)):imgs;
     if(!ids.length){toast('No hay fotos para descargar');return}
@@ -635,13 +679,13 @@ async function gAbrirDescarga(modo,una){
       if(S.modo==='una'){
         const l=gLink(ref.id);
         if(!lado){if(!l.url){toast('No se pudo preparar la descarga');bt.disabled=false;return}const a=document.createElement('a');a.href=l.url;a.rel='noopener';document.body.append(a);a.click();a.remove();m.cierra();return}
-        avance(0,1,'Preparando tu foto…');const b=await (await fetch(l.urlVer)).blob();const out=await gReescala(b,lado);gBajaBlob(out,gNombreBase(ref.nombre)+'-'+S.tam+'.jpg');m.cierra();return;
+        avance(0,1,'Preparando tu foto…');const b=await (await fetch(gFuente(l,lado))).blob();const out=await gReescala(b,lado);gBajaBlob(out,gNombreBase(ref.nombre)+'-'+S.tam+'.jpg');m.cierra();return;
       }
       const Z=await gCargaZip();const PARTE=40,partes=Math.ceil(ids.length/PARTE);let hechas=0;
       for(let p=0;p<partes;p++){
         const zip=new Z(),lote=ids.slice(p*PARTE,(p+1)*PARTE),cola=[...lote.entries()];
         const obr=Array.from({length:3},async()=>{while(cola.length){const[i,a]=cola.shift();const l=gLink(a.id);
-          try{const r=await fetch(lado?l.urlVer:(l.url||l.urlVer));let b=await r.blob();if(lado&&a.tipo==='imagen')b=await gReescala(b,lado);
+          try{const r=await fetch(gFuente(l,lado));let b=await r.blob();if(lado&&a.tipo==='imagen')b=await gReescala(b,lado);
             const ext=lado&&a.tipo==='imagen'?'jpg':((a.nombre.match(/\.[a-z0-9]+$/i)||['.jpg'])[0]);zip.file(String(p*PARTE+i+1).padStart(3,'0')+'-'+gNombreBase(a.nombre)+ext,b)}catch(e){}
           hechas++;avance(hechas,ids.length)}});
         await Promise.all(obr);
@@ -686,6 +730,9 @@ async function gAbrirHistoria(a){
 
 /* ================= IMPRESIONES (solicitud, no compra) ================= */
 function gGuardaCarro(){gLS(gKey('faro_bolsa'),JSON.stringify(G.carro));gContadores()}
+function gQuitaCarro(id){const i=G.carro.findIndex(c=>c.id===id);if(i<0)return;G.carro[i].cant--;if(G.carro[i].cant<=0)G.carro.splice(i,1);gGuardaCarro()}
+const gCantFoto=id=>G.carro.filter(c=>c.id===id).reduce((s,c)=>s+c.cant,0);
+function gToastAcc(txt,lbl,fn){const d=document.createElement('div');d.className='toast';d.style.animation='none';d.innerHTML='<span></span><button type="button" class="tacc"></button>';d.firstChild.textContent=txt;d.lastChild.textContent=lbl;document.body.append(d);const q=()=>d.remove(),t=setTimeout(q,6000);d.lastChild.onclick=()=>{clearTimeout(t);q();fn()}}
 function gAgregaCarro(id){const x=G.carro.find(c=>c.id===id);if(x)x.cant=Math.min(20,x.cant+1);else G.carro.push({id,tam:'4x6',cant:1});gGuardaCarro()}
 const gPrecio=t=>(GPRECIOS.find(x=>x[0]===t)||[0,0,0,0])[3];
 function gAbrirBolsa(){
@@ -785,6 +832,7 @@ function gAbrirPromo(recordatorio){
 }
 
 /* ================= TUTORIAL CON FLECHAS ================= */
+function gqs(s){const e=document.querySelector(s);if(e&&e.getBoundingClientRect().width)return e;const m={'#gdl':'#gdlm','#glis':'#glim'}[s];return m?document.querySelector(m):e}
 const GPASOS=[
   {s:'#gvista',t:'Muévete por la galería',x:'Cambia entre Editorial y Cuadrícula. Es la misma sesión, solo se ve distinta.'},
   {s:'.gph .gh',t:'Estas son todas tus fotos',x:'Tú decides cuáles incluir. Toca el corazón para guardar una foto en una lista.'},
@@ -797,7 +845,7 @@ const GPASOS=[
 function gTutorial(primera){
   if(document.querySelector('.gt'))return;
   document.body.classList.add('gtut');
-  const pasos=GPASOS.filter(p=>document.querySelector(p.s)&&document.querySelector(p.s).getBoundingClientRect().width);
+  const pasos=GPASOS.filter(p=>gqs(p.s)&&gqs(p.s).getBoundingClientRect().width);
   if(!pasos.length){document.body.classList.remove('gtut');return}
   const t=document.createElement('div');t.className='gt';
   t.innerHTML='<div class="hl"></div><div class="pl"></div><svg class="fl" aria-hidden="true"><defs><marker id="gta" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1l8 4-8 4z" fill="#B8A06A"/></marker></defs><path id="gtp" d="" fill="none" stroke="#B8A06A" stroke-width="3" stroke-linecap="round" marker-end="url(#gta)"/></svg><div class="cd" role="dialog" aria-modal="true"></div>';
@@ -808,14 +856,14 @@ function gTutorial(primera){
     if(primera){if(!PREVIA)gLS(gKey('faro_tut'),'1');window.scrollTo(0,0);if(G.onScroll)G.onScroll()}};
   const tec=e=>{if(e.key==='Escape')fin(false)};addEventListener('keydown',tec);
   const pos=()=>{
-    const p=pasos[k],el=document.querySelector(p.s);
+    const p=pasos[k],el=gqs(p.s);
     const hl=t.querySelector('.hl'),pl=t.querySelector('.pl'),cd=t.querySelector('.cd'),W=innerWidth,H=innerHeight,cw=cd.offsetWidth,ch=cd.offsetHeight;
     const r=el&&el.getBoundingClientRect();
     if(!el||!r.width||!r.height||r.bottom<0||r.top>H){
       /* el objetivo no está a la vista: tarjeta centrada, sin flecha (y se intenta acercarlo) */
       for(const e of [hl,pl])e.style.opacity='0';t.querySelector('#gtp').setAttribute('d','');
       cd.style.left=Math.max(12,(W-cw)/2)+'px';cd.style.top=Math.max(12,(H-ch)/2)+'px';
-      if(el&&!el.closest('.gtop,#gbolsa'))el.scrollIntoView({block:'center',behavior:'instant'});
+      if(el&&!el.closest('.gtop,.gbm,#gbolsa'))el.scrollIntoView({block:'center',behavior:'instant'});
       return;
     }
     const pad=8;for(const e of [hl,pl]){e.style.opacity='';e.style.left=(r.left-pad)+'px';e.style.top=(r.top-pad)+'px';e.style.width=(r.width+pad*2)+'px';e.style.height=(r.height+pad*2)+'px'}
@@ -833,8 +881,8 @@ function gTutorial(primera){
     t.querySelector('#gtp').setAttribute('d','M'+desde.x+' '+desde.y+' Q'+mx+' '+my+' '+hasta.x+' '+hasta.y);
   };
   const paso=()=>{
-    const p=pasos[k],el=document.querySelector(p.s);
-    if(el&&!el.closest('.gtop,#gbolsa')){const r=el.getBoundingClientRect();if(r.top<110||r.bottom>innerHeight-90)el.scrollIntoView({block:'center',behavior:'instant'})}
+    const p=pasos[k],el=gqs(p.s);
+    if(el&&!el.closest('.gtop,.gbm,#gbolsa')){const r=el.getBoundingClientRect();if(r.top<110||r.bottom>innerHeight-90)el.scrollIntoView({block:'center',behavior:'instant'})}
     const cd=t.querySelector('.cd');
     cd.innerHTML='<div class="eti">PASO '+(k+1)+' DE '+pasos.length+'</div><h3>'+esc(p.t)+'</h3><p>'+esc(p.x)+'</p>'
       +(p.vista&&portada?'<div class="pv"><div class="hist"><canvas width="62" height="110" id="gtv"></canvas></div><span>Así se verá tu foto en la historia.<br><b style="color:var(--g-ink)">Abrir Instagram → publicar</b></span></div>':'')
