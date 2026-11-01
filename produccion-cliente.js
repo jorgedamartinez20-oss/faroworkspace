@@ -4,7 +4,7 @@
    Usa los helpers de admin.html (api, el, toast, enBtn, enPagina, matSubir, matEnlace, matVer, EN, …). */
 (function(){
 'use strict';
-const SUB=[['perfil','Perfil'],['pre','Preproducción'],['prod','Producción'],['ent','Entregas'],['pagos','Pagos y documentos']];
+const SUB=[['perfil','Perfil'],['pre','Preproducción'],['prod','Producción'],['ent','Entregas'],['pagos','Pagos y documentos'],['equipo','Equipo y accesos']];
 const PRE=[['fechas','Fechas y llamados'],['ideas','Ideas'],['refs','Referencias'],['guiones','Guiones']];
 const IDEA_EST={propuesta:'Propuesta',conversando:'En conversación',aprobada:'Aprobada',descartada:'Descartada'};
 const FECHA_T={llamado:'Llamado',reunion:'Reunión',entrega:'Entrega',pago:'Pago',revision:'Revisión',otro:'Otra'};
@@ -67,7 +67,7 @@ window.FaroProdCli={
       if(recarga||!S.d&&!S.err){cont.textContent='';cont.append(nota('Cargando…'));await cargar()}
       cont.textContent='';
       if(!S.d){cont.append(sec('Falta activar producción',nota('Corre una sola vez sql/produccion.sql en Supabase (SQL Editor) y vuelve a abrir esta ficha. Mensaje: '+(S.err&&S.err.message||'')),enBtn('Reintentar','refresh',()=>{S.err=null;ir(true)},'btn-gold')));return}
-      ({perfil:vPerfil,pre:vPre,prod:vProd,ent:vEnt,pagos:vPagos})[S.sub]();
+      ({perfil:vPerfil,pre:vPre,prod:vProd,ent:vEnt,pagos:vPagos,equipo:vEquipo})[S.sub]();
     };
     const re=()=>ir(true);
     const ok=t=>{guardadoOk(t||'Guardado')};
@@ -169,56 +169,176 @@ window.FaroProdCli={
     }
 
     /* ---------- Producción ---------- */
-    function piezas(){const m=new Map();EN.arch.filter(a=>a.proyecto_id===pid&&(a.rol||'revision')!=='final').forEach(a=>{const k=a.pieza_id||a.id;(m.get(k)||m.set(k,[]).get(k)).push(a)});
+    function piezas(){const m=new Map();EN.arch.filter(a=>a.proyecto_id===pid&&(a.rol||'revision')!=='final'&&a.habilitado!==false).forEach(a=>{const k=a.pieza_id||a.id;(m.get(k)||m.set(k,[]).get(k)).push(a)});
       return [...m.values()].map(vs=>vs.sort((a,b)=>a.version-b.version)).sort((a,b)=>a[0].orden-b[0].orden)}
-    async function subirVersion(prev,file,nv){
-      const p=P(),dest=EN_TIPOS[c.tipo][2],ult=prev;
-      const base=String(ult.nombre).replace(/\.[^.]+$/,'').replace(/[-_ ]?[vV]\d+$/,''),versionN=ult.version+1;
-      const nombre=slugNom(base+'-V'+versionN+(ext(file.name)||ext(ult.nombre)));
-      toast('Subiendo V'+versionN+'…');
-      const r=await matSubir(file,dest,c.slug,null,nombre);
-      const piezaId=ult.pieza_id||ult.id;
-      const nuevo=await ins('en_archivos',{proyecto_id:pid,key:r.key,nombre:ult.nombre.replace(/\.[^.]+$/,'').replace(/[-_ ]?[vV]\d+$/,'')+(ext(file.name)||ext(ult.nombre)),tipo:enTipoArch(file.name),orden:ult.orden,pieza_id:piezaId,version:versionN,rol:'revision',nota_version:nv||null,estado:'pendiente',habilitado:true});
-      EN.arch.push(nuevo);
-      /* las notas de "cambio" de la versión anterior quedan como corregidas en la nueva */
-      try{const r2=await api('/rest/v1/en_comentarios?archivo_id=eq.'+ult.id+'&valoracion=eq.cambio&resuelto=is.false',{method:'PATCH',body:{resuelto:true,resuelto_por:'Faro',resuelto_en:new Date().toISOString(),resolucion:nv||'Corregido en la V'+versionN},headers:{Prefer:'return=minimal'}})}catch(e){}
+    const normBase=n=>String(n||'').replace(/\.[^.]+$/,'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[-_ ]*v\d{1,3}$/,'').replace(/[^a-z0-9]/g,'');
+    const baseNom=n=>String(n).replace(/\.[^.]+$/,'').replace(/[-_ ]?[vV]\d+$/,'');
+    const peso=b=>b>=1048576?(b/1048576).toFixed(b>=10485760?0:1)+' MB':Math.max(1,Math.round(b/1024))+' KB';
+    async function resolverAnteriores(prev,nv,versionN){
+      try{await api('/rest/v1/en_comentarios?archivo_id=eq.'+prev.id+'&valoracion=eq.cambio&resuelto=is.false',{method:'PATCH',body:{resuelto:true,resuelto_por:'Faro',resuelto_en:new Date().toISOString(),resolucion:nv||'Corregido en la V'+versionN},headers:{Prefer:'return=minimal'}})}catch(e){}
+    }
+    async function subirVersion(prev,file,nv,onp){
+      const p=P(),dest=EN_TIPOS[c.tipo][2],versionN=prev.version+1,ext0=ext(file.name)||ext(prev.nombre);
+      const r=await matSubir(file,dest,c.slug,onp,slugNom(baseNom(prev.nombre)+'-V'+versionN+ext0));
+      const piezaId=prev.pieza_id||prev.id;
+      const nuevo=await ins('en_archivos',{proyecto_id:pid,key:r.key,nombre:baseNom(prev.nombre)+ext0,tipo:enTipoArch(file.name),orden:prev.orden,pieza_id:piezaId,version:versionN,rol:'revision',nota_version:nv||null,estado:'pendiente',habilitado:true});
+      EN.arch.push(nuevo);await resolverAnteriores(prev,nv,versionN);
       try{await ins('en_historial',{proyecto_id:pid,archivo_id:nuevo.id,pieza_id:piezaId,version:versionN,ronda:p.ronda,evento:'version',autor:'Faro',detalle:nv||null})}catch(e){}
       return nuevo;
+    }
+    async function subirPieza(file,onp){
+      const dest=EN_TIPOS[c.tipo][2],base=file.name.replace(/\.[^.]+$/,'');
+      const r=await matSubir(file,dest,c.slug,onp,slugNom(base+'-V1'+ext(file.name)));
+      const orden=Math.max(-1,...EN.arch.filter(a=>a.proyecto_id===pid).map(a=>a.orden))+1;
+      const n=await ins('en_archivos',{proyecto_id:pid,key:r.key,nombre:base+ext(file.name),tipo:enTipoArch(file.name),orden,version:1,rol:'revision',estado:'pendiente',habilitado:true});EN.arch.push(n);return n;
+    }
+    const zona=(txt,sub,onFiles,opts)=>{
+      opts=opts||{};const inp=el('input',{type:'file',multiple:'multiple',style:'display:none'});if(opts.dir){inp.setAttribute('webkitdirectory','');inp.removeAttribute('multiple')}
+      const z=el('div',{role:'button',tabindex:'0',style:'border:2px dashed var(--line,rgba(128,128,128,.5));border-radius:16px;padding:26px 14px;text-align:center;cursor:pointer;display:grid;gap:4px;justify-items:center'},el('b',{style:'font-size:1.05rem'},txt),el('small',{class:'muted'},sub),inp);
+      const on=v=>{z.style.borderColor=v?'var(--oro,#B8A06A)':''};
+      z.addEventListener('click',e=>{if(e.target!==inp)inp.click()});z.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();inp.click()}});
+      inp.addEventListener('change',()=>{const fs=[...inp.files].map(f=>({f,ruta:opts.dir?(f.webkitRelativePath||'').split('/').slice(0,-1).join('/'):''}));inp.value='';if(fs.length)onFiles(fs)});
+      ['dragenter','dragover'].forEach(ev=>z.addEventListener(ev,e=>{e.preventDefault();on(true)}));['dragleave','drop'].forEach(ev=>z.addEventListener(ev,e=>{e.preventDefault();on(false)}));
+      z.addEventListener('drop',async e=>{e.preventDefault();const out=[];const items=[...(e.dataTransfer.items||[])];
+        const leer=(ent,ruta)=>new Promise(res=>{if(ent.isFile)ent.file(f=>{out.push({f,ruta});res()},()=>res());else if(ent.isDirectory){const rd=ent.createReader(),todos=[];const paso=()=>rd.readEntries(async es=>{if(!es.length){await Promise.all(todos.map(x=>leer(x,(ruta?ruta+'/':'')+ent.name)));res()}else{todos.push(...es);paso()}},()=>res());paso()}else res()});
+        if(items.length&&items[0].webkitGetAsEntry){await Promise.all(items.map(it=>{const en=it.webkitGetAsEntry();return en?leer(en,''):Promise.resolve()}))}else [...e.dataTransfer.files].forEach(f=>out.push({f,ruta:''}));
+        if(out.length)onFiles(out)});
+      return z;
+    };
+    /* Por publicar: lo que subió un editor queda oculto hasta que Faro lo libere */
+    async function publicar(a){
+      await upd('en_archivos',a.id,{habilitado:true});a.habilitado=true;
+      if((a.rol||'revision')==='revision'&&a.version>1){const prev=EN.arch.filter(z=>z.proyecto_id===pid&&z.pieza_id===a.pieza_id&&z.version<a.version&&z.habilitado!==false).sort((x,y)=>y.version-x.version)[0];
+        if(prev)await resolverAnteriores(prev,a.nota_version,a.version);
+        try{await ins('en_historial',{proyecto_id:pid,archivo_id:a.id,pieza_id:a.pieza_id,version:a.version,ronda:P().ronda,evento:'version',autor:'Faro',detalle:a.nota_version||null})}catch(e){}}
+    }
+    function bandeja(rol){
+      const L=EN.arch.filter(a=>a.proyecto_id===pid&&a.habilitado===false&&a.subido_por&&(a.rol||'revision')===rol);
+      if(!L.length)return null;
+      return sec('Por publicar ('+L.length+')',nota('Lo subió el equipo. El cliente no lo ve hasta que lo publiques.'),
+        ...L.map(a=>fila(grow(el('b',{},a.nombre+(rol==='revision'&&a.version>1?' · V'+a.version:'')),el('br'),el('small',{class:'muted'},'Subió '+(a.subido_nombre||'un editor')+(a.carpeta?' · carpeta '+a.carpeta:'')+(a.nota_version?' · '+a.nota_version:''))),
+          enBtn('Ver','image',()=>matVer('privado',a.key).catch(e=>toast(e.message))),
+          enBtn('Publicar','check',async()=>{try{await publicar(a);ok('Publicado');ir()}catch(e){falla(e)}},'btn-gold'),
+          enBtn('Descartar','trash',async()=>{if(!confirm('¿Descartar "'+a.nombre+'"? Se borra el archivo.'))return;try{try{await fjson('/api/objeto?bucket=privado&key='+encodeURIComponent(a.key),{method:'DELETE'})}catch(e){}await del('en_archivos',a.id);EN.arch=EN.arch.filter(z=>z.id!==a.id);ir()}catch(e){falla(e)}}))),
+        L.length>1?enBtn('Publicar todo','check',async()=>{try{for(const a of L)await publicar(a);ok('Todo publicado');ir()}catch(e){falla(e)}},'btn-gold'):null);
     }
     function vProd(){
       const p=P(),cf=p.config||{};
       const et=selEl('Etapa que ve el cliente',[['','Automática'],['pre','Preproducción'],['prod','Producción (revisión)'],['entrega','Entregas']],cf.etapa||'');
       const ro=campo('Rondas incluidas (vacío = sin límite)','number',p.rondas_max);
       const rv=el('label',{class:'wchk',style:'padding:0'},chkEl(!!cf.revisores,v=>{cf._rv=v}),'Varios revisores: cada persona pone su nombre en sus notas y aprobaciones');cf._rv=!!cf.revisores;
+      /* 1) subir: arrastra y se acomoda solo */
+      const cola=[];const colaEl=el('div',{style:'display:grid;gap:8px'});const nvp=campo('¿Qué cambió en estas versiones? (opcional, lo ve el cliente)','text','','Ej. Corregimos el logo y bajamos la música');
+      let subiendo=false;const ps0=()=>piezas();
+      const accion=f=>{const k=normBase(f.name),m=ps0().find(vs=>normBase(vs[0].nombre)===k);return m?{tipo:'version',prev:m[m.length-1]}:{tipo:'nueva'}};
+      const btn=enBtn('Subir todo','upload',()=>go(),'btn-gold');
+      const pinta=()=>{colaEl.textContent='';
+        cola.forEach((x,i)=>colaEl.append(fila(grow(el('b',{},x.f.name),el('br'),el('small',{class:'muted'},peso(x.f.size)+' · '+(x.a.tipo==='version'?'Nueva versión V'+(x.a.prev.version+1)+' de '+x.a.prev.nombre:'Pieza nueva (V1)')+(x.err?' · '+x.err:''))),
+          x.st==='ok'?el('span',{class:'tag confirmada'},'Listo'):x.st==='sub'?el('span',{class:'tag'},Math.round((x.pr||0)*100)+'%'):enBtn('Quitar','x',()=>{cola.splice(i,1);pinta()}))));
+        btn.hidden=!cola.some(x=>!x.st);btn.disabled=subiendo};
+      const agrega=fs=>{fs.forEach(({f})=>cola.push({f,a:accion(f)}));pinta()};
+      const go=async()=>{if(subiendo)return;subiendo=true;const pend=cola.filter(x=>!x.st);pend.forEach(x=>{x.st='cola';x.err=''});pinta();let n=0;
+        const q=[...pend];await Promise.all(Array.from({length:Math.min(3,q.length)},async()=>{while(q.length){const x=q.shift();x.st='sub';x.pr=0;pinta();
+          try{x.a=accion(x.f);if(x.a.tipo==='version')await subirVersion(x.a.prev,x.f,nvp.i.value.trim(),l=>{x.pr=l/x.f.size;pinta()});else await subirPieza(x.f,l=>{x.pr=l/x.f.size;pinta()});x.st='ok';n++}
+          catch(e){x.st='';x.err=e.message||'No se pudo subir'}pinta()}}));
+        subiendo=false;pinta();if(n){ok(n+' archivo'+(n>1?'s':'')+' subido'+(n>1?'s':''));setTimeout(()=>{S.d=S.d;ir()},900)}};
+      const dz=zona('Suelta aquí los videos y fotos para revisión','o toca para elegirlos · si el nombre se parece al de una pieza, se sube como su nueva versión',agrega);
+      cont.append(sec('Subir material para revisión',dz,nvp,colaEl,btn,nota('Súbelos en calidad media con marca de agua: el cliente solo puede verlos, no descargarlos. Los finales van en Entregas.')));pinta();
+      const bj=bandeja('revision');if(bj)cont.append(bj);
+      /* 2) piezas y versiones */
+      const ps=piezas();
+      cont.append(sec('Piezas y versiones ('+ps.length+')',...(ps.length?ps.map(vs=>{const u=vs[vs.length-1];
+        const inp=el('input',{type:'file',style:'display:none'});
+        inp.onchange=async()=>{const f=inp.files[0];inp.value='';if(!f)return;try{toast('Subiendo V'+(u.version+1)+'…');await subirVersion(u,f,nvp.i.value.trim());ok('V'+(u.version+1)+' subida');ir()}catch(e){falla(e)}};
+        return fila(grow(el('b',{},u.nombre),el('br'),el('small',{class:'muted'},'V'+u.version+' · '+({aprobado:'Aprobada',cambios:'Con cambios',pendiente:'Sin revisar'})[u.estado]+(u.estado_por?' · '+u.estado_por:'')+' · '+vs.length+' versión'+(vs.length>1?'es':''))),
+          enBtn('Ver V'+u.version,'image',()=>matVer('privado',u.key).catch(e=>toast(e.message))),enBtn('Nueva versión','upload',()=>inp.click()),inp,
+          el('label',{class:'wchk',style:'padding:0'},chkEl(true,async v=>{if(!v&&!confirm('¿Ocultar esta pieza al cliente?')){return}try{for(const a of vs)await upd('en_archivos',a.id,{habilitado:v});vs.forEach(a=>a.habilitado=v);if(!v)ir()}catch(e){falla(e)}}),'Visible'))}):[nota('Aún no hay piezas. Arrastra el primer video o foto a la zona de arriba.')])));
+      /* 3) cómo se revisa */
       cont.append(sec('Cómo se revisa este proyecto',el('div',{class:'dg2'},et,ro),rv,
         enBtn('Guardar','check',async()=>{try{const config={...(P().config||{}),revisores:!!cf._rv};if(et.i.value)config.etapa=et.i.value;else delete config.etapa;delete config._rv;
           const b={config,rondas_max:ro.i.value?Math.max(1,+ro.i.value):null};await upd('en_proyectos',pid,b);Object.assign(P(),b);ok('Guardado');ir()}catch(e){falla(e)}},'btn-gold'),
-        nota('Las versiones que subes aquí son de revisión: baja calidad y con marca de agua, hechas por ti. El cliente no tiene botón de descarga. Los archivos finales van en la pestaña Entregas.')));
-      const ps=piezas();
-      const nvp=campo('Nota de la versión (qué cambió)','text','','Ej. Corregimos el logo y bajamos la música');
-      cont.append(sec('Piezas y versiones ('+ps.length+')',nvp,...(ps.length?ps.map(vs=>{const u=vs[vs.length-1];
-        return fila(grow(el('b',{},u.nombre),el('br'),el('small',{class:'muted'},'V'+u.version+' · '+({aprobado:'Aprobada',cambios:'Con cambios',pendiente:'Sin revisar'})[u.estado]+(u.estado_por?' · '+u.estado_por:'')+' · '+vs.length+' versión'+(vs.length>1?'es':''))),
-          enBtn('Ver V'+u.version,'image',()=>matVer('privado',u.key).catch(e=>toast(e.message))),
-          enBtn('Subir nueva versión (V'+(u.version+1)+')','upload',async()=>{const f=await pedir();if(!f)return;try{await subirVersion(u,f,nvp.i.value.trim());ok('V'+(u.version+1)+' subida');S.d=null;ir(true)}catch(e){falla(e)}},'btn-gold'))}):[nota('Aún no hay piezas. Sube la primera desde el botón de abajo o desde “Subir archivos” en el proyecto.')]),
-        enBtn('Subir pieza nueva (V1)','plus',async()=>{const f=await pedir();if(!f)return;try{toast('Subiendo…');const dest=EN_TIPOS[c.tipo][2];const base=f.name.replace(/\.[^.]+$/,'');
-          const r=await matSubir(f,dest,c.slug,null,slugNom(base+'-V1'+ext(f.name)));const orden=Math.max(-1,...EN.arch.filter(a=>a.proyecto_id===pid).map(a=>a.orden))+1;
-          const n=await ins('en_archivos',{proyecto_id:pid,key:r.key,nombre:base+ext(f.name),tipo:enTipoArch(f.name),orden,version:1,rol:'revision',estado:'pendiente',habilitado:true});EN.arch.push(n);ok('Pieza subida');ir(true)}catch(e){falla(e)}}),
-        nota('Cuando termines de subir los cambios, usa “Abrir la ronda siguiente” en el proyecto (arriba, en Entregas) para que el cliente vea que ya está listo.')));
+        nota('Cuando termines de subir los cambios, usa “Abrir la ronda siguiente” en el proyecto para avisar al cliente.')));
       const hs=S.d.hist;if(hs&&hs.length)cont.append(sec('Historial reciente',...hs.slice(0,15).map(h=>el('div',{style:'font-size:.88rem'},el('b',{},h.autor||'Faro'),' · '+h.evento+(h.version?' V'+h.version:'')+(h.detalle?' · '+h.detalle:'')+' · ',el('small',{class:'muted'},hace(h.creado))))));
     }
 
-    /* ---------- Entregas (finales en alta calidad) ---------- */
+    /* ---------- Entregas (finales en alta calidad, con carpetas y nombres originales) ---------- */
     function vEnt(){
-      const fin=EN.arch.filter(a=>a.proyecto_id===pid&&a.rol==='final');
-      cont.append(sec('Archivos finales ('+fin.length+')',nota('Súbelos en alta calidad. El cliente los ve en su pestaña Entregas y los descarga cuando el proyecto esté aprobado o entregado.'),
-        ...(fin.length?fin.map(a=>fila(grow(el('b',{},a.nombre)),enBtn('Ver','image',()=>matVer('privado',a.key).catch(e=>toast(e.message))),
-          el('label',{class:'wchk',style:'padding:0'},chkEl(a.habilitado,async v=>{try{await upd('en_archivos',a.id,{habilitado:v});a.habilitado=v}catch(e){falla(e)}}),'Visible'),
-          enBtn('Borrar','trash',async()=>{if(!confirm('¿Borrar "'+a.nombre+'" también de R2?'))return;try{await fjson('/api/objeto?bucket=privado&key='+encodeURIComponent(a.key),{method:'DELETE'})}catch(e){if(!/No existe/.test(e.message))toast('Aviso: '+e.message)}try{await del('en_archivos',a.id);EN.arch=EN.arch.filter(z=>z.id!==a.id);ir()}catch(e){falla(e)}}))):[nota('Aún no hay finales.')]),
-        enBtn('Subir archivos finales','upload',async()=>{const i=document.createElement('input');i.type='file';i.multiple=true;i.onchange=async()=>{const fs=[...i.files];if(!fs.length)return;const dest=EN_TIPOS[c.tipo][2];let n=0;
-          for(const f of fs){try{toast('Subiendo '+(n+1)+' de '+fs.length+'…');const r=await matSubir(f,dest,c.slug,null,slugNom('FINAL-'+f.name));const orden=Math.max(-1,...EN.arch.filter(a=>a.proyecto_id===pid).map(a=>a.orden))+1;
-            const nu=await ins('en_archivos',{proyecto_id:pid,key:r.key,nombre:f.name,tipo:enTipoArch(f.name),orden,version:1,rol:'final',estado:'aprobado',habilitado:true});EN.arch.push(nu);n++}catch(e){toast('No se pudo subir '+f.name+': '+(e.message||''))}}
-          if(n)ok(n+' final'+(n>1?'es':'')+' subido'+(n>1?'s':''));ir(true)};i.click()},'btn-gold'),
-        nota('Para que el cliente pueda descargar, el proyecto debe estar en estado Aprobado o Entregado (se cambia en el proyecto). Liberar los finales solo con saldo en cero todavía no es automático.')));
+      const fin=EN.arch.filter(a=>a.proyecto_id===pid&&a.rol==='final'&&a.habilitado!==false);
+      const cola=[];const colaEl=el('div',{style:'display:grid;gap:8px'});const car=campo('Carpeta (opcional, ej. Fotos/Grupo A)','text','');let subiendo=false;
+      const btn=enBtn('Subir finales','upload',()=>go(),'btn-gold');
+      const pinta=()=>{colaEl.textContent='';cola.forEach((x,i)=>colaEl.append(fila(grow(el('b',{},(x.ruta?x.ruta+'/':'')+x.f.name),el('br'),el('small',{class:'muted'},peso(x.f.size)+(x.err?' · '+x.err:''))),
+          x.st==='ok'?el('span',{class:'tag confirmada'},'Listo'):x.st==='sub'?el('span',{class:'tag'},Math.round((x.pr||0)*100)+'%'):enBtn('Quitar','x',()=>{cola.splice(i,1);pinta()}))));
+        btn.hidden=!cola.some(x=>!x.st);btn.disabled=subiendo};
+      const go=async()=>{if(subiendo)return;subiendo=true;const pend=cola.filter(x=>!x.st);pend.forEach(x=>x.st='cola');pinta();let n=0;const dest=EN_TIPOS[c.tipo][2];const q=[...pend];
+        await Promise.all(Array.from({length:Math.min(3,q.length)},async()=>{while(q.length){const x=q.shift();x.st='sub';x.pr=0;pinta();
+          try{const r=await matSubir(x.f,dest,c.slug,l=>{x.pr=l/x.f.size;pinta()},slugNom(Date.now().toString(36)+'-'+x.f.name));
+            const orden=Math.max(-1,...EN.arch.filter(a=>a.proyecto_id===pid).map(a=>a.orden))+1;
+            const carp=[car.i.value.trim().replace(/^\/+|\/+$/g,''),x.ruta].filter(Boolean).join('/')||null;
+            const nu=await ins('en_archivos',{proyecto_id:pid,key:r.key,nombre:x.f.name,tipo:enTipoArch(x.f.name),orden,version:1,rol:'final',estado:'pendiente',habilitado:true,carpeta:carp});EN.arch.push(nu);x.st='ok';n++}
+          catch(e){x.st='';x.err=e.message||'No se pudo subir'}pinta()}}));
+        subiendo=false;pinta();if(n){ok(n+' final'+(n>1?'es':'')+' subido'+(n>1?'s':''));setTimeout(()=>ir(),900)}};
+      const agrega=fs=>{fs.forEach(x=>cola.push({f:x.f,ruta:x.ruta||''}));pinta()};
+      const dz=zona('Suelta aquí los archivos finales o una carpeta completa','o toca para elegir archivos · se conservan los nombres originales',agrega);
+      const dzDir=zona('Subir una carpeta','toca para elegir la carpeta',agrega,{dir:true});dzDir.style.padding='14px';
+      cont.append(sec('Subir archivos finales',nota('Alta calidad. El cliente los ve en su pestaña Entregas, ordenados en carpetas, y los descarga con el nombre que tengan aquí.'),dz,dzDir,car,colaEl,btn));pinta();
+      const bj=bandeja('final');if(bj)cont.append(bj);
+      const grupos=new Map();fin.forEach(a=>{const k=a.carpeta||'';(grupos.get(k)||grupos.set(k,[]).get(k)).push(a)});
+      cont.append(sec('Archivos finales ('+fin.length+')',...(fin.length?[...grupos.keys()].sort().flatMap(k=>[
+          el('div',{style:'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px'},el('b',{},k||'Sin carpeta'),el('small',{class:'muted'},grupos.get(k).length+' archivo'+(grupos.get(k).length>1?'s':'')),
+            k?enBtn('Renombrar carpeta','edit',async()=>{const nn=prompt('Nuevo nombre de la carpeta',k);if(nn==null)return;try{for(const a of grupos.get(k))await upd('en_archivos',a.id,{carpeta:nn.trim()||null}),a.carpeta=nn.trim()||null;ir()}catch(e){falla(e)}}):null),
+          ...grupos.get(k).map(a=>fila(grow(el('b',{},a.nombre)),
+            enBtn('Ver','image',()=>matVer('privado',a.key).catch(e=>toast(e.message))),
+            enBtn('Carpeta','folder',async()=>{const nn=prompt('Carpeta de "'+a.nombre+'" (vacío = sin carpeta)',a.carpeta||'');if(nn==null)return;try{await upd('en_archivos',a.id,{carpeta:nn.trim()||null});a.carpeta=nn.trim()||null;ir()}catch(e){falla(e)}}),
+            el('label',{class:'wchk',style:'padding:0'},chkEl(true,async v=>{try{await upd('en_archivos',a.id,{habilitado:v});a.habilitado=v;if(!v)ir()}catch(e){falla(e)}}),'Visible'),
+            enBtn('Borrar','trash',async()=>{if(!confirm('¿Borrar "'+a.nombre+'" también de R2?'))return;try{await fjson('/api/objeto?bucket=privado&key='+encodeURIComponent(a.key),{method:'DELETE'})}catch(e){if(!/No existe/.test(e.message))toast('Aviso: '+e.message)}try{await del('en_archivos',a.id);EN.arch=EN.arch.filter(z=>z.id!==a.id);ir()}catch(e){falla(e)}})))]):[nota('Aún no hay finales.')]),
+        nota('El cliente puede descargar cuando el proyecto esté Aprobado o Entregado (se cambia en el proyecto). Liberar los finales solo con saldo en cero todavía no es automático.')));
+    }
+
+    /* ---------- Equipo y accesos ---------- */
+    const clavaGen=()=>{const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let o='';for(let i=0;i<12;i++){o+=A[Math.floor(Math.random()*A.length)];if(i%4===3&&i<11)o+='-'}return o};
+    async function crearUsuario(correo,clave){
+      const email=enAuthEmail(correo);
+      const r=await fetch(SB.url+'/auth/v1/signup',{method:'POST',headers:{apikey:SB.key,'Content-Type':'application/json'},body:JSON.stringify({email,password:clave})});
+      const j=await r.json().catch(()=>({}));
+      if(!r.ok){const t=j.msg||j.error_description||j.message||'';throw new Error(/already|registered|exists/i.test(t)?'Ese correo ya tiene acceso. Usa otro.':(t||'No se pudo crear el acceso'))}
+      const uid=(j.user&&j.user.id)||j.id;if(!uid)throw new Error('Supabase no devolvió el usuario');
+      if(!j.access_token)alert('Se creó el usuario, pero Supabase pide confirmar el correo y esa persona NO podrá entrar.\n\nEn Supabase: Authentication > Sign In / Providers > Email > desactiva "Confirm email".');
+      return{uid,email};
+    }
+    function mostrarAcceso(titulo,nombre,usuario,clave,esEditor){
+      const msg='Hola '+nombre.split(' ')[0]+', este es tu acceso a Producción de Faro Studios, donde '+(esEditor?'subes el material de los proyectos':'revisas el material, dejas tus correcciones y descargas lo aprobado')+':\n\nEnlace: https://www.farostudios.net/produccion\nCorreo: '+usuario+'\nContraseña: '+clave+'\n\nFaro Studios';
+      const D=enDrawer(titulo);D.body.append(el('div',{class:'msg',style:'background:rgba(226,190,70,.18);border-color:var(--amar)'},'La contraseña queda guardada solo en este navegador. Cópiala ahora y envíasela.'),
+        el('div',{class:'field'},el('span',{class:'lab'},'Usuario (correo)'),el('div',{class:'item',style:'font:700 1.2rem/1.2 monospace;word-break:break-all'},usuario)),
+        el('div',{class:'field'},el('span',{class:'lab'},'Contraseña'),el('div',{class:'item',style:'font:700 1.3rem/1.2 monospace;letter-spacing:.05em'},clave)),
+        el('div',{style:'display:flex;gap:8px;flex-wrap:wrap;margin-top:8px'},enBtn('Copiar mensaje','link',()=>copyTxt(msg),'btn-gold'),enBtn('Cerrar',null,D.cerrar)));
+    }
+    async function vEquipo(){
+      const miembros=EN.cuentas.filter(x=>x.principal_id===c.user_id);
+      let editores=[];try{editores=await q('pr_editores','order=creado.asc')}catch(e){}
+      const nom=campo('Nombre de la persona','text','','Ej. Laura Pérez'),cor=campo('Correo con el que entrará','email','','laura@empresa.com');
+      const vp=el('label',{class:'wchk',style:'padding:0'},chkEl(false,v=>{vp.v=v}),'Puede ver Pagos y documentos');vp.v=false;
+      cont.append(sec('Personas de '+c.nombre,nota('El principal ve todo. Las personas secundarias revisan, marcan cambios y comentan; no ven precios ni documentos salvo que se lo habilites. La ronda solo la envía el principal.'),
+        fila(grow(el('b',{},c.nombre),el('br'),el('small',{class:'muted'},'Principal · usuario '+c.usuario)),el('span',{class:'tag confirmada'},'Ve todo')),
+        ...miembros.map(m=>fila(grow(el('b',{},m.nombre),el('br'),el('small',{class:'muted'},m.usuario+(m.activo?'':' · desactivada'))),
+          el('label',{class:'wchk',style:'padding:0'},chkEl(m.ve_pagos,async v=>{try{await upd('en_cuentas',m.user_id,{ve_pagos:v},'user_id');m.ve_pagos=v;ok(v?'Ya ve Pagos y documentos':'Ya no ve Pagos y documentos')}catch(e){falla(e)}}),'Ve pagos y documentos'),
+          el('label',{class:'wchk',style:'padding:0'},chkEl(m.activo,async v=>{try{await upd('en_cuentas',m.user_id,{activo:v},'user_id');m.activo=v;ok(v?'Activada':'Desactivada')}catch(e){falla(e)}}),'Activa'),
+          enBtn('Ver acceso','key',()=>{const v=vaultGet()[m.user_id];if(!v){alert('La contraseña no está guardada en este navegador (se creó en otro equipo).');return}mostrarAcceso('Acceso de '+m.nombre,m.nombre,v.usuario,v.clave,false)}),
+          enBtn('Quitar','trash',async()=>{if(!confirm('¿Quitar el acceso de '+m.nombre+'?'))return;try{await del('en_cuentas',m.user_id,'user_id');EN.cuentas=EN.cuentas.filter(z=>z.user_id!==m.user_id);ir()}catch(e){falla(e)}}))),
+        el('h4',{style:'margin:8px 0 0'},'Agregar una persona'),el('div',{class:'dg2'},nom,cor),vp,
+        enBtn('Crear acceso','plus',async()=>{const n=nom.i.value.trim(),u=cor.i.value.trim().toLowerCase();if(!n||!u){toast('Pon nombre y correo');return}
+          try{toast('Creando acceso…');const clave=clavaGen(),{uid,email}=await crearUsuario(u,clave);
+            const cu=await ins('en_cuentas',{user_id:uid,tipo:c.tipo,nombre:n,slug:(matSlug(n)||'persona')+'-'+uid.slice(0,6),usuario:u,email_auth:email,principal_id:c.user_id,ve_pagos:!!vp.v});EN.cuentas.push(cu);
+            vaultSet(uid,{usuario:u,clave,email,rol:'entregas',nombre:n,fecha:new Date().toISOString()});mostrarAcceso('Acceso de '+n,n,u,clave,false);ir()}catch(e){falla(e)}},'btn-gold')));
+      const en=campo('Nombre del editor','text','','Ej. Mario'),ec=campo('Correo con el que entrará','email','','editor@correo.com');
+      cont.append(sec('Editores del equipo de Faro',nota('Entran a farostudios.net/produccion, ven los proyectos y suben material. Lo que suben queda “Por publicar” hasta que tú lo publiques. Sirven para todos los clientes.'),
+        ...(editores.length?editores.map(e=>fila(grow(el('b',{},e.nombre),el('br'),el('small',{class:'muted'},e.usuario||'')),
+          el('label',{class:'wchk',style:'padding:0'},chkEl(e.activo,async v=>{try{await upd('pr_editores',e.user_id,{activo:v},'user_id');ok(v?'Activo':'Desactivado')}catch(er){falla(er)}}),'Activo'),
+          enBtn('Ver acceso','key',()=>{const v=vaultGet()[e.user_id];if(!v){alert('La contraseña no está guardada en este navegador (se creó en otro equipo).');return}mostrarAcceso('Acceso de '+e.nombre,e.nombre,v.usuario,v.clave,true)}),
+          enBtn('Quitar','trash',async()=>{if(!confirm('¿Quitar a '+e.nombre+'? Ya no podrá subir.'))return;try{await del('pr_editores',e.user_id,'user_id');ir()}catch(er){falla(er)}}))):[nota('Aún no tienes editores.')]),
+        el('div',{class:'dg2'},en,ec),
+        enBtn('Crear acceso de editor','plus',async()=>{const n=en.i.value.trim(),u=ec.i.value.trim().toLowerCase();if(!n||!u){toast('Pon nombre y correo');return}
+          try{toast('Creando acceso…');const clave=clavaGen(),{uid,email}=await crearUsuario(u,clave);
+            await ins('pr_editores',{user_id:uid,nombre:n,usuario:u,email_auth:email});vaultSet(uid,{usuario:u,clave,email,rol:'editor',nombre:n,fecha:new Date().toISOString()});mostrarAcceso('Acceso de '+n,n,u,clave,true);ir()}catch(e){falla(e)}},'btn-gold')));
     }
 
     /* ---------- Pagos y documentos ---------- */

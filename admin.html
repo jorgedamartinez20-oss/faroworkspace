@@ -879,7 +879,7 @@ summary{transition:color .18s}
 <script src="clientes-ficha.js?v=20261101g"></script>
 <script src="producciones-doc.js?v=20261101a"></script>
 <script src="producciones.js?v=20261101a"></script>
-<script src="produccion-cliente.js?v=20261101a"></script>
+<script src="produccion-cliente.js?v=20261101b"></script>
 <script src="subtitulos-motor.js?v=20261101b"></script>
 <script src="subtitulos-mov.js?v=20261101b"></script>
 <script src="subtitulos.js?v=20261101b"></script>
@@ -5025,11 +5025,11 @@ function renderEn(){
   if(EN.err){root.append(el('div',{class:'msg',style:'margin:12px 0'},EN.st===401||EN.st===403?'Tu sesión no tiene permiso para leer las entregas (error '+EN.st+'). En Supabase abre SQL Editor, pega el bloque “grant” de sql/entregas.sql y dale Run; luego cierra sesión y vuelve a entrar.':'No se pudieron cargar las entregas (error '+(EN.st||'de conexión')+'). Si las tablas no existen, corre sql/entregas.sql en Supabase (una sola vez) y recarga.'));return}
   enBandejas(root);
   const seg=el('div',{class:'seg',role:'group','aria-label':'Filtrar'});
-  [['todos','Todos'],['empresa','Empresas'],['agencia','Agencias'],['galeria','Galerías']].forEach(([k,t])=>seg.append(el('button',{type:'button','aria-pressed':String(EN.filtro===k),onclick:()=>{EN.filtro=k;renderEn()}},t+' '+(k==='todos'?EN.cuentas.length:EN.cuentas.filter(c=>c.tipo===k).length))));
+  [['todos','Todos'],['empresa','Empresas'],['agencia','Agencias'],['galeria','Galerías']].forEach(([k,t])=>seg.append(el('button',{type:'button','aria-pressed':String(EN.filtro===k),onclick:()=>{EN.filtro=k;renderEn()}},t+' '+(k==='todos'?EN.cuentas.filter(c=>!c.principal_id).length:EN.cuentas.filter(c=>!c.principal_id&&c.tipo===k).length))));
   const P=EN.proy,n=e=>P.filter(p=>p.estado===e).length;
   root.append(el('div',{style:'display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:14px 0 4px'},seg,
     el('span',{class:'muted',style:'font-size:.85rem'},n('en_revision')+' en revisión · '+n('cambios_pedidos')+' con cambios pedidos · '+n('aprobado')+' aprobados por entregar')));
-  const lista=EN.cuentas.filter(c=>EN.filtro==='todos'||c.tipo===EN.filtro);
+  const lista=EN.cuentas.filter(c=>!c.principal_id&&(EN.filtro==='todos'||c.tipo===EN.filtro));
   if(!lista.length){root.append(el('div',{class:'card',style:'margin-top:14px'},el('h3',{},'Todavía no hay accesos'),el('p',{class:'sub'},'Toca "Nuevo acceso", elige si es empresa, agencia o galería y se crea el usuario y la contraseña.')));return}
   const g=el('div',{class:'dgrid'});root.append(g);
   lista.forEach(c=>{
