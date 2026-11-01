@@ -854,7 +854,7 @@ function gTutorial(primera){
   const pasos=GPASOS.filter(p=>gqs(p.s)&&gqs(p.s).getBoundingClientRect().width);
   if(!pasos.length){document.body.classList.remove('gtut');return}
   const t=document.createElement('div');t.className='gt';
-  t.innerHTML='<div class="hl"></div><div class="pl"></div><svg class="fl" aria-hidden="true"><defs><marker id="gta" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1l8 4-8 4z" fill="#D9BE7E"/></marker></defs><path id="gtp" d="" fill="none" stroke="#D9BE7E" stroke-width="3.5" stroke-linecap="round" marker-end="url(#gta)" style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.6))"/></svg><div class="cd" role="dialog" aria-modal="true"></div>';
+  t.innerHTML='<div class="hl"></div><div class="pl"></div><svg class="fl" aria-hidden="true"><defs><marker id="gta" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4.6" markerHeight="4.6" orient="auto-start-reverse"><path d="M1 1l8 4-8 4z" fill="#D9BE7E"/></marker></defs><path id="gtp" d="" fill="none" stroke="#D9BE7E" stroke-width="3" stroke-linecap="round" marker-end="url(#gta)" style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.6))"/></svg><div class="cd" role="dialog" aria-modal="true"></div>';
   document.body.append(t);document.body.style.overflow='hidden';
   let k=0;
   const portada=ST.arch.find(a=>a.id===G.cfg.portada)||gImgs()[0];
@@ -873,21 +873,40 @@ function gTutorial(primera){
       return;
     }
     const pad=8;for(const e of [hl,pl]){e.style.opacity='';e.style.left=(r.left-pad)+'px';e.style.top=(r.top-pad)+'px';e.style.width=(r.width+pad*2)+'px';e.style.height=(r.height+pad*2)+'px'}
-    const movil=W<640;
+    const movil=W<640,G0=64;           /* G0: espacio entre el objetivo y la tarjeta para la flecha */
     let x,y;
-    if(movil){x=(W-cw)/2;y=r.top>H/2?r.top-ch-60:r.bottom+60}
-    else{const abajo=r.top<H/2;y=abajo?r.bottom+70:r.top-ch-70;x=r.left+r.width/2-cw/2}
-    x=Math.max(12,Math.min(W-cw-12,x));y=Math.max(12,Math.min(H-ch-12,y));
+    if(movil){x=(W-cw)/2;y=r.top>H/2?r.top-ch-G0:r.bottom+G0}
+    else{const abajo=r.top<H/2;y=abajo?r.bottom+G0+6:r.top-ch-G0-6;x=r.left+r.width/2-cw/2}
+    const cl=(v,mn,mx)=>Math.max(mn,Math.min(mx,v));
+    x=cl(x,12,W-cw-12);y=cl(y,12,H-ch-12);
+    /* la tarjeta nunca tapa el objetivo (así se lee, por ejemplo, el código): si lo cubre, se prueba arriba, abajo, a la izquierda o a la derecha */
+    const tapa=(px,py,m)=>px<r.right+pad+m&&px+cw>r.left-pad-m&&py<r.bottom+pad+m&&py+ch>r.top-pad-m;
+    if(tapa(x,y,6)){
+      const cx=cl(r.left+r.width/2-cw/2,12,W-cw-12),cy=cl(r.top+r.height/2-ch/2,12,H-ch-12);
+      for(const m of [G0,26]){
+        const c=[{x:cx,y:r.top-pad-m-ch},{x:cx,y:r.bottom+pad+m},{x:r.left-pad-m-cw,y:cy},{x:r.right+pad+m,y:cy}]
+          .filter(q=>q.x>=12&&q.y>=12&&q.x+cw<=W-12&&q.y+ch<=H-12&&!tapa(q.x,q.y,6));
+        if(c.length){x=c[0].x;y=c[0].y;break}
+      }
+    }
     cd.style.left=x+'px';cd.style.top=y+'px';
-    /* flecha: del borde de la tarjeta más cercano al borde del objetivo */
+    /* flecha corta y curva: nace cerca del objetivo (o en el borde de la tarjeta si está cerca) y termina en su marco */
     const tx=r.left+r.width/2,ty=r.top+r.height/2;
-    const desde=y>ty?{x:Math.max(x+20,Math.min(x+cw-20,tx)),y:y}:{x:Math.max(x+20,Math.min(x+cw-20,tx)),y:y+ch};
-    const hasta={x:tx,y:y>ty?r.bottom+pad+12:r.top-pad-12};
-    /* flecha siempre curva (arco), nunca recta: se arquea hacia el lado con más espacio */
-    const dx=hasta.x-desde.x,dy=hasta.y-desde.y,dd=Math.max(1,Math.hypot(dx,dy)),nx=-dy/dd,ny=dx/dd,bow=Math.max(46,Math.min(130,dd*.32));
-    const room=sg=>{const mx=(desde.x+hasta.x)/2+nx*bow*sg,my=(desde.y+hasta.y)/2+ny*bow*sg;return Math.min(mx,W-mx,my,H-my)};
-    const sg=room(1)>=room(-1)?1:-1,ox=nx*bow*sg,oy=ny*bow*sg;
-    t.querySelector('#gtp').setAttribute('d','M'+desde.x+' '+desde.y+' C'+(desde.x+dx*.25+ox)+' '+(desde.y+dy*.25+oy)+' '+(desde.x+dx*.75+ox*1.1)+' '+(desde.y+dy*.75+oy*1.1)+' '+hasta.x+' '+hasta.y);
+    const px=cl(tx,x,x+cw),py=cl(ty,y,y+ch);
+    let vx=px-tx,vy=py-ty;const vd=Math.hypot(vx,vy)||1;vx/=vd;vy/=vd;
+    /* la punta toca el marco dorado del objetivo, en la dirección de la tarjeta */
+    const hw=r.width/2+pad+5,hh=r.height/2+pad+5,kk=Math.min(hw/Math.max(Math.abs(vx),1e-6),hh/Math.max(Math.abs(vy),1e-6));
+    const hasta={x:tx+vx*kk,y:ty+vy*kk};
+    const d=Math.hypot(px-hasta.x,py-hasta.y),L=Math.min(d,78);
+    const pth=t.querySelector('#gtp');
+    if(d<22){pth.setAttribute('d','')}
+    else{
+      const desde={x:hasta.x+vx*L,y:hasta.y+vy*L};
+      const dx=hasta.x-desde.x,dy=hasta.y-desde.y,nx=-dy/L,ny=dx/L,bow=L*.24;
+      const room=sg=>{const mx=(desde.x+hasta.x)/2+nx*bow*sg,my=(desde.y+hasta.y)/2+ny*bow*sg;return Math.min(mx,W-mx,my,H-my)};
+      const sg=room(1)>=room(-1)?1:-1,ox=nx*bow*sg,oy=ny*bow*sg;
+      pth.setAttribute('d','M'+desde.x+' '+desde.y+' C'+(desde.x+dx*.3+ox)+' '+(desde.y+dy*.3+oy)+' '+(desde.x+dx*.7+ox)+' '+(desde.y+dy*.7+oy)+' '+hasta.x+' '+hasta.y);
+    }
   };
   const paso=()=>{
     const p=pasos[k],el=gqs(p.s);
