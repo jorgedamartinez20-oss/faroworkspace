@@ -91,6 +91,10 @@ window.renderFichas=function(box){
     }).catch(()=>{FC.cargando=false});
     return}
   const est=AC.list.est||[],cl=nCli();
+  if(!FC.autoHecho){FC.autoHecho=true;
+    (async()=>{let n=0;for(const c of cl){const ct=cuentasDe(c);if(!ct.length)continue;
+      for(const x of ct){const h=await sincronizarDatos(c,x,true);n+=h.length}}
+      if(n){const b=$('#cl-body');if(b&&AC.sel.cl==='fic'&&b.isConnected){b.textContent='';window.renderFichas(b)}}})()}
   const card=el('div',{class:'card'});
   const seg=el('div',{class:'fc-seg',role:'group','aria-label':'Tipo de cliente'});
   [['studios','Faro Studios',cl.length,'camera'],['corp','Corporativo',corpCuentas().length,'film'],['academy','Academy',est.length,'cap']].forEach(([k,t,n,i])=>
@@ -360,7 +364,10 @@ async function sincronizarDatos(c,cuenta,quieto){
     const fecha=ses?ses.fecha:(p0&&p0.creado?String(p0.creado).slice(0,10):'');
     const cand={correo:mail,whatsapp:tel,proyecto:tit,tipo,fecha,galeria_url:''},nom={correo:'correo',whatsapp:'WhatsApp',proyecto:'proyecto',tipo:'tipo de sesión',fecha:'fecha'};
     const body={},hechos=[];
-    for(const k of Object.keys(cand)){if(cand[k]&&!String(c[k]||'').trim()){body[k]=cand[k];hechos.push(nom[k])}}
+    const generico=v=>/^sesi[oó]nes?$/i.test(String(v||'').trim());
+    for(const k of Object.keys(cand)){
+      const falta=!String(c[k]||'').trim()||(k==='tipo'&&generico(c[k])&&cand[k]&&!generico(cand[k]));
+      if(cand[k]&&falta&&!(k==='tipo'&&generico(cand[k]))){body[k]=cand[k];hechos.push(nom[k])}}
     if(!hechos.length){if(!quieto)toast('La ficha ya tenía todos los datos; no se cambió nada');return[]}
     await acPatch('cl_clientes',c.id,body);Object.assign(c,body);
     if(!quieto)toast('Datos traídos de la entrega: '+hechos.join(', '));return hechos
