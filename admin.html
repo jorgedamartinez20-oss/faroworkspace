@@ -2318,7 +2318,7 @@ function visPanel(){
     const gr=el('div',{class:'visgr'});
     items.forEach(([id,lab,ic])=>{
       const forz=academyOff&&(id==='music'||id==='english'),on=visOn(id)&&!forz;
-      const inp=el('input',{type:'checkbox',role:'switch','aria-label':lab});inp.checked=visOn(id);if(forz)inp.disabled=true;
+      const inp=el('input',{type:'checkbox',role:'switch','aria-label':lab});inp.checked=visOn(id)&&!forz;if(forz)inp.disabled=true;
       inp.addEventListener('change',()=>visSet(id,inp.checked,inp));
       gr.append(el('div',{class:'vist'+(on?'':' off')+(forz?' forz':''),style:'--c:'+c},
         el('span',{class:'gi'},icoEl(ic)),
