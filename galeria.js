@@ -76,6 +76,9 @@ function gAplica(cfg){
   r.setProperty('--g-ft',fu.d);r.setProperty('--g-ft2',fu.b);r.setProperty('--g-up',fu.up);r.setProperty('--g-ls',fu.ls);
   if(!document.getElementById('gfont-'+(cfg.fuente||'faro'))){const l=document.createElement('link');l.id='gfont-'+(cfg.fuente||'faro');l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family='+fu.gf+'&display=swap';document.head.append(l)}
   document.body.className='g';document.body.style.background=pal.bg;document.body.style.color=pal.tx;
+  /* quita el color provisional del primer pintado y recuerda la paleta para la próxima carga */
+  const fp=document.getElementById('faro-pre');if(fp)fp.textContent='';
+  try{const k=new URLSearchParams(location.search).get('previa'),v=JSON.stringify({bg:pal.bg,tx:pal.tx});localStorage.setItem('faro_pal_last',v);if(k)localStorage.setItem('faro_pal_'+k,v);else if(ST&&ST.p)localStorage.setItem('faro_pal_'+ST.p.id,v)}catch(e){}
   /* ventanas, tutorial y listas (se anexan al body): papel y tinta salen de la paleta. Paleta clara → papel = el color de su fondo, tinta = su texto.
      Paleta oscura → se invierte (papel = su texto claro, tinta = su fondo oscuro), así siempre se lee. */
   const mz=(a,b,k)=>'#'+gHex(a).map((v,i)=>Math.round(v*(1-k)+gHex(b)[i]*k).toString(16).padStart(2,'0')).join('');
