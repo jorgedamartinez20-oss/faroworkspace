@@ -428,3 +428,30 @@ html:has(.gal.pre),body:has(.gal.pre){overflow:hidden;height:100%;overscroll-beh
 /* ---- ventana de descarga: botón principal con el color de la paleta ---- */
 .gmc .btn2.p{background:var(--g-br);border-color:var(--g-br);color:var(--g-brt);box-shadow:0 14px 26px rgba(var(--g-br-rgb),.38)}
 .gmc .x{top:14px;right:14px}
+
+/* ---- fondo: la paleta elegida cubre toda la página (el brillo decorativo del inicio se apaga en la galería) ---- */
+html.gpal::before{display:none!important}
+/* ---- flechas del tutorial al frente ---- */
+.gt .hl,.gt .pl{z-index:1}
+.gt .cd{z-index:2}
+.gt svg.fl{z-index:3}
+/* ---- historia: maqueta con movimiento ---- */
+.gt .cd .pv .hist{position:relative;overflow:hidden;border-radius:6px;background:#252528}
+.gt .cd .pv .hist svg,.gt .cd .pv .hist canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.gt .cd .pv .hist .gbar{transform-box:fill-box;transform-origin:left center;animation:ghbar 3.6s linear infinite}
+.gt .cd .pv .hist .hb{animation:ghpulse 3.6s ease-in-out infinite}
+@keyframes ghbar{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes ghpulse{50%{transform:scale(1.04)}}
+@media(prefers-reduced-motion:reduce){.gt .cd .pv .hist .gbar,.gt .cd .pv .hist .hb{animation:none}}
+/* ---- encabezado: vista con íconos, más a la izquierda; Descargar y Listas siempre arriba ---- */
+.gvista button{display:grid;place-items:center;min-width:38px;padding:4px 10px}
+.gvista .ico{width:18px;height:18px}
+.gtop .gb.pri .t{display:inline}
+@media(max-width:700px){
+  .gtop #gdl,.gtop #glis{display:inline-flex}
+  .gtop .gb.pri .t{display:none}
+  .gtop .gb.pri{padding:6px 11px}
+  .gal:not(.pre) .gbm{display:none!important}
+  .gal{padding-bottom:0!important}
+  .gmus,.gbolsa{bottom:max(18px,env(safe-area-inset-bottom))}
+}

@@ -289,7 +289,7 @@ body.dots .top,.top{background:var(--borgona);-webkit-backdrop-filter:none;backd
 <style id="faro-pre"></style>
 <script>(function(){try{var q=new URLSearchParams(location.search).get('previa')||'';var c=JSON.parse(localStorage.getItem(q?'faro_pal_'+q:'faro_pal_last')||'null');if(c&&/^#[0-9a-f]{6}$/i.test(c.bg)&&/^#[0-9a-f]{6}$/i.test(c.tx)){document.getElementById('faro-pre').textContent='html,body{background:'+c.bg+'!important;color:'+c.tx+'!important}'}}catch(e){}})()</script>
 <link rel="stylesheet" href="portada.css?v=20261031b">
-<link rel="stylesheet" href="galeria.css?v=20261031h">
+<link rel="stylesheet" href="galeria.css?v=20261031i">
 </head>
 <body class="dots">
 <div id="app"></div>
@@ -335,7 +335,7 @@ async function refreshSes(){
   try{const r=await fetch(SBU+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:SBK,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:SES.refresh})});
     const j=await r.json();if(!r.ok||!j.access_token)return false;
     SES={access:j.access_token,refresh:j.refresh_token||SES.refresh,exp:Date.now()+(j.expires_in||3600)*1000};saveSes();return true}catch(e){return false}}
-function salir(msg){if(PREVIA){toast('Vista previa: aquí el cliente saldría de su galería');return}SES=null;try{sessionStorage.removeItem('faro_ent')}catch(e){}ST.links={};document.body.className='dots';document.body.removeAttribute('style');pantallaLogin(typeof msg==='string'?msg:'')}
+function salir(msg){if(PREVIA){toast('Vista previa: aquí el cliente saldría de su galería');return}SES=null;document.documentElement.classList.remove('gpal');document.documentElement.style.background='';try{sessionStorage.removeItem('faro_ent')}catch(e){}ST.links={};document.body.className='dots';document.body.removeAttribute('style');document.documentElement.classList.remove('gpal');document.documentElement.style.background='';pantallaLogin(typeof msg==='string'?msg:'')}
 async function api(path,o){
   o=o||{};
   /* vista previa: lo que se "guarda" solo vive en pantalla (listas, favoritos, reseñas…); no se escribe nada en Supabase */
@@ -603,7 +603,7 @@ function previaBoot(){
 })();
 </script>
 <script src="portada.js?v=20261031b"></script>
-<script src="galeria.js?v=20261031j"></script>
+<script src="galeria.js?v=20261031k"></script>
 <script>
 /* onda al hacer click en botones, tarjetas y filas */
 (function(){

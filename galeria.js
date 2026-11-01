@@ -77,6 +77,7 @@ function gAplica(cfg){
   r.setProperty('--g-ft',fu.d);r.setProperty('--g-ft2',fu.b);r.setProperty('--g-up',fu.up);r.setProperty('--g-ls',fu.ls);
   if(!document.getElementById('gfont-'+(cfg.fuente||'faro'))){const l=document.createElement('link');l.id='gfont-'+(cfg.fuente||'faro');l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family='+fu.gf+'&display=swap';document.head.append(l)}
   document.body.className='g';document.body.style.background=pal.bg;document.body.style.color=pal.tx;
+  document.documentElement.classList.add('gpal');document.documentElement.style.background=pal.bg;
   /* quita el color provisional del primer pintado y recuerda la paleta para la próxima carga */
   const fp=document.getElementById('faro-pre');if(fp)fp.textContent='';
   try{const k=new URLSearchParams(location.search).get('previa'),v=JSON.stringify({bg:pal.bg,tx:pal.tx});localStorage.setItem('faro_pal_last',v);if(k)localStorage.setItem('faro_pal_'+k,v);else if(ST&&ST.p)localStorage.setItem('faro_pal_'+ST.p.id,v)}catch(e){}
@@ -145,8 +146,8 @@ async function vistaGaleria(){
   const titulo=cfg.titulo||p.titulo,sub=cfg.subtitulo||'',fe=cfg.fecha?fechaL(cfg.fecha):'';
   const nImg=gImgs().length;
   const cerrar=ST.unico?'':'<button class="gb" id="gvol" aria-label="Mis galerías">'+ic('back')+'<span class="t">Galerías</span></button>';
-  APP.innerHTML='<div class="gal pre"><header class="gtop" id="gtp"><span class="iso"></span>'+cerrar+'<span class="sp"></span>'
-    +'<div class="gvista" role="group" aria-label="Vista" id="gvista"><button data-v="editorial" aria-pressed="false">Editorial</button><button data-v="cuadricula" aria-pressed="false">Cuadrícula</button></div>'
+  APP.innerHTML='<div class="gal pre"><header class="gtop" id="gtp"><span class="iso"></span>'+cerrar
+    +'<div class="gvista" role="group" aria-label="Vista" id="gvista"><button data-v="editorial" aria-pressed="false" aria-label="Vista editorial" title="Editorial">'+GIC_ED+'</button><button data-v="cuadricula" aria-pressed="false" aria-label="Vista cuadrícula" title="Cuadrícula">'+GIC_CU+'</button></div><span class="sp"></span>'
     +'<button class="gb" id="glis" aria-label="Mis listas">'+ic('heart')+'<span class="t">Mis listas</span><span class="cnt" id="glc" hidden></span></button>'
     +'<button class="gb pri" id="gdl" aria-label="Descargar">'+ic('dl')+'<span class="t">Descargar</span></button>'
     +'<button class="gb" id="gay" aria-label="Ayuda">'+ic('help')+'</button>'
@@ -184,6 +185,8 @@ async function vistaGaleria(){
   gPortadaMueve(false);
 }
 /* portada: dibuja el estilo elegido con portada.js (sin capa fija: la oscuridad es la que se eligió) */
+const GIC_ED='<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="11" height="8" rx="1.5"/><rect x="16" y="3" width="5" height="8" rx="1.5"/><rect x="3" y="13" width="5" height="8" rx="1.5"/><rect x="10" y="13" width="11" height="8" rx="1.5"/></svg>';
+const GIC_CU='<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>';
 function gPortadaPinta(cfg,d){
   const cb=cfg.cubierta||{},fx=typeof cb.fx==='number'?cb.fx:(+d.foco.x||50)/100,fy=typeof cb.fy==='number'?cb.fy:(+d.foco.y||50)/100;
   G.pc={estilo:cb.estilo||'centro',titulo:d.titulo,fecha:d.fecha,src:d.src,fx,fy,zoom:+cb.zoom>=1?+cb.zoom:1,ov:Math.max(0,Math.min(70,+cb.ov||0)),tam:Math.max(40,Math.min(160,+cb.tam||100)),movimiento:cb.mov!==false,pie:d.n+' fotografías · Galería privada'};
@@ -842,13 +845,16 @@ const GPASOS=[
   {s:'.gph .gi',t:'Súbela a tu historia',x:'Toca el botón de Instagram de cualquier foto y se abre en tu teléfono, lista para publicar.',vista:true},
   {s:'#gbolsa',t:'¿Las quieres impresas?',x:'Tenemos tienda. Toca la bolsita, elige tamaños y envía tu solicitud: te contactamos para agendar. Envío gratis desde '+GGRATIS+' impresiones.'}
 ];
+/* maqueta de «historia»: silueta sin rostro ni pelo, barra de progreso que avanza y botón de Instagram */
+const GHIST_BG='<svg class="hb" viewBox="0 0 62 110" aria-hidden="true"><defs><linearGradient id="ghg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b3b40"/><stop offset="1" stop-color="#1d1d20"/></linearGradient></defs><rect width="62" height="110" rx="6" fill="url(#ghg)"/><circle cx="31" cy="47" r="11" fill="#F5F2EE" opacity=".9"/><path d="M10 96c0-19 12-28 21-28s21 9 21 28z" fill="#F5F2EE" opacity=".9"/></svg>';
+const GHIST_OV='<svg class="ho" viewBox="0 0 62 110" aria-hidden="true"><rect x="5" y="6" width="52" height="2.4" rx="1.2" fill="#fff" opacity=".35"/><rect class="gbar" x="5" y="6" width="52" height="2.4" rx="1.2" fill="#fff"/><circle cx="10" cy="16" r="3.4" fill="#fff" opacity=".85"/><rect x="16" y="14.4" width="18" height="3" rx="1.5" fill="#fff" opacity=".6"/><rect x="6" y="97" width="38" height="8" rx="4" fill="none" stroke="#fff" stroke-width="1" opacity=".7"/><circle cx="53" cy="101" r="4.4" fill="none" stroke="#fff" stroke-width="1.1"/><circle cx="53" cy="101" r="1.6" fill="none" stroke="#fff" stroke-width="1"/></svg>';
 function gTutorial(primera){
   if(document.querySelector('.gt'))return;
   document.body.classList.add('gtut');
   const pasos=GPASOS.filter(p=>gqs(p.s)&&gqs(p.s).getBoundingClientRect().width);
   if(!pasos.length){document.body.classList.remove('gtut');return}
   const t=document.createElement('div');t.className='gt';
-  t.innerHTML='<div class="hl"></div><div class="pl"></div><svg class="fl" aria-hidden="true"><defs><marker id="gta" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1l8 4-8 4z" fill="#B8A06A"/></marker></defs><path id="gtp" d="" fill="none" stroke="#B8A06A" stroke-width="3" stroke-linecap="round" marker-end="url(#gta)"/></svg><div class="cd" role="dialog" aria-modal="true"></div>';
+  t.innerHTML='<div class="hl"></div><div class="pl"></div><svg class="fl" aria-hidden="true"><defs><marker id="gta" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1l8 4-8 4z" fill="#D9BE7E"/></marker></defs><path id="gtp" d="" fill="none" stroke="#D9BE7E" stroke-width="3.5" stroke-linecap="round" marker-end="url(#gta)" style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.6))"/></svg><div class="cd" role="dialog" aria-modal="true"></div>';
   document.body.append(t);document.body.style.overflow='hidden';
   let k=0;
   const portada=ST.arch.find(a=>a.id===G.cfg.portada)||gImgs()[0];
@@ -876,21 +882,24 @@ function gTutorial(primera){
     /* flecha: del borde de la tarjeta más cercano al borde del objetivo */
     const tx=r.left+r.width/2,ty=r.top+r.height/2;
     const desde=y>ty?{x:Math.max(x+20,Math.min(x+cw-20,tx)),y:y}:{x:Math.max(x+20,Math.min(x+cw-20,tx)),y:y+ch};
-    const hasta={x:tx,y:y>ty?r.bottom+pad+6:r.top-pad-6};
-    const mx=(desde.x+hasta.x)/2+(desde.x<hasta.x?-30:30),my=(desde.y+hasta.y)/2;
-    t.querySelector('#gtp').setAttribute('d','M'+desde.x+' '+desde.y+' Q'+mx+' '+my+' '+hasta.x+' '+hasta.y);
+    const hasta={x:tx,y:y>ty?r.bottom+pad+12:r.top-pad-12};
+    /* flecha siempre curva (arco), nunca recta: se arquea hacia el lado con más espacio */
+    const dx=hasta.x-desde.x,dy=hasta.y-desde.y,dd=Math.max(1,Math.hypot(dx,dy)),nx=-dy/dd,ny=dx/dd,bow=Math.max(46,Math.min(130,dd*.32));
+    const room=sg=>{const mx=(desde.x+hasta.x)/2+nx*bow*sg,my=(desde.y+hasta.y)/2+ny*bow*sg;return Math.min(mx,W-mx,my,H-my)};
+    const sg=room(1)>=room(-1)?1:-1,ox=nx*bow*sg,oy=ny*bow*sg;
+    t.querySelector('#gtp').setAttribute('d','M'+desde.x+' '+desde.y+' C'+(desde.x+dx*.25+ox)+' '+(desde.y+dy*.25+oy)+' '+(desde.x+dx*.75+ox*1.1)+' '+(desde.y+dy*.75+oy*1.1)+' '+hasta.x+' '+hasta.y);
   };
   const paso=()=>{
     const p=pasos[k],el=gqs(p.s);
     if(el&&!el.closest('.gtop,.gbm,#gbolsa')){const r=el.getBoundingClientRect();if(r.top<110||r.bottom>innerHeight-90)el.scrollIntoView({block:'center',behavior:'instant'})}
     const cd=t.querySelector('.cd');
     cd.innerHTML='<div class="eti">PASO '+(k+1)+' DE '+pasos.length+'</div><h3>'+esc(p.t)+'</h3><p>'+esc(p.x)+'</p>'
-      +(p.vista&&portada?'<div class="pv"><div class="hist"><canvas width="62" height="110" id="gtv"></canvas></div><span>Así se verá tu foto en la historia.<br><b style="color:var(--g-ink)">Abrir Instagram → publicar</b></span></div>':'')
+      +(p.vista&&portada?'<div class="pv"><div class="hist">'+GHIST_BG+'<canvas width="62" height="110" id="gtv" style="opacity:0"></canvas>'+GHIST_OV+'</div><span>Así se verá tu foto en la historia.<br><b style="color:var(--g-ink)">Abrir Instagram → publicar</b></span></div>':'')
       +'<div class="dots">'+pasos.map((_,i)=>'<i class="'+(i===k?'on':'')+'"></i>').join('')+'</div>'
       +'<div class="nav"><button id="gta0">'+(k?'Atrás':'Omitir')+'</button><button class="p" id="gta1">'+(k===pasos.length-1?'Terminar':'Siguiente')+'</button></div>';
     $('#gta0',cd).onclick=()=>{if(k){k--;paso()}else fin(false)};
     $('#gta1',cd).onclick=()=>{if(k<pasos.length-1){k++;paso()}else fin(true)};
-    if(p.vista&&portada){const im=new Image();im.onload=()=>{const c=$('#gtv',cd);if(!c)return;const x=c.getContext('2d');x.fillStyle='#252528';x.fillRect(0,0,62,110);const kk=Math.min(62/im.width,90/im.height);x.drawImage(im,(62-im.width*kk)/2,(110-im.height*kk)/2-2,im.width*kk,im.height*kk)};im.crossOrigin='anonymous';im.src=gLink(portada.id).urlVer}
+    if(p.vista&&portada){const im=new Image();im.onload=()=>{const c=$('#gtv',cd);if(!c)return;c.style.opacity=1;const x=c.getContext('2d');x.fillStyle='#252528';x.fillRect(0,0,62,110);const kk=Math.min(62/im.width,90/im.height);x.drawImage(im,(62-im.width*kk)/2,(110-im.height*kk)/2-2,im.width*kk,im.height*kk)};im.crossOrigin='anonymous';im.src=gLink(portada.id).urlVer}
     requestAnimationFrame(()=>requestAnimationFrame(pos));
   };
   /* la página puede moverse sola (fotos que terminan de cargar, desplazamiento suave): se recalcula seguido */
