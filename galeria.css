@@ -473,3 +473,48 @@ html.gpal::before{display:none!important}
 
 /* ---- el código de descuento se desbloquea al dejar la reseña ---- */
 .gcod.lock{display:none!important}
+
+/* ---- sombra suave bajo cada foto ---- */
+.gph{box-shadow:0 7px 14px -7px rgba(0,0,0,.4),0 2px 4px rgba(0,0,0,.14)}
+.ged .gph{box-shadow:0 22px 46px -24px rgba(0,0,0,.5),0 3px 6px rgba(0,0,0,.14)}
+@media(hover:hover){.gph:hover{box-shadow:0 18px 38px -20px rgba(0,0,0,.55),0 3px 6px rgba(0,0,0,.16)}}
+
+/* ---- animaciones: entrar, salir y tocar ---- */
+@media(prefers-reduced-motion:no-preference){
+  /* ventanas */
+  .gm{animation:gm-in .24s ease both}
+  .gm .gmc{animation:gmc-in .34s cubic-bezier(.2,.9,.25,1.04) both}
+  .gm.sale{animation:gm-out .22s ease forwards;pointer-events:none}
+  .gm.sale .gmc{animation:gmc-out .22s ease forwards}
+  /* panel de impresiones: entra desde la derecha */
+  .gdr{animation:gm-in .24s ease both}
+  .gdr .pn{animation:gdr-in .36s cubic-bezier(.2,.9,.25,1) both}
+  .gdr.sale{animation:gm-out .24s ease forwards;pointer-events:none}
+  .gdr.sale .pn{animation:gdr-out .24s ease-in forwards}
+  /* visor de fotos: la foto crece suave y al cerrar se desvanece */
+  .glb .st img,.glb .st video{animation:glb-img .38s cubic-bezier(.2,.9,.25,1) both}
+  .glb.sale{animation:gm-out .22s ease forwards!important;pointer-events:none}
+  .glb.sale .st img,.glb.sale .st video{animation:glb-img-out .22s ease forwards}
+  /* tutorial */
+  .gt{animation:gm-in .25s ease both}
+  .gt.sale{animation:gm-out .22s ease forwards;pointer-events:none}
+  /* contadores e insignias */
+  .cnt.pop,.gbolsa .cnt.pop{animation:gpop .38s cubic-bezier(.2,1.5,.4,1)}
+  .gpi{animation:gpop .38s cubic-bezier(.2,1.5,.4,1) backwards}
+  /* tocar: respuesta inmediata */
+  .gb,.gbtn,.btn2,.gvista button,.gbolsa,.gcod .tb,.gph .acts button,.glb .bar button,.glb .nv,.gm .x,.gdr .hd button,.gt .nav button,.gbm button{transition:transform .14s ease,background .2s,box-shadow .2s,filter .2s}
+  .gb:active,.gbtn:active,.btn2:active,.gvista button:active,.gph .acts button:active,.glb .bar button:active,.glb .nv:active,.gm .x:active,.gdr .hd button:active,.gt .nav button:active{transform:scale(.93)}
+  .gbolsa:active{transform:scale(.92)}
+  .gph .ver:active img{transform:scale(.97)}
+  .gph .ver img{transition:opacity .6s,transform .18s ease}
+}
+@keyframes gm-in{from{opacity:0}}
+@keyframes gm-out{to{opacity:0}}
+@keyframes gmc-in{from{opacity:0;transform:translateY(22px) scale(.95)}}
+@keyframes gmc-out{to{opacity:0;transform:translateY(14px) scale(.96)}}
+@keyframes gdr-in{from{opacity:.4;transform:translateX(48px)}}
+@keyframes gdr-out{to{opacity:0;transform:translateX(48px)}}
+@keyframes glb-img{from{opacity:0;transform:scale(.94)}}
+@keyframes glb-img-out{to{opacity:0;transform:scale(.95)}}
+@keyframes glb-bar{from{opacity:0;transform:translateY(-10px)}}
+@keyframes gpop{0%{transform:scale(.4)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
