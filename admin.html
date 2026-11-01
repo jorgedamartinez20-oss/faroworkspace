@@ -377,7 +377,13 @@ button,.btn,.chip,.nav,.tab,.stab,.seg{-webkit-user-select:none;user-select:none
 .visg{margin-top:16px}.visg h3{display:flex;align-items:center;gap:8px;font-size:1rem;margin:0 0 10px}
 .visg h3 i{width:12px;height:12px;border-radius:50%;display:inline-block;background:var(--c,var(--oro))}
 .visgr{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
-.vist{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;border:1px solid var(--line);border-left:5px solid var(--c,var(--oro));background:var(--surface);box-shadow:0 4px 12px rgba(0,0,0,.08);transition:opacity .2s,box-shadow .2s}
+.vist{display:flex;flex-direction:column;align-items:stretch;gap:10px;padding:12px 14px;border-radius:16px;border:1px solid var(--line);border-left:5px solid var(--c,var(--oro));background:var(--surface);box-shadow:0 4px 12px rgba(0,0,0,.08);transition:opacity .2s,box-shadow .2s}
+.vrow{display:flex;align-items:center;gap:12px}
+.vth{position:relative;aspect-ratio:16/8.5;border-radius:10px;overflow:hidden;background:var(--soft);border:1px solid var(--line)}
+.vth img{display:block;width:100%;height:100%;object-fit:cover;object-position:center top;transition:filter .2s,opacity .2s}
+.vth.tall img{object-fit:contain;object-position:center}
+.vist.off .vth img{filter:grayscale(1) brightness(.8);opacity:.5}
+.vth[data-e=Oculta]::after{content:"OCULTA";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:5px 14px;border-radius:99px;background:rgba(37,37,40,.82);color:#F5F2EE;font:700 .78rem/1 var(--body,inherit);letter-spacing:.14em}
 .vist .gi{width:42px;height:42px;flex:none;border-radius:50%;display:grid;place-items:center;background:var(--soft);color:var(--oro-t)}.vist .gi .sv{width:22px;height:22px}
 .vist .vt{flex:1;min-width:0}.vist .vt b{display:block;font-weight:600;line-height:1.25}.vist .vt small{display:block;margin-top:2px;font-size:.8rem;font-weight:700;color:var(--verde)}
 .vist.off{border-style:dashed;border-left-style:solid;box-shadow:none}.vist.off .gi{background:var(--line);color:var(--muted,#888)}.vist.off .vt b{opacity:.7}.vist.off .vt small{color:#B3432F}
@@ -2321,14 +2327,17 @@ function visPanel(){
       const forz=academyOff&&(id==='music'||id==='english'),on=visOn(id)&&!forz;
       const inp=el('input',{type:'checkbox',role:'switch','aria-label':lab});inp.checked=visOn(id)&&!forz;if(forz)inp.disabled=true;
       inp.addEventListener('change',()=>visSet(id,inp.checked,inp));
-      gr.append(el('div',{class:'vist'+(on?'':' off')+(forz?' forz':''),style:'--c:'+c},
-        el('span',{class:'gi'},icoEl(ic)),
-        el('span',{class:'vt'},el('b',{},lab),el('small',{},forz?'Oculta (Academy está apagado)':on?'Visible':'Oculta')),
-        el('label',{class:'sw'},inp,el('span',{}))));
+      const slug=id==='promo.on'?'promo':id,img=el('img',{src:'previews/vis-'+slug+'.jpg',alt:'Vista previa: '+lab,loading:'lazy',width:'320',height:'169'});
+      const th=el('div',{class:'vth'+(slug==='promo'||slug==='entregas'||slug==='contacto'?' tall':''),'data-e':forz?'Oculta':on?'':'Oculta'},img);img.addEventListener('error',()=>{th.hidden=true});
+      gr.append(el('div',{class:'vist'+(on?'':' off')+(forz?' forz':''),style:'--c:'+c},th,
+        el('div',{class:'vrow'},
+          el('span',{class:'gi'},icoEl(ic)),
+          el('span',{class:'vt'},el('b',{},lab),el('small',{},forz?'Oculta (Academy está apagado)':on?'Visible':'Oculta')),
+          el('label',{class:'sw'},inp,el('span',{})))));
     });
     card.append(el('div',{class:'visg'},el('h3',{},el('i',{style:'--c:'+c}),t),gr));
   });
-  card.append(el('p',{class:'muted vishint'},'Los cambios se ven en la web al recargarla. Para revisar la página completa aunque haya áreas apagadas, agrega ?ver=todo al final de la dirección.'));
+  card.append(el('p',{class:'muted vishint'},'Las miniaturas son una vista previa de baja calidad, con contenido de ejemplo, solo para reconocer cada área. Los cambios se ven en la web al recargarla. Para revisar la página completa aunque haya áreas apagadas, agrega ?ver=todo al final de la dirección.'));
   return card;
 }
 async function visSet(id,on,inp){
