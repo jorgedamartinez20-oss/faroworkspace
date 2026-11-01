@@ -49,6 +49,9 @@ if(!document.getElementById('fc-css')){const s=document.createElement('style');s
 '.fc-et{border-radius:14px;box-shadow:0 10px 20px -16px rgba(0,0,0,.5)}';
 document.head.append(s)}
 
+const TIPO_DOC={contrato:'contrato',factura:'factura',confirmacion:'voucher'};
+const tipoDoc=e=>TIPO_DOC[e]||'otro';
+const abreRuta=r=>/^https?:/i.test(r)?window.open(r,'_blank','noopener'):acAbrir(r,'clientes');
 const nCli=()=>(AC.list.cli||[]);
 const vDe=id=>FC.vinc.filter(v=>v.cliente_id===id);
 const fdt=d=>{try{return new Date(d).toLocaleDateString('es-GT',{day:'numeric',month:'short',year:'numeric'})}catch(e){return ''}};
@@ -174,9 +177,17 @@ window.renderFichas=function(box){
 };
 
 /* ---------- ficha de un cliente ---------- */
+/* Un solo lugar: lo que ya estaba en «Documentos para el cliente» pasa a las etapas (mismo archivo, sigue visible para el cliente) */
+async function migrarDocs(c){
+  try{const ds=(AC.list.cldoc||[]).filter(d=>d.cliente_id===c.id&&d.ruta);
+    for(const d of ds){if(vDe(c.id).some(v=>v.ruta===d.ruta))continue;
+      const etapa=d.tipo==='contrato'?'contrato':d.tipo==='factura'?'factura':d.tipo==='voucher'?'confirmacion':'otro';
+      const r=await api('/rest/v1/cl_vinculos',{method:'POST',body:{cliente_id:c.id,etapa,etiqueta:d.titulo,ruta:d.ruta},headers:{Prefer:'return=representation'}});
+      if(r.ok){const j=await r.json();FC.vinc.push(j[0]||j)}}}catch(e){}}
 function ficha(id){
   const D=enDrawer('Ficha del cliente','min(760px,100vw)');
   FC.abierto=id;const orig=D.cerrar;
+  {const c0=nCli().find(x=>x.id===id);if(c0&&FC.ok)migrarDocs(c0).then(()=>{if(FC.abierto===id&&D.body.isConnected)pintar()})}
   const pintar=()=>{
     const c=nCli().find(x=>x.id===id);D.body.textContent='';if(!c){D.body.append(el('p',{class:'muted'},'Este cliente ya no existe.'));return}
     D.titulo(c.nombre);
@@ -184,23 +195,23 @@ function ficha(id){
     D.body.append(el('p',{class:'sub'},[c.proyecto||c.tipo||'Sin proyecto',c.fecha?fdt(c.fecha+'T12:00:00'):'',c.correo,c.whatsapp].filter(Boolean).join(' · ')),
       el('div',{class:'fc-prog',role:'img','aria-label':hechas+' de '+ETAPAS.length+' etapas'},el('i',{style:'width:'+(hechas*100/ETAPAS.length)+'%'})),
       el('small',{class:'muted'},hechas+' de '+ETAPAS.length+' etapas con documento. Todo se vincula a mano y no cambia tus galerías.'));
-    D.body.append(seccionDatos('cli','cl_clientes',c,null,pintar,false),seccionSesion(c,pintar),seccionEtapas(c,pintar),seccionEntregas(c,pintar,D),seccionDocs(c,pintar),seccionAcceso(c,pintar,D),seccionBuzon(c,false));
+    D.body.append(seccionDatos('cli','cl_clientes',c,null,pintar,false),seccionSesion(c,pintar),seccionEtapas(c,pintar),seccionEntregas(c,pintar,D),seccionAcceso(c,pintar,D),seccionBuzon(c,false));
   };
   pintar();
 }
 
 function seccionEtapas(c,pintar){
-  const sec=el('div',{class:'fc-sec'},el('h4',{},'Etapas'),el('small',{class:'muted'},'Tu control interno. Al subir un archivo aquí puedes marcar que el cliente también lo vea en su Mi espacio.'));
-  ETAPAS.forEach(([k,n,i,d])=>{
+  const sec=el('div',{class:'fc-sec'},el('h4',{},'Etapas'),el('small',{class:'muted'},'Aquí marcas cada paso y subes sus archivos. En cada archivo decides si el cliente también lo ve en su Mi espacio.'));
+  ETAPAS.concat([['otro','Otros documentos','file','Entregas, vouchers, enlaces y cualquier otro archivo']]).forEach(([k,n,i,d])=>{
     const its=vDe(c.id).filter(v=>v.etapa===k);
-    const box=el('div',{class:'fc-et '+(its.length?'ok':'pend')});
-    box.append(el('div',{class:'fc-eth'},icoEl(i),el('b',{},n),el('span',{class:'fc-dot'+(its.length?' ok':'')},its.length?'Listo':'Falta'),el('small',{},d)));
+    const box=el('div',{class:'fc-et '+(its.length?'ok':k==='otro'?'':'pend')});
+    box.append(el('div',{class:'fc-eth'},icoEl(i),el('b',{},n),el('span',{class:'fc-dot'+(its.length?' ok':'')},its.length?'Listo':k==='otro'?'Opcional':'Falta'),el('small',{},d)));
     its.forEach(v=>box.append(el('div',{class:'fc-it'},el('span',{},el('b',{style:'font-weight:600'},v.etiqueta),el('small',{style:'display:block;opacity:.75'},(v.ref_tabla?({cotizaciones:'Cotización web',doc_documentos:'Documento',doc_contratos:'Contrato'})[v.ref_tabla]+' vinculado · ':v.ruta?'Archivo subido · ':'Anotado a mano · ')+fdt(v.creado)+(v.nota?' · '+v.nota:'')),),
-      v.ruta?el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>acAbrir(v.ruta,'clientes')},'Abrir'):null,
+      v.ruta?el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>abreRuta(v.ruta)},'Abrir'):null,
       v.ruta?(()=>{const d=(AC.list.cldoc||[]).find(x=>x.cliente_id===c.id&&x.ruta===v.ruta);
         return el('button',{class:'btn btn-sm '+(d?'btn-gold':'btn-ghost'),type:'button',title:d?'El cliente lo ve en su Mi espacio. Toca para ocultarlo.':'El cliente no lo ve. Toca para mostrárselo.',onclick:async()=>{
           try{if(d){const r=await api('/rest/v1/cl_documentos?id=eq.'+d.id,{method:'DELETE',headers:{Prefer:'return=minimal'}});if(!r.ok){toast(await errText(r));return}AC.list.cldoc=AC.list.cldoc.filter(x=>x.id!==d.id);toast('Ya no lo ve el cliente (el archivo sigue guardado)')}
-            else{const tp=k==='contrato'?'contrato':k==='factura'?'factura':'otro';const r=await api('/rest/v1/cl_documentos',{method:'POST',body:{cliente_id:c.id,tipo:tp,titulo:v.etiqueta,ruta:v.ruta},headers:{Prefer:'return=representation'}});if(!r.ok){toast(await errText(r));return}const j=await r.json();(AC.list.cldoc=AC.list.cldoc||[]).unshift(j[0]||{});toast('Ahora el cliente lo ve en su Mi espacio')}
+            else{const tp=tipoDoc(k);const r=await api('/rest/v1/cl_documentos',{method:'POST',body:{cliente_id:c.id,tipo:tp,titulo:v.etiqueta,ruta:v.ruta},headers:{Prefer:'return=representation'}});if(!r.ok){toast(await errText(r));return}const j=await r.json();(AC.list.cldoc=AC.list.cldoc||[]).unshift(j[0]||{});toast('Ahora el cliente lo ve en su Mi espacio')}
             pintar()}catch(e){toast(e.message||'No se pudo')}}},icoEl('eye'),d?' Lo ve el cliente':' Mostrar al cliente')})():null,
       el('button',{class:'btn btn-red btn-sm',type:'button',onclick:async()=>{
         if(!confirm('¿Quitar este vínculo de la ficha?\n\nEl documento original o el archivo no se borran.'))return;
@@ -229,19 +240,20 @@ function formEtapa(c,etapa,nombre,modo,pintar){
     const go=el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:()=>{if(!etq.value.trim()){toast('Escribe un nombre');return}guardar({etiqueta:etq.value.trim(),nota:nota.value.trim()||null},go)}},'Guardar');
     w.append(el('small',{},'Para marcar la etapa como lista cuando no hay documento (ej. confirmó por WhatsApp).'),etq,nota,go);return w}
   if(modo==='subir'){
+    const enl=el('input',{type:'text',placeholder:'…o pega un enlace (Drive, Pixieset, YouTube)'});
     const f=el('input',{type:'file',accept:'.pdf,.png,.jpg,.jpeg,.webp,.docx,.xlsx,.zip'});
     const go=el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:async()=>{
-      const file=f.files[0];if(!file){toast('Elige un archivo');return}
-      if(!etq.value.trim())etq.value=file.name;
+      const file=f.files[0],url=enl.value.trim();if(!file&&!/^https?:\/\//i.test(url)){toast('Elige un archivo o pega un enlace (https://…)');return}
+      if(!etq.value.trim())etq.value=file?file.name:'Enlace';
       go.disabled=true;
-      try{const ruta=await subir(c,file);
-        if(ver.checked){const tp=etapa==='contrato'?'contrato':etapa==='factura'?'factura':'otro';
+      try{const ruta=file?await subir(c,file):url;
+        if(ver.checked){const tp=tipoDoc(etapa);
           const r=await api('/rest/v1/cl_documentos',{method:'POST',body:{cliente_id:c.id,tipo:tp,titulo:etq.value.trim(),ruta},headers:{Prefer:'return=representation'}});
           if(r.ok){const j=await r.json();(AC.list.cldoc=AC.list.cldoc||[]).unshift(j[0]||{})}else toast(await errText(r))}
         await guardar({etiqueta:etq.value.trim(),ruta,nota:nota.value.trim()||null},go)}
       catch(e){toast(e.message||'No se pudo subir')}finally{go.disabled=false}}},'Subir y guardar');
     const ver=el('input',{type:'checkbox'});ver.checked=etapa==='contrato'||etapa==='factura';
-    w.append(el('small',{},'Se guarda en la carpeta privada del cliente (R2). Máx. 50 MB.'),f,etq,nota,
+    w.append(el('small',{},'Se guarda en la carpeta privada del cliente (R2). Máx. 50 MB.'),f,enl,etq,nota,
       el('label',{style:'display:flex;gap:10px;align-items:center;font-weight:700'},ver,'Que el cliente también lo vea en su Mi espacio'),go);return w}
   /* vincular existente (a mano) */
   const sel=el('select',{'aria-label':'Documento existente'},el('option',{value:''},'Cargando lo que ya tienes…'));
