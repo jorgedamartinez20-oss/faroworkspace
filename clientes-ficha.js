@@ -197,6 +197,11 @@ function seccionEtapas(c,pintar){
     box.append(el('div',{class:'fc-eth'},icoEl(i),el('b',{},n),el('span',{class:'fc-dot'+(its.length?' ok':'')},its.length?'Listo':'Falta'),el('small',{},d)));
     its.forEach(v=>box.append(el('div',{class:'fc-it'},el('span',{},el('b',{style:'font-weight:600'},v.etiqueta),el('small',{style:'display:block;opacity:.75'},(v.ref_tabla?({cotizaciones:'Cotización web',doc_documentos:'Documento',doc_contratos:'Contrato'})[v.ref_tabla]+' vinculado · ':v.ruta?'Archivo subido · ':'Anotado a mano · ')+fdt(v.creado)+(v.nota?' · '+v.nota:'')),),
       v.ruta?el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>acAbrir(v.ruta,'clientes')},'Abrir'):null,
+      v.ruta?(()=>{const d=(AC.list.cldoc||[]).find(x=>x.cliente_id===c.id&&x.ruta===v.ruta);
+        return el('button',{class:'btn btn-sm '+(d?'btn-gold':'btn-ghost'),type:'button',title:d?'El cliente lo ve en su Mi espacio. Toca para ocultarlo.':'El cliente no lo ve. Toca para mostrárselo.',onclick:async()=>{
+          try{if(d){const r=await api('/rest/v1/cl_documentos?id=eq.'+d.id,{method:'DELETE',headers:{Prefer:'return=minimal'}});if(!r.ok){toast(await errText(r));return}AC.list.cldoc=AC.list.cldoc.filter(x=>x.id!==d.id);toast('Ya no lo ve el cliente (el archivo sigue guardado)')}
+            else{const tp=k==='contrato'?'contrato':k==='factura'?'factura':'otro';const r=await api('/rest/v1/cl_documentos',{method:'POST',body:{cliente_id:c.id,tipo:tp,titulo:v.etiqueta,ruta:v.ruta},headers:{Prefer:'return=representation'}});if(!r.ok){toast(await errText(r));return}const j=await r.json();(AC.list.cldoc=AC.list.cldoc||[]).unshift(j[0]||{});toast('Ahora el cliente lo ve en su Mi espacio')}
+            pintar()}catch(e){toast(e.message||'No se pudo')}}},icoEl('eye'),d?' Lo ve el cliente':' Mostrar al cliente')})():null,
       el('button',{class:'btn btn-red btn-sm',type:'button',onclick:async()=>{
         if(!confirm('¿Quitar este vínculo de la ficha?\n\nEl documento original o el archivo no se borran.'))return;
         try{const r=await api('/rest/v1/cl_vinculos?id=eq.'+v.id,{method:'DELETE',headers:{Prefer:'return=minimal'}});if(!r.ok){toast(await errText(r));return}
@@ -430,7 +435,7 @@ function seccionDocs(c,pintar){
   const sec=el('div',{class:'fc-sec'},el('h4',{},'Documentos para el cliente'),el('small',{class:'muted'},'Lo que subes aquí lo ve el cliente en su espacio.'));
   const ds=(AC.list.cldoc||[]).filter(d=>d.cliente_id===c.id);
   if(!ds.length)sec.append(el('p',{class:'muted'},'Todavía no hay documentos cargados.'));
-  ds.forEach(d=>sec.append(el('div',{class:'fc-it'},el('span',{},el('b',{style:'font-weight:600'},d.titulo),el('small',{style:'display:block;opacity:.75'},d.tipo+' · '+fdt(d.creado))),
+  ds.forEach(d=>sec.append(el('div',{class:'fc-it'},el('span',{},el('b',{style:'font-weight:600'},d.titulo),el('small',{style:'display:block;opacity:.75'},d.tipo+' · '+fdt(d.creado)+((()=>{const v=vDe(c.id).find(x=>x.ruta&&x.ruta===d.ruta);const e=v&&ETAPAS.find(y=>y[0]===v.etapa);return e?' · es el mismo archivo de la etapa «'+e[1]+'»':''})()))),
     d.ruta?el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>acAbrir(d.ruta,'clientes')},'Abrir'):null,
     el('button',{class:'btn btn-red btn-sm',type:'button',onclick:async()=>{
       if(!confirm('¿Quitar “'+d.titulo+'” de la ficha del cliente?\n\nDeja de verlo el cliente. El archivo en la bodega no se borra.'))return;
