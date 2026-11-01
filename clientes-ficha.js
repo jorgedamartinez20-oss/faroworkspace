@@ -4,7 +4,7 @@
    solo enlaza lo que ya existe (en_cuentas.cliente_id y la tabla cl_vinculos · sql/clientes-vinculos.sql). */
 (function(){
 'use strict';
-const FC={seg:'studios',q:'',vinc:[],ses:[],ok:true,okS:true,cargado:false,cargando:false,abierto:null};
+const FC={fotos:{},seg:'studios',q:'',vinc:[],ses:[],ok:true,okS:true,cargado:false,cargando:false,abierto:null};
 window.FC=FC;
 const ETAPAS=[
   ['cotizacion','Cotización','clipboard','La propuesta con precio que le enviaste'],
@@ -42,6 +42,18 @@ if(!document.getElementById('fc-css')){const s=document.createElement('style');s
 '.fc-sec input:not([type=checkbox]):not([type=radio]):not([type=file]),.fc-sec select,.fc-sec textarea,.fc-mini input:not([type=checkbox]):not([type=radio]):not([type=file]),.fc-mini select,.fc-mini textarea{box-sizing:border-box;display:block;width:100%;min-height:48px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--input);color:var(--text);font-size:1rem;line-height:1.3;box-shadow:inset 0 2px 5px -3px rgba(0,0,0,.35);transform:none!important;animation:none!important}'+
 'input.fc-q{-webkit-appearance:none;appearance:none;box-sizing:border-box;min-height:40px;padding:8px 16px 8px 40px;border:1px solid var(--line);border-radius:999px;background:var(--input) url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23999\' stroke-width=\'2\' stroke-linecap=\'round\'%3E%3Ccircle cx=\'11\' cy=\'11\' r=\'7\'/%3E%3Cpath d=\'m20 20-3.5-3.5\'/%3E%3C/svg%3E") no-repeat 14px center;color:var(--text);font-size:.92rem;box-shadow:inset 0 2px 5px -3px rgba(0,0,0,.3)}'+
 'input.fc-q:focus{outline:none;border-color:var(--oro);box-shadow:inset 0 2px 5px -3px rgba(0,0,0,.3),0 0 0 3px var(--hov-2)}input.fc-q::-webkit-search-cancel-button{-webkit-appearance:none}'+
+'.fc-head{display:flex;gap:20px;flex-wrap:wrap;align-items:center;padding:20px;border-radius:22px;border:1px solid var(--line);background:linear-gradient(135deg,var(--surface),var(--soft));box-shadow:0 18px 30px -22px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.55)}'+
+'.fc-avw{position:relative;flex:none;text-align:center}.fc-av{width:108px;height:108px;border-radius:26px;border:1px solid var(--line);background:var(--bg,var(--soft));display:grid;place-items:center;overflow:hidden;box-shadow:0 12px 22px -14px rgba(0,0,0,.6),inset 0 2px 6px -3px rgba(0,0,0,.25)}'+
+'.fc-av img{width:100%;height:100%;object-fit:cover;display:block}.fc-av .ico,.fc-av .ico svg{width:46px;height:46px;color:var(--oro)}'+
+'.fc-avb{position:absolute;right:-6px;top:78px;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--surface);cursor:pointer;display:grid;place-items:center;box-shadow:0 4px 10px -4px rgba(0,0,0,.5);padding:0;color:var(--text)}.fc-avb .ico,.fc-avb .ico svg{width:16px;height:16px}'+
+'.fc-avw small{display:block;margin-top:6px;font-size:.72rem;color:var(--muted);letter-spacing:.03em}'+
+'.fc-hi{flex:1;min-width:230px}.fc-hi h2{font:400 clamp(1.7rem,3.2vw,2.3rem)/1.05 var(--display);letter-spacing:.05em;margin:0}'+
+'.fc-tags{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 12px}'+
+'.fc-chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px}'+
+'.fc-chip{display:flex;gap:10px;align-items:center;min-width:0;padding:8px 12px;border-radius:14px;background:var(--surface);border:1px solid var(--line);text-decoration:none;color:var(--text)}.fc-chip .ico,.fc-chip .ico svg{width:17px;height:17px;color:var(--oro);flex:none}'+
+'.fc-chip span{min-width:0}.fc-chip small{display:block;color:var(--muted);font-size:.72rem}.fc-chip b{display:block;font-weight:600;font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'+
+'.fc-chip.vacio b{font-weight:400;opacity:.55}'+
+'.fc-head .fc-prog{margin:12px 0 4px}.fc-head .fc-acts{margin-top:8px}'+
 '.fc-sec textarea,.fc-mini textarea{min-height:84px;resize:vertical}'+
 '.fc-sec input:focus,.fc-sec select:focus,.fc-sec textarea:focus,.fc-mini input:focus,.fc-mini select:focus,.fc-mini textarea:focus{border-color:var(--oro);box-shadow:inset 0 2px 5px -3px rgba(0,0,0,.35),0 0 0 3px var(--hov-2)}'+
 '.fc-sec .field{display:grid;gap:6px;margin-top:12px}.fc-sec .field>label,.fc-mini label{font-size:.98rem;font-weight:700;color:var(--text)}'+
@@ -63,6 +75,7 @@ const cuentasDe=c=>(EN.cuentas||[]).filter(x=>x.cliente_id===c.id);
 async function fcCargar(){
   try{const r=await api('/rest/v1/cl_vinculos?select=*&order=creado.asc&limit=5000');FC.ok=r.ok;FC.vinc=r.ok?await r.json():[]}catch(e){FC.ok=false;FC.vinc=[]}
   try{const r=await api('/rest/v1/cl_sesiones?select=*&order=creado.asc&limit=5000');FC.okS=r.ok;FC.ses=r.ok?await r.json():[]}catch(e){FC.okS=false;FC.ses=[]}
+  try{const r=await api('/rest/v1/cl_fotos?select=ref,foto&limit=2000');FC.fotos={};if(r.ok)(await r.json()).forEach(x=>{FC.fotos[x.ref]=x.foto})}catch(e){}
   FC.cargado=true}
 window.fcPre=async function(){try{await fcCargar();avisosPintar()}catch(e){}};
 
@@ -196,6 +209,34 @@ async function migrarDocs(c){
       const etapa=d.tipo==='contrato'?'contrato':d.tipo==='factura'?'factura':d.tipo==='voucher'?'confirmacion':'otro';
       const r=await api('/rest/v1/cl_vinculos',{method:'POST',body:{cliente_id:c.id,etapa,etiqueta:d.titulo,ruta:d.ruta},headers:{Prefer:'return=representation'}});
       if(r.ok){const j=await r.json();FC.vinc.push(j[0]||j)}}}catch(e){}}
+
+/* ---------- encabezado del perfil (foto solo tuya: no la ve el cliente) ---------- */
+function redimFoto(file){return new Promise((ok,no)=>{const im=new Image(),u=URL.createObjectURL(file);
+  im.onload=()=>{const n=360,c=document.createElement('canvas');c.width=c.height=n;const x=c.getContext('2d'),m=Math.min(im.width,im.height);
+    x.drawImage(im,(im.width-m)/2,(im.height-m)/2,m,m,0,0,n,n);URL.revokeObjectURL(u);ok(c.toDataURL('image/jpeg',.85))};
+  im.onerror=()=>{URL.revokeObjectURL(u);no(new Error('No se pudo leer la imagen'))};im.src=u})}
+async function guardaFoto(ref,data){
+  const r=data?await api('/rest/v1/cl_fotos?on_conflict=ref',{method:'POST',body:{ref,foto:data,actualizado:new Date().toISOString()},headers:{Prefer:'return=minimal,resolution=merge-duplicates'}})
+    :await api('/rest/v1/cl_fotos?ref=eq.'+encodeURIComponent(ref),{method:'DELETE',headers:{Prefer:'return=minimal'}});
+  if(!r.ok)throw new Error((await errText(r))+' (¿falta la tabla cl_fotos?)');
+  if(data)FC.fotos[ref]=data;else delete FC.fotos[ref]}
+function cabecera(o,pintar){
+  const av=el('div',{class:'fc-av'});const f=FC.fotos[o.ref];
+  if(f)av.append(el('img',{src:f,alt:''}));else av.append(icoEl(o.icono));
+  const inp=el('input',{type:'file',accept:'image/*',style:'display:none',onchange:async()=>{const file=inp.files[0];if(!file)return;
+    try{toast('Guardando foto…');await guardaFoto(o.ref,await redimFoto(file));toast('Foto guardada');pintar()}catch(e){toast(e.message||'No se pudo guardar la foto')}}});
+  const bt=el('button',{type:'button',class:'fc-avb',title:f?'Cambiar foto':'Poner foto, logo o ícono',onclick:()=>inp.click()},icoEl('camera'));
+  const w=el('div',{class:'fc-avw'},av,bt,inp,el('small',{},'Solo visible para ti'));
+  if(f)w.append(el('button',{type:'button',class:'btn btn-ghost btn-sm',style:'margin-top:6px',onclick:async()=>{try{await guardaFoto(o.ref,null);pintar()}catch(e){toast(e.message)}}},'Quitar'));
+  const chips=el('div',{class:'fc-chips'});
+  o.chips.forEach(([i,l,v,href])=>{const c=el(href&&v?'a':'div',{class:'fc-chip'+(v?'':' vacio'),href:href&&v?href:null,target:href&&v?'_blank':null,rel:'noopener'},icoEl(i),el('span',{},el('small',{},l),el('b',{title:v||''},v||'Sin dato')));chips.append(c)});
+  const tags=el('div',{class:'fc-tags'},...o.tags.map(([t,c])=>el('span',{class:'tag '+(c||'')},t)));
+  const h=el('div',{class:'fc-hi'},el('h2',{},o.nombre),tags,chips);
+  if(o.prog)h.append(el('div',{class:'fc-prog',role:'img','aria-label':o.prog[2]},el('i',{style:'width:'+o.prog[0]+'%'})),el('small',{class:'muted'},o.prog[1]));
+  h.append(el('div',{class:'fc-acts'},...o.acc.filter(Boolean)));
+  return el('div',{class:'fc-head'},w,h)}
+const abrirDatos=D=>{const d=D.body.querySelector('details.fc-sec');if(d){d.open=true;d.scrollIntoView({behavior:'smooth',block:'start'})}};
+const waLink=v=>{let d=String(v||'').replace(/\D/g,'');if(d.length===8)d='502'+d;return d.length>=10?'https://wa.me/'+d:''};
 function ficha(id){
   const D=enDrawer('Ficha del cliente','min(760px,100vw)');
   FC.abierto=id;const orig=D.cerrar;
@@ -204,9 +245,14 @@ function ficha(id){
     const c=nCli().find(x=>x.id===id);D.body.textContent='';if(!c){D.body.append(el('p',{class:'muted'},'Este cliente ya no existe.'));return}
     D.titulo(c.nombre);
     const vs=vDe(c.id),hechas=ETAPAS.filter(([k])=>vs.some(v=>v.etapa===k)).length;
-    D.body.append(el('p',{class:'sub'},[c.proyecto||c.tipo||'Sin proyecto',c.fecha?fdt(c.fecha+'T12:00:00'):'',c.correo,c.whatsapp].filter(Boolean).join(' · ')),
-      el('div',{class:'fc-prog',role:'img','aria-label':hechas+' de '+ETAPAS.length+' etapas'},el('i',{style:'width:'+(hechas*100/ETAPAS.length)+'%'})),
-      el('small',{class:'muted'},hechas+' de '+ETAPAS.length+' etapas con documento. Todo se vincula a mano y no cambia tus galerías.'));
+    const ct0=cuentasDe(c),acc0=(AC.list.acc||[]).find(x=>x.cliente_id===c.id),sr0=sesDe(c.id).find(x=>x.estado==='realizada'),sl0=sesDe(c.id).find(x=>x.estado==='lista');
+    D.body.append(cabecera({ref:'cl:'+c.id,icono:'camera',nombre:c.nombre,
+      tags:[['Faro Studios',''],[c.activo?'Activo':'Inactivo',c.activo?'confirmada':''],sr0?['Edición · día '+diaDe(sr0)+'/5','pendiente']:sl0?['Galería lista','confirmada']:null,[acc0?'Mi espacio activo':'Sin Mi espacio',acc0&&acc0.activo?'confirmada':'']].filter(Boolean),
+      chips:[['folder','Proyecto',c.proyecto||c.tipo],['calendar','Fecha',c.fecha?fdt(c.fecha+'T12:00:00'):''],['mail','Correo',c.correo,c.correo?'mailto:'+c.correo:''],['message','WhatsApp',c.whatsapp,waLink(c.whatsapp)],
+        ['image','Galerías',ct0.length?ct0.length+' acceso'+(ct0.length===1?'':'s'):c.galeria_url?'Enlazada':''],['key','Mi espacio',acc0?acc0.usuario:'']],
+      prog:[hechas*100/ETAPAS.length,hechas+' de '+ETAPAS.length+' etapas con documento',hechas+' de '+ETAPAS.length+' etapas'],
+      acc:[enBtn('Editar datos','edit',()=>abrirDatos(D),'btn-gold'),c.whatsapp?el('a',{class:'btn btn-ghost btn-sm',href:waLink(c.whatsapp),target:'_blank',rel:'noopener'},icoEl('message'),' WhatsApp'):null,
+        enBtn('Accesos','key',()=>{D.cerrar();AC.sel.cl='clacc';renderGrp('cl')})]},pintar));
     D.body.append(seccionDatos('cli','cl_clientes',c,null,pintar,false),seccionSesion(c,pintar),seccionEtapas(c,pintar),seccionEntregas(c,pintar,D),seccionAcceso(c,pintar,D),seccionBuzon(c,false));
   };
   pintar();
@@ -576,7 +622,12 @@ function fichaAlumno(id){
     const a=(AC.list.est||[]).find(x=>x.id===id);D.body.textContent='';if(!a){D.body.append(el('p',{class:'muted'},'Este alumno ya no existe.'));return}
     D.titulo(a.nombre+(a.apodo?' ('+a.apodo+')':''));
     const tuts=(AC.list.vin||[]).filter(v=>v.estudiante_id===a.id),fs=(AC.list.fac||[]).filter(f=>f.estudiante_id===a.id);
-    D.body.append(el('p',{class:'sub'},[a.area==='musica'?'Música':a.area==='ingles'?'Inglés':a.area,a.nivel,a.modalidad].filter(Boolean).join(' · ')));
+    const pend0=fs.filter(f=>f.estado==='pendiente').length,acc1=(AC.list.acc||[]).find(x=>x.estudiante_id===a.id);
+    D.body.append(cabecera({ref:'est:'+a.id,icono:a.area==='ingles'?'book':'music',nombre:a.nombre+(a.apodo?' ('+a.apodo+')':''),
+      tags:[['Faro Academy',''],[a.activo?'Activo':'Inactivo',a.activo?'confirmada':''],[pend0?pend0+' factura'+(pend0===1?'':'s')+' pendiente'+(pend0===1?'':'s'):'Pagos al día',pend0?'pendiente':'confirmada']],
+      chips:[['book','Área',a.area==='musica'?'Música':a.area==='ingles'?'Inglés':a.area],['star','Nivel / detalle',[a.nivel,a.detalle].filter(Boolean).join(' · ')],['home','Modalidad',a.modalidad==='online'?'En línea':a.modalidad?'Presencial':''],
+        ['users','Encargado',tuts.map(v=>acN('enc',v.encargado_id)).join(', ')],['card','Facturas',fs.length?fs.length+' · '+pend0+' pendiente'+(pend0===1?'':'s'):''],['key','Acceso',acc1?acc1.usuario:'']],
+      acc:[enBtn('Editar datos','edit',()=>abrirDatos(D),'btn-gold'),enBtn('Accesos','key',()=>{D.cerrar();AC.sel.cl='clacc';renderGrp('cl')})]},pintar));
     D.body.append(seccionDatos('est','ac_estudiantes',a,null,pintar,true));
     const enc=el('div',{class:'fc-sec'},el('h4',{},'Encargados'));
     if(!tuts.length)enc.append(el('small',{class:'muted'},'Sin encargado vinculado.'));
