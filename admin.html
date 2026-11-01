@@ -367,6 +367,23 @@ button,.btn,.chip,.nav,.tab,.stab,.seg{-webkit-user-select:none;user-select:none
 .sgc{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;padding:12px;border-radius:16px;border:1px solid var(--line);background:var(--surface);cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.08);transition:box-shadow .2s,border-color .2s}
 .sgc .gi{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--soft);color:var(--oro-t);margin-bottom:4px}
 .sgc .gi .sv{width:21px;height:21px}
+/* ÁREAS VISIBLES de la web: interruptores */
+.visc{margin-bottom:18px;border-top:4px solid var(--oro)}
+.vish{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:6px}
+.vish h2{display:flex;align-items:center;gap:10px;margin:0}.vish h2 .sv{width:26px;height:26px;color:var(--oro-t)}
+.visn{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.visn .pill{font-weight:700;padding:6px 14px;border-radius:99px;background:var(--soft);color:var(--oro-t);font-size:.95rem}
+.visbar{height:10px;border-radius:99px;background:var(--line);overflow:hidden;margin:12px 0 4px}.visbar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--oro),var(--verde));transition:width .3s}
+.visg{margin-top:16px}.visg h3{display:flex;align-items:center;gap:8px;font-size:1rem;margin:0 0 10px}
+.visg h3 i{width:12px;height:12px;border-radius:50%;display:inline-block;background:var(--c,var(--oro))}
+.visgr{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.vist{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;border:1px solid var(--line);border-left:5px solid var(--c,var(--oro));background:var(--surface);box-shadow:0 4px 12px rgba(0,0,0,.08);transition:opacity .2s,box-shadow .2s}
+.vist .gi{width:42px;height:42px;flex:none;border-radius:50%;display:grid;place-items:center;background:var(--soft);color:var(--oro-t)}.vist .gi .sv{width:22px;height:22px}
+.vist .vt{flex:1;min-width:0}.vist .vt b{display:block;font-weight:600;line-height:1.25}.vist .vt small{display:block;margin-top:2px;font-size:.8rem;font-weight:700;color:var(--verde)}
+.vist.off{border-style:dashed;border-left-style:solid;box-shadow:none}.vist.off .gi{background:var(--line);color:var(--muted,#888)}.vist.off .vt b{opacity:.7}.vist.off .vt small{color:#B3432F}
+.vist.forz{opacity:.55}.vist.forz .sw{pointer-events:none}
+.vishint{margin:14px 0 0;font-size:.85rem}
+
 .sgc b{font-weight:700;font-size:.95rem}
 .sgc small{color:var(--muted);font-size:.78rem}
 .sgbar{display:block;width:100%;height:5px;border-radius:3px;background:var(--soft);overflow:hidden;margin-top:4px}
@@ -907,6 +924,8 @@ const IC={
  clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
  dl:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/>',
  trend:'<path d="M22 7 13.5 15.5 8.5 10.5 2 17"/><path d="M16 7h6v6"/>',
+ eye:'<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/>',
+ eyeoff:'<path d="M17.9 17.9A10.9 10.9 0 0 1 12 20C5 20 1 12 1 12a18.5 18.5 0 0 1 5.1-5.9M9.9 4.2A9.1 9.1 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.2 3.2M14.1 14.1a3 3 0 1 1-4.2-4.2"/><path d="M1 1l22 22"/>',
  chart:'<path d="M3 3v18h18"/><path d="M7 15v3M12 9v9M17 5v13"/>',
 };
 const ico=(n,cls)=>'<svg class="sv'+(cls?' '+cls:'')+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(IC[n]||IC.file)+'</svg>';
@@ -2268,10 +2287,62 @@ function rResenas(card){
         return el('label',{class:'muted',style:'display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap'},'Aparece en',g,c)})()]}));
 }
 
+/* ---------- ÁREAS VISIBLES de la web: interruptores que apagan o prenden cada área (sitio_config → vis.<área> = 0/1) ---------- */
+const VIS_GRUPOS=[
+ ['Studios · secciones de la página','#8B1A2B',[
+  ['presentacion','Conoce lo que hacemos y Quiénes somos','film'],['servicios','Servicios','camera'],['portafolio','Portafolio','image'],['porque','¿Por qué Faro?','award'],
+  ['audio','Producciones musicales y locuciones','music'],['catalogo','Catálogo','book'],['descargas','Recursos para iglesias y centros de formación','pdf'],
+  ['testimonios','Reseñas: «Lo dicen nuestros clientes»','message'],['faq','Preguntas frecuentes','bulb'],['contacto','Cierre «¿Listo para contar tu historia?»','mail']]],
+ ['Studios · páginas y botones','#B8A06A',[
+  ['reservas','Agendar (reservas)','calendar'],['cotizar','Cotizar','clipboard'],['entregas','Entregas (acceso de clientes)','folder']]],
+ ['Faro Academy','#7A7A7E',[
+  ['academy','Todo Academy: portada, plataforma y botón Studios/Academy','cap'],['music','Academy · Música','music'],['english','Academy · Inglés','book']]],
+ ['Ventana de inicio','#C9B597',[
+  ['promo.on','Promoción que aparece al abrir la página','star']]]
+];
+const visKey=id=>id==='promo.on'?id:'vis.'+id;
+const visOn=id=>String(sitioVal(visKey(id))).trim()!=='0';
+function visPanel(){
+  const all=VIS_GRUPOS.flatMap(g=>g[2]),tot=all.length,n=all.filter(a=>visOn(a[0])).length;
+  const academyOff=!visOn('academy');
+  const card=el('div',{class:'card visc'});
+  card.append(el('div',{class:'vish'},el('h2',{},icoEl('eye'),'Áreas visibles de la web'),
+    el('div',{class:'visn'},el('span',{class:'pill'},n+' de '+tot+' visibles'),
+      n<tot?el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:()=>visTodo(all)},icoEl('eye'),' Mostrar todo'):null)));
+  card.append(el('p',{class:'muted'},'Apaga lo que todavía no esté listo: desaparece de la página y del menú sin borrar nada. Cuando lo termines, lo prendes y vuelve a aparecer. Todo está prendido por defecto.'));
+  card.append(el('div',{class:'visbar'},el('i',{style:'width:'+Math.round(100*n/tot)+'%'})));
+  VIS_GRUPOS.forEach(([t,c,items])=>{
+    const gr=el('div',{class:'visgr'});
+    items.forEach(([id,lab,ic])=>{
+      const forz=academyOff&&(id==='music'||id==='english'),on=visOn(id)&&!forz;
+      const inp=el('input',{type:'checkbox',role:'switch','aria-label':lab});inp.checked=visOn(id);if(forz)inp.disabled=true;
+      inp.addEventListener('change',()=>visSet(id,inp.checked,inp));
+      gr.append(el('div',{class:'vist'+(on?'':' off')+(forz?' forz':''),style:'--c:'+c},
+        el('span',{class:'gi'},icoEl(ic)),
+        el('span',{class:'vt'},el('b',{},lab),el('small',{},forz?'Oculta (Academy está apagado)':on?'Visible':'Oculta')),
+        el('label',{class:'sw'},inp,el('span',{}))));
+    });
+    card.append(el('div',{class:'visg'},el('h3',{},el('i',{style:'--c:'+c}),t),gr));
+  });
+  card.append(el('p',{class:'muted vishint'},'Los cambios se ven en la web al recargarla. Para revisar la página completa aunque haya áreas apagadas, agrega ?ver=todo al final de la dirección.'));
+  return card;
+}
+async function visSet(id,on,inp){
+  const k=visKey(id),prev=AC.cfg[k];
+  try{await sitioSet(k,on?'1':'0');AC.cfg[k]=on?'1':'0';toast(on?'Área visible':'Área oculta')}
+  catch(e){if(prev===undefined)delete AC.cfg[k];else AC.cfg[k]=prev;inp.checked=!on;toast(e.message||'No se pudo guardar')}
+  const old=$('#sit-body .visc');if(old)old.replaceWith(visPanel());
+}
+async function visTodo(all){
+  try{for(const a of all)if(!visOn(a[0])){await sitioSet(visKey(a[0]),'1');AC.cfg[visKey(a[0])]='1'}toast('Todas las áreas visibles')}
+  catch(e){toast(e.message||'No se pudo guardar')}
+  const old=$('#sit-body .visc');if(old)old.replaceWith(visPanel());
+}
 function renderSitio(){
   const box=$('#sit-body');if(!box)return;
   const keep={};$$('.sit-txt',box).forEach(i=>{if(i.value!==(i.dataset.orig||''))keep[i.dataset.k]=i.value});
   box.textContent='';$('#sit-warn').hidden=AC.ok;
+  box.append(visPanel());
   const tabs=el('div',{class:'sct',role:'tablist'});
   SIT_CATS.forEach(([id,t,ic])=>{const ks=SECC.filter(s=>s.c===id).flatMap(secKeys),n=ks.filter(k=>sitioVal(k)).length;
     tabs.append(el('button',{type:'button',role:'tab',class:'sctb','aria-selected':String(id===SIT.cat),onclick:()=>{if(id===SIT.cat)return;if(sitCambios()&&!confirm('Tienes textos sin guardar en esta sección. ¿Descartarlos?'))return;SIT.cat=id;renderSitio()}},
