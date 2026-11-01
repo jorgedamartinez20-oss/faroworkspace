@@ -799,7 +799,7 @@ summary{transition:color .18s}
 
     <div id="t-cli" hidden>
       <div class="msg" id="cl-warn" hidden style="margin-bottom:14px">Faltan las tablas del portal. En Supabase abre SQL Editor, New query, pega portal-faro.sql y dale Run.</div>
-      <div class="card" style="margin-bottom:18px"><h2>Faro Studios · clientes</h2><p class="muted">Todo en un solo lugar: en Fichas agregas clientes y alumnos, editas sus datos y ves sus galerías, documentos, facturas, accesos y buzón.</p><div class="chips" id="cl-chips" style="margin-top:12px"></div></div>
+      <div class="seg" id="cl-chips" style="margin-bottom:14px"></div>
       <div id="cl-body"></div>
     </div>
 
@@ -876,7 +876,7 @@ summary{transition:color .18s}
 <script src="cupones-admin.js"></script>
 <script src="recursos-docentes.js?v=20261026a"></script>
 <script src="musicpro.js?v=20261026d"></script>
-<script src="clientes-ficha.js?v=20261101n"></script>
+<script src="clientes-ficha.js?v=20261101o"></script>
 <script src="producciones-doc.js?v=20261101a"></script>
 <script src="producciones.js?v=20261101a"></script>
 <script src="produccion-cliente.js?v=20261101b"></script>
@@ -1691,7 +1691,7 @@ function renderGrp(g){
   $('#'+g+'-warn').hidden=AC.ok;
   if(g==='ac')acNav(chips);else GRP[g].forEach(k=>{
     const lab=[icoEl(ENT_IC[k]||'file'),' '+acEtq(k)];
-    chips.append(el('button',{type:'button',class:'chip','aria-pressed':String(AC.sel[g]===k),onclick:()=>{AC.sel[g]=k;AC.edit=null;AC.filtro='';renderGrp(g)}},lab))});
+    chips.append(el('button',{type:'button',class:g==='cl'?'':'chip','aria-pressed':String(AC.sel[g]===k),onclick:()=>{AC.sel[g]=k;AC.edit=null;AC.filtro='';renderGrp(g)}},lab))});
   const k=AC.sel[g];
   if(k==='tabl')return renderTablero(box);
   if(k==='prac')return renderPracticas(box);

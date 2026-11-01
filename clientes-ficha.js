@@ -108,72 +108,82 @@ window.renderFichas=function(box){
       const b=$('#cl-body');if(b&&AC.sel.cl==='fic'&&b.isConnected){b.textContent='';window.renderFichas(b)}
     }).catch(()=>{FC.cargando=false});
     return}
-  const est=AC.list.est||[],cl=nCli();
+  const est=AC.list.est||[],cl=nCli(),corp=corpCuentas();
   if(!FC.autoHecho){FC.autoHecho=true;
     (async()=>{let n=0;for(const c of cl){const ct=cuentasDe(c);if(!ct.length)continue;
       for(const x of ct){const h=await sincronizarDatos(c,x,true);n+=h.length}}
       if(n){const b=$('#cl-body');if(b&&AC.sel.cl==='fic'&&b.isConnected){b.textContent='';window.renderFichas(b)}}})()}
-  const card=el('div',{class:'card'});
-  const seg=el('div',{class:'fc-seg',role:'group','aria-label':'Tipo de cliente'});
-  [['studios','Faro Studios',cl.length,'camera'],['corp','Corporativo',corpCuentas().length,'film'],['academy','Academy',est.length,'cap']].forEach(([k,t,n,i])=>
-    seg.append(el('button',{type:'button',class:'chip','aria-pressed':String(FC.seg===k),onclick:()=>{FC.seg=k;FC.q='';redo()}},icoEl(i),t+' · '+n)));
-  card.append(seg);
-  if(!FC.ok)card.append(el('p',{class:'msg'},'Falta crear la tabla de vínculos (sql/clientes-vinculos.sql). Mientras tanto puedes ver la lista y la galería, pero no guardar etapas.'));
+  if(!['todos','studios','corp','academy'].includes(FC.seg))FC.seg='todos';
   const redo=()=>{const b=$('#cl-body');b.textContent='';window.renderFichas(b)};
-  const q=el('input',{type:'search',placeholder:FC.seg==='academy'?'Buscar alumno…':FC.seg==='corp'?'Buscar empresa o agencia…':'Buscar cliente o proyecto…','aria-label':'Buscar',value:FC.q});
-  q.addEventListener('input',()=>{FC.q=q.value;pintaLista()});
-  const bar=el('div',{class:'fc-bar'},q);
-  bar.append(el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:()=>nuevoPerfil()},icoEl('plus'),' Agregar'));
-  card.append(bar);
-  const lista=el('div');card.append(lista);
+  box.append(el('div',{class:'dh'},el('div',{},el('h1',{},'Clientes'),el('p',{class:'muted'},'Fichas de Faro Studios, Corporativo y Faro Academy: datos, documentos, pagos, galerías, accesos y buzón.')),
+    enBtn('Agregar','plus',()=>nuevoPerfil(),'btn-gold')));
+  if(!FC.ok)box.append(el('p',{class:'msg'},'Falta crear la tabla de vínculos (sql/clientes-vinculos.sql). Mientras tanto puedes ver la lista y la galería, pero no guardar etapas.'));
+  const seg=el('div',{class:'seg',role:'group','aria-label':'Tipo de cliente'});
+  [['todos','Todos',cl.length+corp.length+est.length],['studios','Studios',cl.length],['corp','Corporativo',corp.length],['academy','Academy',est.length]].forEach(([k,t,n])=>
+    seg.append(el('button',{type:'button','aria-pressed':String(FC.seg===k),onclick:()=>{FC.seg=k;redo()}},t+' '+n)));
+  const q=el('input',{type:'search',placeholder:'Buscar por nombre o proyecto…','aria-label':'Buscar',value:FC.q,style:'max-width:300px;flex:1 1 200px'});
+  q.addEventListener('input',()=>{FC.q=q.value;pinta()});
+  const sesR=FC.ses.filter(s=>s.estado==='realizada').length,pagP=(AC.list.fac||[]).filter(f=>f.estado==='pendiente').length,sinG=cl.filter(c=>!cuentasDe(c).length&&!c.galeria_url).length;
+  box.append(el('div',{style:'display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:14px 0 4px'},seg,q,
+    el('span',{class:'muted',style:'font-size:.85rem'},sesR+' sesión'+(sesR===1?'':'es')+' en edición · '+sinG+' sin galería · '+pagP+' factura'+(pagP===1?'':'s')+' de Academy pendiente'+(pagP===1?'':'s'))));
+  const g=el('div',{class:'dgrid'});box.append(g);
   const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
-  function pintaLista(){
-    lista.textContent='';const t=norm(FC.q);
-    if(FC.seg==='studios'){
-      const rows=cl.filter(c=>!t||norm(c.nombre+' '+(c.proyecto||'')+' '+(c.tipo||'')).includes(t));
-      if(!rows.length)lista.append(el('p',{class:'muted'},cl.length?'Nada coincide con la búsqueda.':'Todavía no hay clientes. Usa “Agregar cliente”.'));
-      rows.forEach(c=>{
-        const vs=vDe(c.id),ct=cuentasDe(c);
-        const dots=el('div',{class:'fc-dots'});
-        ETAPAS.forEach(([k,n,i])=>dots.append(el('span',{class:'fc-dot'+(vs.some(v=>v.etapa===k)?' ok':''),title:n},icoEl(i),n)));
-        const np=ct.reduce((s,x)=>s+(EN.proy||[]).filter(p=>p.cuenta_id===x.user_id).length,0);
-        const sr=sesDe(c.id).find(x=>x.estado==='realizada'),sl=sesDe(c.id).find(x=>x.estado==='lista');
-        if(sr)dots.append(el('span',{class:'fc-dot ok',title:'Sesión en edición'},icoEl('clock'),'Edición · día '+diaDe(sr)+'/5 · entrega '+sr.entrega_fecha.slice(8,10)+'/'+sr.entrega_fecha.slice(5,7)));
-        else if(sl)dots.append(el('span',{class:'fc-dot ok'},icoEl('image'),'Galería lista'));
-        dots.append(el('span',{class:'fc-dot ent'+(ct.length||c.galeria_url?' ok':''),title:'Galería y entregas'},icoEl('image'),ct.length?('Entregas · '+np+' proyecto'+(np===1?'':'s')):c.galeria_url?'Galería':'Sin galería'));
-        lista.append(el('div',{class:'item'},el('b',{},c.nombre+(c.activo?'':' (inactivo)')),el('small',{},(c.proyecto||c.tipo||'')+(c.fecha?' · '+fdt(c.fecha+'T12:00:00'):'')),dots,
-          el('div',{class:'fc-acts'},
-            el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:()=>ficha(c.id)},'Abrir ficha'))));
-      });
-    }else if(FC.seg==='corp'){
-      const rows=corpCuentas().filter(c=>!t||norm(c.nombre+' '+(c.usuario||'')).includes(t));
-      if(!rows.length)lista.append(el('p',{class:'muted'},corpCuentas().length?'Nada coincide con la búsqueda.':'Todavía no hay clientes corporativos. Se crean en Entregas (empresa o agencia).'));
-      rows.forEach(c=>{
-        const ps=(EN.proy||[]).filter(p=>p.cuenta_id===c.user_id);
-        const dots=el('div',{class:'fc-dots'},
-          el('span',{class:'fc-dot ok'},icoEl('users'),(EN_TIPOS[c.tipo]||[c.tipo])[0]),
-          el('span',{class:'fc-dot'+(ps.length?' ok':'')},icoEl('folder'),ps.length+' proyecto'+(ps.length===1?'':'s')),
-          el('span',{class:'fc-dot'+(c.activo?' ok':'')},icoEl('key'),c.activo?'Acceso activo':'Acceso desactivado'));
-        const acts=el('div',{class:'fc-acts'});
-        if(ps.length&&window.FaroProdCli)acts.append(el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:()=>FaroProdCli.abrir(ps[0].id)},icoEl('file'),' Plataforma de producción'));
-        ps.forEach(p=>acts.append(el('button',{class:'btn btn-ghost btn-sm',type:'button',onclick:()=>enEditor(p.id)},icoEl('folder'),' '+p.titulo+' · archivos')));
-        lista.append(el('div',{class:'item'},el('b',{},c.nombre),el('small',{},'Usuario '+c.usuario+(c.whatsapp?' · '+c.whatsapp:'')),dots,acts))});
-    }else{
-      const rows=est.filter(a=>!t||norm(a.nombre+' '+(a.apodo||'')).includes(t));
-      if(!rows.length)lista.append(el('p',{class:'muted'},est.length?'Nada coincide con la búsqueda.':'Todavía no hay alumnos.'));
-      rows.forEach(a=>{
-        const tut=(AC.list.vin||[]).filter(v=>v.estudiante_id===a.id).map(v=>acN('enc',v.encargado_id)).join(', ');
-        const fs=(AC.list.fac||[]).filter(f=>f.estudiante_id===a.id),pend=fs.filter(f=>f.estado==='pendiente').length;
-        const dots=el('div',{class:'fc-dots'},
-          el('span',{class:'fc-dot'+(tut?' ok':'')},icoEl('users'),tut?'Encargado: '+tut:'Sin encargado'),
-          el('span',{class:'fc-dot'+(fs.length&&!pend?' ok':'')},icoEl('card'),fs.length?(pend?pend+' factura'+(pend===1?'':'s')+' pendiente'+(pend===1?'':'s'):'Facturas al día'):'Sin facturas'),
-          el('span',{class:'fc-dot'+(accHas('estudiante_id',a.id)?' ok':'')},icoEl('key'),accTxt('alumno','estudiante_id',a.id)));
-        lista.append(el('div',{class:'item'},el('b',{},a.nombre+(a.apodo?' ('+a.apodo+')':'')),dots,
-          el('div',{class:'fc-acts'},el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:()=>fichaAlumno(a.id)},'Abrir ficha'))));
-      });
-    }
+  const fila=(t,sub,ok,fn)=>el('div',{class:'prow',onclick:fn},el('span',{style:'flex:1;min-width:0'},el('b',{style:'display:block;font-weight:400'},t),sub?el('small',{class:'muted'},sub):null),
+    ok===null?null:el('span',{class:'tag '+(ok?'confirmada':'')},ok?'Listo':'Pendiente'));
+  const cabeza=(nom,sub,tag,tagCls)=>el('div',{style:'display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap'},
+    el('div',{style:'flex:1;min-width:0'},el('h3',{style:'margin:0'},nom),el('small',{class:'muted'},sub)),el('span',{class:'tag '+(tagCls||'')},tag));
+  const botones=(...b)=>el('div',{style:'margin-top:10px;display:flex;gap:6px;flex-wrap:wrap'},...b.filter(Boolean));
+  const irAcc=()=>{AC.sel.cl='clacc';renderGrp('cl')};
+  async function activar(tabla,o){
+    try{await acPatch(tabla,o.id,{activo:!o.activo});o.activo=!o.activo;redo()}catch(e){toast(e.message||'No se pudo cambiar')}}
+  function cStudios(c){
+    const vs=vDe(c.id),ct=cuentasDe(c),hechas=ETAPAS.filter(([k])=>vs.some(v=>v.etapa===k)).length;
+    const np=ct.reduce((s,x)=>s+(EN.proy||[]).filter(p=>p.cuenta_id===x.user_id).length,0);
+    const sr=sesDe(c.id).find(x=>x.estado==='realizada'),sl=sesDe(c.id).find(x=>x.estado==='lista');
+    const acc=(AC.list.acc||[]).find(x=>x.cliente_id===c.id);
+    const card=el('div',{class:'card dp w6'+(c.activo?'':' ses-ok')});
+    card.append(cabeza(c.nombre,[c.proyecto||c.tipo||'Sin proyecto',c.fecha?fdt(c.fecha+'T12:00:00'):''].filter(Boolean).join(' · '),
+      sr?'Edición · día '+diaDe(sr)+'/5':sl?'Galería lista':c.activo?'Studios':'Studios · inactivo',sr?'pendiente':sl?'confirmada':''));
+    const l=el('div',{class:'plist',style:'margin-top:8px'});
+    l.append(fila('Etapas',hechas+' de '+ETAPAS.length+' con documento',hechas===ETAPAS.length,()=>ficha(c.id)),
+      fila('Galería y entregas',ct.length?ct.length+' acceso'+(ct.length===1?'':'s')+' · '+np+' proyecto'+(np===1?'':'s'):c.galeria_url?'Galería enlazada':'Sin galería',!!(ct.length||c.galeria_url),()=>ficha(c.id)),
+      fila('Mi espacio',acc?'Usuario '+acc.usuario+(acc.activo?'':' (desactivado)'):'Sin acceso todavía',!!(acc&&acc.activo),irAcc));
+    card.append(l,botones(enBtn('Abrir ficha','folder',()=>ficha(c.id),'btn-gold'),enBtn('Accesos','key',irAcc),
+      enBtn(c.activo?'Desactivar':'Activar',null,()=>activar('cl_clientes',c))));
+    return card}
+  function cCorp(c){
+    const ps=(EN.proy||[]).filter(p=>p.cuenta_id===c.user_id);
+    const card=el('div',{class:'card dp w6'+(c.activo?'':' ses-ok')});
+    card.append(cabeza(c.nombre,'Usuario '+c.usuario+(c.whatsapp?' · '+c.whatsapp:''),(EN_TIPOS[c.tipo]||[c.tipo])[0]+(c.activo?'':' · desactivado')));
+    const l=el('div',{class:'plist',style:'margin-top:8px'});
+    ps.forEach(p=>l.append(el('div',{class:'prow',onclick:()=>enEditor(p.id)},el('span',{style:'flex:1;min-width:0'},el('b',{style:'display:block;font-weight:400'},p.titulo),
+      el('small',{class:'muted'},(EN.arch||[]).filter(a=>a.proyecto_id===p.id).length+' archivos · ronda '+p.ronda+(p.rondas_max?' de '+p.rondas_max:''))),el('span',{class:'tag '+(EN_EST[p.estado]||['',''])[1]},(EN_EST[p.estado]||[p.estado])[0]))));
+    if(!ps.length)l.append(el('p',{class:'muted',style:'font-size:.85rem;margin:6px 0'},'Aún no tiene proyectos.'));
+    card.append(l,botones(ps.length&&window.FaroProdCli?enBtn('Plataforma de producción','file',()=>FaroProdCli.abrir(ps[0].id),'btn-gold'):null,
+      enBtn('Nuevo proyecto','plus',()=>enNuevoProyecto(c)),enBtn('Accesos','key',irAcc),
+      enBtn(c.activo?'Desactivar':'Activar',null,async()=>{if(await enPatchCuenta(c,{activo:!c.activo}))redo()})));
+    return card}
+  function cAcad(a){
+    const tut=(AC.list.vin||[]).filter(v=>v.estudiante_id===a.id).map(v=>acN('enc',v.encargado_id)).join(', ');
+    const fs=(AC.list.fac||[]).filter(f=>f.estudiante_id===a.id),pend=fs.filter(f=>f.estado==='pendiente').length;
+    const card=el('div',{class:'card dp w6'+(a.activo?'':' ses-ok')});
+    card.append(cabeza(a.nombre+(a.apodo?' ('+a.apodo+')':''),[a.area==='musica'?'Música':a.area?'Inglés':'',a.detalle||''].filter(Boolean).join(' · ')||'Alumno',a.activo?'Academy':'Academy · inactivo'));
+    const l=el('div',{class:'plist',style:'margin-top:8px'});
+    l.append(fila('Encargado',tut||'Sin encargado',!!tut,()=>fichaAlumno(a.id)),
+      fila('Facturas',fs.length?(pend?pend+' pendiente'+(pend===1?'':'s'):'Al día'):'Sin facturas',fs.length?!pend:null,()=>fichaAlumno(a.id)),
+      fila('Acceso',accTxt('alumno','estudiante_id',a.id),accHas('estudiante_id',a.id),irAcc));
+    card.append(l,botones(enBtn('Abrir ficha','folder',()=>fichaAlumno(a.id),'btn-gold'),enBtn('Accesos','key',irAcc),
+      enBtn(a.activo?'Desactivar':'Activar',null,()=>activar('ac_estudiantes',a))));
+    return card}
+  function pinta(){
+    g.textContent='';const t=norm(FC.q);let n=0;
+    const add=(f,arr,txt,ver)=>{if(ver&&!(FC.seg==='todos'||FC.seg===ver))return;arr.filter(o=>!t||norm(txt(o)).includes(t)).forEach(o=>{g.append(f(o));n++})};
+    add(cStudios,cl,c=>c.nombre+' '+(c.proyecto||'')+' '+(c.tipo||''),'studios');
+    add(cCorp,corp,c=>c.nombre+' '+(c.usuario||''),'corp');
+    add(cAcad,est,a=>a.nombre+' '+(a.apodo||''),'academy');
+    if(!n)g.append(el('div',{class:'card dp w12'},el('h3',{},t?'Nada coincide':'Todavía no hay clientes'),el('p',{class:'sub'},t?'Prueba con otro nombre o proyecto.':'Toca “Agregar” para crear el primer perfil de Studios o Academy. Los corporativos se crean en Entregas (empresa o agencia).')));
   }
-  pintaLista();box.append(card);
+  pinta();
 };
 
 /* ---------- ficha de un cliente ---------- */
@@ -628,4 +638,133 @@ function fichaAlumno(id){
   pintar()}
 window.fcFichaAlumno=fichaAlumno;
 window.fcRecargar=async function(){FC.cargado=false;await fcCargar()};
+
+/* ---------- ACCESOS · control maestro (Entregas, Mi espacio, Producción y Academia) ---------- */
+const ACCF={seg:'todos',q:''};
+/* cambia usuario y/o contraseña de una cuenta ya creada (rpc admin_cambiar_acceso: sin crear otro usuario, conserva proyectos y vínculos) */
+function accEditar(kind,c,nombre,ent){
+  const rol=kind==='en'?'entregas':c.rol,v=vaultGet()[c.user_id],fijo=kind==='ac'&&rol==='cliente';
+  const D=enDrawer('Acceso · '+nombre,'min(520px,100vw)');
+  const u=el('input',{value:c.usuario,autocapitalize:'none',autocomplete:'off',spellcheck:'false'});if(fijo)u.readOnly=true;
+  const k=el('input',{placeholder:'Déjala vacía para no cambiarla',autocomplete:'off',spellcheck:'false'});
+  const err=el('p',{class:'msg',style:'display:none'});
+  const lab=fijo?'Código':'Contraseña';
+  D.body.append(el('p',{class:'sub'},({entregas:'Entregas',cliente:'Mi espacio',alumno:'Academia · alumno',encargado:'Academia · encargado',docente:'Academia · docente'})[rol]||rol),
+    el('label',{class:'dfl'},fijo?'Correo (así entra; se cambia en la ficha del cliente)':kind==='en'?'Usuario (correo con el que entra)':'Nombre de acceso (usuario)',u),
+    el('label',{class:'dfl'},'Nueva '+lab.toLowerCase(),k),err,
+    el('p',{class:'muted',style:'font-size:.85rem'},v?'Esta '+lab.toLowerCase()+' actual está guardada en este navegador.':'La '+lab.toLowerCase()+' actual no está guardada aquí (se creó en otro equipo): si la cambias, te mostraré el mensaje listo para enviar.'),
+    el('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},
+      enBtn('Sugerir','key',()=>{k.value=grp(fijo?2:3)}),
+      enBtn('Guardar cambios','check',async()=>{
+        const us=fijo?c.usuario:u.value.trim(),nueva=k.value.trim();
+        const mal=m=>{err.textContent=m;err.style.display=''};
+        if(!us)return mal('Escribe el usuario.');
+        if(kind==='en'&&!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(us))return mal('En Entregas el usuario es el correo completo.');
+        if(kind==='ac'&&!fijo&&!/^[a-z0-9._-]{3,60}$/i.test(us))return mal('Usa letras, números, punto, guion o guion bajo (mínimo 3).');
+        if(nueva&&nueva.length<6)return mal('La contraseña necesita al menos 6 caracteres.');
+        const cambiaU=us.toLowerCase()!==String(c.usuario).toLowerCase();
+        if(!cambiaU&&!nueva)return mal('No hay nada que cambiar.');
+        const email=cambiaU?(kind==='en'?enAuthEmail(us):us.toLowerCase()+'@acceso.farostudios.net'):null;
+        try{
+          toast('Guardando…');
+          const r=await api('/rest/v1/rpc/admin_cambiar_acceso',{method:'POST',body:{p_user:c.user_id,p_clave:nueva||null,p_email:email}});
+          if(!r.ok){const t=await errText(r);throw new Error(/admin_cambiar_acceso/.test(t)&&/not.*find|schema cache|404/i.test(t)?'Falta correr la migración admin_cambiar_acceso en Supabase.':t)}
+          if(cambiaU){const b={usuario:us,email_auth:email};
+            const x=await api('/rest/v1/'+(kind==='en'?'en_cuentas':'ac_cuentas')+'?user_id=eq.'+c.user_id,{method:'PATCH',body:b,headers:{Prefer:'return=minimal'}});
+            if(!x.ok)throw new Error(await errText(x));Object.assign(c,b)}
+          const clave=nueva||(v&&v.clave)||'';
+          vaultSet(c.user_id,{usuario:c.usuario,clave,email:c.email_auth,rol,nombre,fecha:new Date().toISOString()});
+          toast('Acceso actualizado');D.cerrar();redoAcc();
+          if(clave)accMostrar(kind,c,nombre,ent,clave);
+        }catch(e){mal(e.message||'No se pudo guardar')}
+      },'btn-gold'),enBtn('Cancelar',null,D.cerrar)));
+  setTimeout(()=>(fijo?k:u).focus(),50);
+}
+function accMostrar(kind,c,nombre,ent,clave){
+  const rol=kind==='en'?'entregas':c.rol,msg=kind==='en'?enMensajeAcceso(c,c.usuario,clave):acMsg(rol,nombre,c.usuario,clave);
+  const tel=telWA((ent&&(ent.whatsapp||ent.contacto))||c.whatsapp);
+  const D=enDrawer('Acceso de '+nombre,'min(520px,100vw)');
+  D.body.append(el('div',{class:'msg',style:'background:rgba(226,190,70,.18);border-color:var(--amar)'},'La contraseña queda guardada solo en este navegador para volver a verla aquí. Si cambias de equipo tendrás que cambiarla de nuevo.'),
+    el('div',{class:'field'},el('span',{class:'lab'},rol==='cliente'?'Correo':'Usuario'),el('div',{class:'item',style:'font:700 1.3rem/1.2 monospace;letter-spacing:.05em;word-break:break-all'},c.usuario)),
+    el('div',{class:'field'},el('span',{class:'lab'},rol==='cliente'?'Código':'Contraseña'),el('div',{class:'item',style:'font:700 1.3rem/1.2 monospace;letter-spacing:.05em'},clave)),
+    el('div',{style:'display:flex;gap:8px;flex-wrap:wrap;margin-top:8px'},enBtn('Copiar mensaje','link',()=>copyTxt(msg),'btn-gold'),
+      tel?el('a',{class:'btn btn-ghost btn-sm',target:'_blank',rel:'noopener',href:'https://wa.me/'+tel+'?text='+encodeURIComponent(msg)},'Abrir WhatsApp'):null,
+      enBtn('Cerrar',null,D.cerrar)));
+}
+function redoAcc(){const b=$('#cl-body');if(b&&AC.sel.cl==='clacc'&&b.isConnected){b.textContent='';window.renderClAccesos(b)}}
+async function accActivar(kind,c){
+  const tabla=kind==='en'?'en_cuentas':'ac_cuentas';
+  const r=await api('/rest/v1/'+tabla+'?user_id=eq.'+c.user_id,{method:'PATCH',body:{activo:!c.activo},headers:{Prefer:'return=minimal'}});
+  if(!r.ok){toast(await errText(r));return}c.activo=!c.activo;redoAcc()}
+
+window.renderClAccesos=function(box){
+  if(!EN.cargado){
+    box.append(el('div',{class:'card'},el('p',{class:'muted'},'Cargando accesos…')));
+    if(FC.cargandoAcc)return;FC.cargandoAcc=true;
+    enCargar().catch(()=>{}).then(()=>{FC.cargandoAcc=false;redoAcc()});return}
+  box.append(el('div',{class:'dh'},el('div',{},el('h1',{},'Accesos'),el('p',{class:'muted'},'Control maestro: todo lo que cada persona puede abrir (Entregas, Mi espacio, Producción y Academia). Cambia su usuario o contraseña desde aquí.'))));
+  /* código de agenda (se conserva) */
+  const cods=D.cfg.codigo_agenda||'';let ver=false;
+  const cv=el('code',{style:'font:700 1.1rem monospace;letter-spacing:.08em'},cods?'••••••••••••':'(sin código)');
+  const ca=el('div',{style:'display:flex;gap:6px;flex-wrap:wrap'});
+  if(cods)ca.append(enBtn('Ver','eye',ev=>{ver=!ver;cv.textContent=ver?cods:'••••••••••••'}),enBtn('Copiar','clipboard',()=>copyTxt(cods)));
+  ca.append(enBtn('Generar código nuevo','key',()=>{if(cods&&!confirm('Se reemplaza el código actual: el anterior dejará de funcionar para agendar. ¿Continuar?'))return;saveCfg('codigo_agenda',genCodigo(),'Código de agenda nuevo').then(()=>renderGrp('cl'))},'btn-gold'));
+  box.append(el('div',{class:'card',style:'margin-bottom:6px'},el('h3',{style:'margin:0 0 4px'},'Código de agenda'),el('small',{class:'muted'},'Lo usan los clientes para reservar sesión en la agenda del sitio.'),
+    el('div',{style:'display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:10px'},el('div',{style:'flex:1;min-width:150px'},cv),ca)));
+  /* personas */
+  const cl=nCli(),corp=corpCuentas(),est=AC.list.est||[],doc=AC.list.doc||[],acc=AC.list.acc||[];
+  const accDe=(fk,id)=>acc.find(x=>x[fk]===id);
+  const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const seg=el('div',{class:'seg',role:'group','aria-label':'Filtrar'});
+  [['todos','Todos'],['studios','Studios'],['corp','Corporativo'],['academy','Academy']].forEach(([k,t])=>seg.append(el('button',{type:'button','aria-pressed':String(ACCF.seg===k),onclick:()=>{ACCF.seg=k;redoAcc()}},t)));
+  const q=el('input',{type:'search',placeholder:'Buscar persona o usuario…','aria-label':'Buscar',value:ACCF.q,style:'max-width:300px;flex:1 1 200px'});
+  q.addEventListener('input',()=>{ACCF.q=q.value;pinta()});
+  const nAct=EN.cuentas.filter(x=>x.activo).length+acc.filter(x=>x.activo).length;
+  box.append(el('div',{style:'display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:14px 0 4px'},seg,q,
+    el('span',{class:'muted',style:'font-size:.85rem'},nAct+' accesos activos · '+(EN.cuentas.length+acc.length-nAct)+' desactivados')));
+  const g=el('div',{class:'dgrid'});box.append(g);
+  const filaAcc=(etq,kind,c,nombre,ent)=>{
+    const v=vaultGet()[c.user_id];
+    const row=el('div',{class:'prow',style:'cursor:default;flex-wrap:wrap;gap:8px'},
+      el('span',{style:'flex:1;min-width:150px'},el('small',{class:'muted',style:'display:block'},etq),el('b',{style:'font-weight:700;font:700 .95rem monospace;word-break:break-all'},c.usuario)),
+      el('span',{class:'tag '+(c.activo?'confirmada':'')},c.activo?'Activo':'Desactivado'));
+    const bs=el('div',{style:'width:100%;display:flex;gap:6px;flex-wrap:wrap'});
+    if(v)bs.append(enBtn('Ver / copiar','eye',()=>accMostrar(kind,c,nombre,ent,v.clave)));
+    bs.append(enBtn('Cambiar usuario o clave','key',()=>accEditar(kind,c,nombre,ent)),enBtn(c.activo?'Desactivar':'Activar',null,()=>accActivar(kind,c)));
+    if(kind==='en')bs.append(enBtn('Eliminar','trash',async()=>{await enEliminarCuenta(c);redoAcc()},'btn-red'));
+    row.append(bs);return row};
+  const faltaAcc=(etq,txt,fn)=>el('div',{class:'prow',style:'cursor:default;flex-wrap:wrap;gap:8px'},
+    el('span',{style:'flex:1;min-width:150px'},el('small',{class:'muted',style:'display:block'},etq),el('span',{class:'muted'},'Sin acceso')),enBtn(txt,'plus',fn,'btn-gold'));
+  const tarjeta=(nombre,sub,tag,filas)=>el('div',{class:'card dp w6'},
+    el('div',{style:'display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap'},el('div',{style:'flex:1;min-width:0'},el('h3',{style:'margin:0'},nombre),el('small',{class:'muted'},sub)),el('span',{class:'tag'},tag)),
+    el('div',{class:'plist',style:'margin-top:8px'},...filas));
+  function pinta(){
+    g.textContent='';const t=norm(ACCF.q);let n=0;
+    const ok=(ver,txt)=>(ACCF.seg==='todos'||ACCF.seg===ver)&&(!t||norm(txt).includes(t));
+    cl.forEach(c=>{
+      const ens=cuentasDe(c).filter(x=>x.tipo==='galeria'),ac=accDe('cliente_id',c.id);
+      if(!ok('studios',c.nombre+' '+(c.correo||'')+ens.map(x=>x.usuario).join(' ')+(ac?ac.usuario:'')))return;
+      const f=[];
+      ens.forEach(x=>f.push(filaAcc('Entregas · '+EN_TIPOS[x.tipo][0],'en',x,c.nombre,c)));
+      if(!ens.length)f.push(faltaAcc('Entregas (galería)','Crear acceso',()=>enNuevaCuenta(c)));
+      if(ac)f.push(filaAcc('Mi espacio','ac',ac,c.nombre,c));
+      else f.push(c.correo?faltaAcc('Mi espacio','Crear acceso',()=>acGenerar('cliente',c).then(redoAcc)):el('div',{class:'prow',style:'cursor:default'},el('span',{class:'muted',style:'font-size:.85rem'},'Mi espacio: agrega su correo en la ficha para darle acceso.')));
+      g.append(tarjeta(c.nombre,c.proyecto||c.correo||'',c.activo?'Studios':'Studios · inactivo',f));n++});
+    corp.forEach(c=>{
+      if(!ok('corp',c.nombre+' '+(c.usuario||'')))return;
+      g.append(tarjeta(c.nombre,'Plataforma de producción · '+(EN_TIPOS[c.tipo]||[c.tipo])[0],'Corporativo',[filaAcc('Producción y Entregas','en',c,c.nombre,c)]));n++});
+    est.forEach(a=>{
+      const ac=accDe('estudiante_id',a.id),encs=(AC.list.vin||[]).filter(v=>v.estudiante_id===a.id).map(v=>(AC.list.enc||[]).find(e=>e.id===v.encargado_id)).filter(Boolean);
+      if(!ok('academy',a.nombre+' '+(a.apodo||'')+(ac?ac.usuario:'')))return;
+      const f=[ac?filaAcc('Academia · alumno','ac',ac,a.apodo||a.nombre,a):faltaAcc('Academia · alumno','Crear acceso',()=>acGenerar('alumno',a).then(redoAcc))];
+      encs.forEach(e=>{const ae=accDe('encargado_id',e.id);f.push(ae?filaAcc('Academia · encargado '+e.nombre,'ac',ae,e.nombre,e):faltaAcc('Encargado '+e.nombre,'Crear acceso',()=>acGenerar('encargado',e).then(redoAcc)))});
+      g.append(tarjeta(a.nombre+(a.apodo?' ('+a.apodo+')':''),a.area==='musica'?'Música':'Inglés','Academy',f));n++});
+    doc.forEach(d=>{
+      const ac=accDe('docente_id',d.id);if(!ok('academy',d.nombre+' '+(ac?ac.usuario:'')))return;
+      g.append(tarjeta(d.nombre,'Docente','Academy',[ac?filaAcc('Academia · docente','ac',ac,d.nombre,d):faltaAcc('Academia · docente','Crear acceso',()=>acGenerar('docente',d).then(redoAcc))]));n++});
+    if(!n)g.append(el('div',{class:'card dp w12'},el('h3',{},'Nada por mostrar'),el('p',{class:'sub'},t?'Prueba con otro nombre.':'Todavía no hay personas con accesos. Crea clientes en Fichas.')));
+  }
+  pinta();
+};
+
 })();
