@@ -518,3 +518,6 @@ html.gpal::before{display:none!important}
 @keyframes glb-img-out{to{opacity:0;transform:scale(.95)}}
 @keyframes glb-bar{from{opacity:0;transform:translateY(-10px)}}
 @keyframes gpop{0%{transform:scale(.4)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
+/* ---- Editorial: marco blanco en cada foto (con cualquier paleta) ---- */
+.ged .gph{background:#fff;border:1px solid rgba(37,37,40,.1)}
+.ged .gph>button.ver{outline:1px solid rgba(37,37,40,.1)}
