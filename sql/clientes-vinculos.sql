@@ -17,3 +17,6 @@ drop policy if exists "admin todo" on public.cl_vinculos;
 create policy "admin todo" on public.cl_vinculos for all using (es_admin()) with check (es_admin());
 drop policy if exists "equipo clientes cl_vinculos" on public.cl_vinculos;
 create policy "equipo clientes cl_vinculos" on public.cl_vinculos for all using (tiene_permiso('clientes')) with check (tiene_permiso('clientes'));
+
+grant select, insert, update, delete on public.cl_vinculos to authenticated;
+notify pgrst, 'reload schema';
