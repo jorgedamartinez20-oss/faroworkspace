@@ -898,15 +898,7 @@ function gTutorial(primera){
     const hw=r.width/2+pad+5,hh=r.height/2+pad+5,kk=Math.min(hw/Math.max(Math.abs(vx),1e-6),hh/Math.max(Math.abs(vy),1e-6));
     const hasta={x:tx+vx*kk,y:ty+vy*kk};
     const d=Math.hypot(px-hasta.x,py-hasta.y),L=Math.min(d,78);
-    const pth=t.querySelector('#gtp');
-    if(d<22){pth.setAttribute('d','')}
-    else{
-      const desde={x:hasta.x+vx*L,y:hasta.y+vy*L};
-      const dx=hasta.x-desde.x,dy=hasta.y-desde.y,nx=-dy/L,ny=dx/L,bow=L*.24;
-      const room=sg=>{const mx=(desde.x+hasta.x)/2+nx*bow*sg,my=(desde.y+hasta.y)/2+ny*bow*sg;return Math.min(mx,W-mx,my,H-my)};
-      const sg=room(1)>=room(-1)?1:-1,ox=nx*bow*sg,oy=ny*bow*sg;
-      pth.setAttribute('d','M'+desde.x+' '+desde.y+' C'+(desde.x+dx*.3+ox)+' '+(desde.y+dy*.3+oy)+' '+(desde.x+dx*.7+ox)+' '+(desde.y+dy*.7+oy)+' '+hasta.x+' '+hasta.y);
-    }
+    t.querySelector('#gtp').setAttribute('d','');   /* sin flechas: el marco dorado ya señala el objetivo */
   };
   const paso=()=>{
     const p=pasos[k],el=gqs(p.s);

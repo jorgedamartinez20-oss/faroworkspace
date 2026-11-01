@@ -457,3 +457,5 @@ html.gpal::before{display:none!important}
 }
 
 .gvista .ico,.gvista .ico *{stroke-width:1.1}
+
+.gt svg.fl{display:none}
