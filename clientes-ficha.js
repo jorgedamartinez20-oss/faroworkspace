@@ -40,6 +40,8 @@ if(!document.getElementById('fc-css')){const s=document.createElement('style');s
 '.fc-sec>summary::before{content:"";width:9px;height:9px;border-right:2px solid var(--oro);border-bottom:2px solid var(--oro);transform:rotate(-45deg);transition:transform .2s}'+
 '.fc-sec[open]>summary::before{transform:rotate(45deg)}'+
 '.fc-sec input:not([type=checkbox]):not([type=radio]):not([type=file]),.fc-sec select,.fc-sec textarea,.fc-mini input:not([type=checkbox]):not([type=radio]):not([type=file]),.fc-mini select,.fc-mini textarea{box-sizing:border-box;display:block;width:100%;min-height:48px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--input);color:var(--text);font-size:1rem;line-height:1.3;box-shadow:inset 0 2px 5px -3px rgba(0,0,0,.35);transform:none!important;animation:none!important}'+
+'input.fc-q{-webkit-appearance:none;appearance:none;box-sizing:border-box;min-height:40px;padding:8px 16px 8px 40px;border:1px solid var(--line);border-radius:999px;background:var(--input) url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23999\' stroke-width=\'2\' stroke-linecap=\'round\'%3E%3Ccircle cx=\'11\' cy=\'11\' r=\'7\'/%3E%3Cpath d=\'m20 20-3.5-3.5\'/%3E%3C/svg%3E") no-repeat 14px center;color:var(--text);font-size:.92rem;box-shadow:inset 0 2px 5px -3px rgba(0,0,0,.3)}'+
+'input.fc-q:focus{outline:none;border-color:var(--oro);box-shadow:inset 0 2px 5px -3px rgba(0,0,0,.3),0 0 0 3px var(--hov-2)}input.fc-q::-webkit-search-cancel-button{-webkit-appearance:none}'+
 '.fc-sec textarea,.fc-mini textarea{min-height:84px;resize:vertical}'+
 '.fc-sec input:focus,.fc-sec select:focus,.fc-sec textarea:focus,.fc-mini input:focus,.fc-mini select:focus,.fc-mini textarea:focus{border-color:var(--oro);box-shadow:inset 0 2px 5px -3px rgba(0,0,0,.35),0 0 0 3px var(--hov-2)}'+
 '.fc-sec .field{display:grid;gap:6px;margin-top:12px}.fc-sec .field>label,.fc-mini label{font-size:.98rem;font-weight:700;color:var(--text)}'+
@@ -121,7 +123,7 @@ window.renderFichas=function(box){
   const seg=el('div',{class:'seg',role:'group','aria-label':'Tipo de cliente'});
   [['todos','Todos',cl.length+corp.length+est.length],['studios','Studios',cl.length],['corp','Corporativo',corp.length],['academy','Academy',est.length]].forEach(([k,t,n])=>
     seg.append(el('button',{type:'button','aria-pressed':String(FC.seg===k),onclick:()=>{FC.seg=k;redo()}},t+' '+n)));
-  const q=el('input',{type:'search',placeholder:'Buscar por nombre o proyecto…','aria-label':'Buscar',value:FC.q,style:'max-width:300px;flex:1 1 200px'});
+  const q=el('input',{class:'fc-q',type:'search',placeholder:'Buscar por nombre o proyecto…','aria-label':'Buscar',value:FC.q,style:'max-width:300px;flex:1 1 200px'});
   q.addEventListener('input',()=>{FC.q=q.value;pinta()});
   const sesR=FC.ses.filter(s=>s.estado==='realizada').length,pagP=(AC.list.fac||[]).filter(f=>f.estado==='pendiente').length,sinG=cl.filter(c=>!cuentasDe(c).length&&!c.galeria_url).length;
   box.append(el('div',{style:'display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:14px 0 4px'},seg,q,
@@ -717,7 +719,7 @@ window.renderClAccesos=function(box){
   const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
   const seg=el('div',{class:'seg',role:'group','aria-label':'Filtrar'});
   [['todos','Todos'],['studios','Studios'],['corp','Corporativo'],['academy','Academy']].forEach(([k,t])=>seg.append(el('button',{type:'button','aria-pressed':String(ACCF.seg===k),onclick:()=>{ACCF.seg=k;redoAcc()}},t)));
-  const q=el('input',{type:'search',placeholder:'Buscar persona o usuario…','aria-label':'Buscar',value:ACCF.q,style:'max-width:300px;flex:1 1 200px'});
+  const q=el('input',{class:'fc-q',type:'search',placeholder:'Buscar persona o usuario…','aria-label':'Buscar',value:ACCF.q,style:'max-width:300px;flex:1 1 200px'});
   q.addEventListener('input',()=>{ACCF.q=q.value;pinta()});
   const nAct=EN.cuentas.filter(x=>x.activo).length+acc.filter(x=>x.activo).length;
   box.append(el('div',{style:'display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:14px 0 4px'},seg,q,
