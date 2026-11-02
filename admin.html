@@ -2761,10 +2761,10 @@ async function pubMinisPreparar(onProg){
         if(PUB_VID.test(n)){
           try{b=await pubPrimerCuadro(u)}
           catch(e1){ /* si el navegador no deja leer el video directo, se baja y se lee desde el equipo */
-            const rr=await fetch(u);if(!rr.ok)throw new Error('El archivo no responde ('+rr.status+')');
+            const rr=await fetch(u,{cache:'no-store'});if(!rr.ok)throw new Error('El archivo no responde ('+rr.status+')');
             b=await pubPrimerCuadro(new File([await rr.blob()],n,{type:'video/mp4'}))}
         }else{
-          const rr=await fetch(u);if(!rr.ok)throw new Error('El archivo no responde ('+rr.status+')');
+          const rr=await fetch(u,{cache:'no-store'});if(!rr.ok)throw new Error('El archivo no responde ('+rr.status+')');
           b=await enImgRedim(await rr.blob(),PUB_LADO,.82)}
         await matSubirKey0(new File([b],'m.jpg',{type:'image/jpeg'}),'publico',pubMiniKey(k),null);
       }
