@@ -2767,20 +2767,39 @@ function pubWebPendientes(){
   return [...hall];
 }
 let PUB_WEB_PARAR=false;
+/* baja el archivo avisando cuánto lleva (para el indicador de avance) */
+async function pubBajarConAvance(u,cb){
+  try{
+    const r=await fetch(u,{cache:'no-store'});if(!r.ok||!r.body)throw 0;
+    const tot=+r.headers.get('content-length')||0,rd=r.body.getReader(),partes=[];let got=0;
+    for(;;){const x=await rd.read();if(x.done)break;partes.push(x.value);got+=x.value.length;cb(tot?got/tot:0)}
+    cb(1);return new Blob(partes,{type:r.headers.get('content-type')||'video/mp4'});
+  }catch(e){cb(0);return pubLeerBlob(u)}
+}
+/* onProg({i,total,nombre,fase,faseP,global,faltaMs}) */
 async function pubWebComprimir(onProg){
   const lista=pubWebPendientes();PUB_WEB_PARAR=false;let ok=0,mal=0,antes=0,despues=0,motivo='';
   let wl=null;try{if(navigator.wakeLock)wl=await navigator.wakeLock.request('screen')}catch(e){}   /* que la pantalla no se apague mientras trabaja */
+  /* tamaños de los originales: así el porcentaje total y el tiempo restante pesan más en los videos grandes */
+  const tam=await Promise.all(lista.map(async u=>{try{const h=await fetch(u,{method:'HEAD',cache:'no-store'});return +h.headers.get('content-length')||1}catch(e){return 1}}));
+  const total=tam.reduce((a,x)=>a+x,0)||1,t0=Date.now();let hechoB=0;
+  const avisar=(i,fase,fp)=>{
+    const pv=fase==='bajar'?.2*fp:fase==='comprimir'?.2+.75*fp:.95+.05*fp,g=Math.min(1,(hechoB+pv*tam[i])/total),el=Date.now()-t0;
+    onProg({i,total:lista.length,nombre:lista[i].split('/').pop(),fase,faseP:fp,global:g,faltaMs:g>.02?el*(1-g)/g:null});
+  };
   for(let i=0;i<lista.length;i++){
     if(PUB_WEB_PARAR)break;
     const u=lista[i],k=pubKeyDe(u),n=k.split('/').pop();
     try{
-      onProg(i,lista.length,n,0);
-      const b=await pubLeerBlob(u);
+      avisar(i,'bajar',0);
+      const b=await pubBajarConAvance(u,f=>avisar(i,'bajar',f));
       if(b.size>1.6e9)throw new Error('pesa más de 1,6 GB');
-      const out=await faroComprimir(b,{lado:1280,kbps:1800,onProg:f=>onProg(i,lista.length,n,f),cancelar:()=>PUB_WEB_PARAR});
-      await matSubirKey0(new File([out],'w.mp4',{type:'video/mp4'}),'publico',pubWebKey(k),null);
+      const out=await faroComprimir(b,{lado:1280,kbps:1800,onProg:f=>avisar(i,'comprimir',f),cancelar:()=>PUB_WEB_PARAR});
+      avisar(i,'subir',0);
+      await matSubirKey0(new File([out],'w.mp4',{type:'video/mp4'}),'publico',pubWebKey(k),l=>avisar(i,'subir',Math.min(1,l/(out.size||1))));
       await pubWebsAdd([u]);ok++;antes+=b.size;despues+=out.size;
     }catch(e){if(PUB_WEB_PARAR)break;mal++;if(!motivo)motivo=n+': '+(e&&e.message||e)}
+    hechoB+=tam[i];
   }
   try{if(wl)await wl.release()}catch(e){}
   return{ok,mal,total:lista.length,antes,despues,motivo,parado:PUB_WEB_PARAR};
@@ -2991,7 +3010,10 @@ function pubMinisCard(){
     cv.addEventListener('click',async()=>{
       if(cv.dataset.on){PUB_WEB_PARAR=true;cv.textContent=' Deteniendo…';return}
       cv.dataset.on='1';
-      try{const r=await pubWebComprimir((i,t,n,f)=>{cv.textContent=' Comprimiendo '+(i+1)+' de '+t+' · '+Math.round(f*100)+'% (toca para detener)'});
+      cv.style.whiteSpace='normal';cv.style.textAlign='left';cv.style.lineHeight='1.35';
+      try{const r=await pubWebComprimir(x=>{
+          const fase=x.fase==='bajar'?'Bajando':x.fase==='comprimir'?'Comprimiendo':'Subiendo',m=x.faltaMs==null?'calculando el tiempo…':'faltan ~'+(x.faltaMs<90e3?'1 min':Math.round(x.faltaMs/60e3)+' min');
+          cv.textContent=' Video '+(x.i+1)+' de '+x.total+' · '+fase+' '+Math.round(x.faseP*100)+'% · Total '+Math.round(x.global*100)+'% · '+m+' (toca para detener)'});
         const mb=x=>(x/1048576).toFixed(0)+' MB';
         toast(r.parado?'Detenido. Se guardó lo que ya estaba listo.':(r.ok?'Listo: '+r.ok+' video(s) comprimido(s), de '+mb(r.antes)+' a '+mb(r.despues)+'.':'No se comprimió ninguno')+(r.mal?' · '+r.mal+' no se pudieron ('+r.motivo+')':'')+' Recarga el sitio con Cmd+Shift+R.')}
       catch(e){toast(e.message||'No se pudo comprimir')}
