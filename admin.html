@@ -1967,7 +1967,7 @@ const SECC=[
  {id:'servicios',c:'landing',t:'Servicios',i:'camera',keys:()=>SERV.flatMap(s=>['vid.'+s[0],'img.'+s[0],'sv.'+s[0]+'.t','sv.'+s[0]+'.d']),r:rServicios},
  {id:'portafolio',c:'landing',t:'Portafolio',i:'image',dest:'landing/portafolio',lead:'Cada casilla en un solo espacio: foto, nombre, categoría y video (se reproduce solo, diluido por el color del tablón). Usa ◀ ▶ para moverla de lugar: las primeras 14 ocupan el mosaico de la página, las demás se acomodan debajo. «Agregar casilla» suma una nueva. El orden, nombres y categorías se publican con «Guardar portafolio».',keys:()=>rng('w',14).flatMap(x=>['img.'+x,'vid.'+x]),r:rPfTablones,after:renderPortafolioMgr},
  {id:'discos',c:'landing',t:'Discos',i:'music',keys:()=>rng('',8).flatMap(n=>['img.alb'+n,'audio.alb'+n,'at.'+n,'aa.'+n,'ay.'+n,'ag.'+n,'as.'+n,'pv.'+n]),r:rDiscos},
- {id:'catalogo',c:'landing',t:'Catálogo',i:'book',keys:()=>['catalogoPdf',...CAT_PAGS.flatMap((_,i)=>['cat.'+i+'.h','cat.'+i+'.p'])],r:rCatalogo},
+ {id:'catalogo',c:'landing',t:'Catálogo',i:'book',keys:()=>['catalogoPdf','catalogoPdf2',...CAT_PAGS.flatMap((_,i)=>['cat.'+i+'.h','cat.'+i+'.p'])],r:rCatalogo},
  {id:'recursos',c:'landing',t:'Recursos gratis',i:'pdf',keys:()=>RECS.flatMap(r=>['pdf.'+r.id,'rt.'+r.id,'rd.'+r.id]),r:rRecursos},
  {id:'resenas',c:'landing',t:'Reseñas',i:'star',keys:()=>rng('',rvN()).flatMap(n=>['rv.'+n+'.q','rv.'+n+'.n','rv.'+n+'.r','rv.'+n+'.g','rv.'+n+'.c','img.t'+n]),r:rResenas},
  {id:'promo',c:'landing',t:'Promoción (ventana de inicio)',i:'star',dest:'landing/fotos-studios',lead:'La ventana que aparece un momento después de abrir la página, una vez al día por persona. Si no subes imagen, se dibuja con el porcentaje del título. Para quitarla pon 0 en «Mostrar».',items:[TX('promo.on','Mostrar la ventana (1 = sí, 0 = no)','1'),TX('promo.t','Título grande (el porcentaje sale en la imagen)','15% de descuento'),{k:'promo.d',l:'Texto de apoyo',t:'area'},TX('promo.b','Texto del botón','Agendar mi graduación'),TX('promo.hasta','Mostrar hasta el día (AAAA-MM-DD, opcional)','2026-10-31'),{k:'img.promo',l:'Imagen de la ventana (opcional)',t:'img'}]},
@@ -2270,10 +2270,10 @@ function rDiscos(card){
 
 /* --- Catálogo: PDF + textos de las páginas --- */
 function rCatalogo(card){
-  card.append(el('p',{class:'muted'},'Sube el PDF y el libro usa sus páginas. Mientras no haya PDF, el libro muestra las páginas de texto de abajo, que puedes editar.'));
+  card.append(el('p',{class:'muted'},'Sube el PDF de cada catálogo y el libro usa sus páginas. Mientras no haya PDF del corporativo, el libro muestra las páginas de texto de abajo, que puedes editar. El de eventos sociales aparece como segunda pestaña solo cuando subes su PDF.'));
   const ins=[];
   const cols=el('div',{class:'mdcols'});
-  cols.append(el('div',{class:'sgt mdf'},sitioRow({k:'catalogoPdf',l:'Catálogo completo (PDF). Se muestra como libro, sin descarga.',t:'pdf'},'landing/catalogo')),
+  cols.append(el('div',{class:'sgt mdf'},sitioRow({k:'catalogoPdf',l:'Catálogo corporativo y audio (PDF). Se muestra como libro, sin descarga.',t:'pdf'},'landing/catalogo'),sitioRow({k:'catalogoPdf2',l:'Catálogo de eventos sociales (PDF). Al subirlo, la web muestra dos pestañas: Corporativo y audio · Eventos sociales.',t:'pdf'},'landing/catalogo')),
     el('div',{class:'sgf mdx'},campoTxt({k:'txt.lead.catalogo',l:'Frase debajo del título «Nuestro catálogo»',t:'area'},ins),el('div',{class:'acts'},el('button',{class:'btn btn-gold btn-sm',type:'button',onclick:()=>sitioTxt(ins)},icoEl('check'),' Guardar frase'))));
   card.append(cols);
   const sel=selDe('catalogo',CAT_PAGS.length),k=sel;
