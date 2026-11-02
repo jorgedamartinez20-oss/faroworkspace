@@ -692,6 +692,17 @@ summary{transition:color .18s}
   .modal{animation:fade .2s ease backwards}
   .modal .box{animation:pop .28s var(--ease) backwards}
 }
+
+/* menú de arriba en móvil: 14 secciones no caben, así que van en una tira que se desliza (los íconos ya no se aprietan) */
+@media (max-width:900px){
+ .side{scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+ .side::-webkit-scrollbar{display:none}
+ .side .nav{display:flex;flex-direction:row;flex-wrap:nowrap;width:max-content!important;min-width:100%;gap:2px!important;justify-content:flex-start!important}
+ .side .tab{flex:0 0 auto!important;width:auto!important;min-width:44px;justify-content:center;padding:10px 11px!important}
+ .side .tab .ni{width:24px!important;flex:none;display:inline-flex;align-items:center;justify-content:center}
+ .side .tab .ni svg{flex:none;width:22px;height:22px}
+ .side .tab .n{margin-left:0;position:absolute;top:2px;right:0;min-width:18px;font-size:.7rem;line-height:1.5}
+}
 </style>
 <script>if(navigator.standalone||(window.matchMedia&&matchMedia("(display-mode:standalone)").matches))document.documentElement.classList.add("is-app")</script>
 </head>
@@ -2748,6 +2759,25 @@ function pubMinisPendientes(){
     if(!k||n.startsWith('_mini-')||/^landing\/logos\//.test(k)||!(PUB_IMG.test(n)||PUB_VID.test(n)))return;hall.add(u)})});
   return [...hall];
 }
+/* lee un archivo público sin usar la copia en caché; si el navegador corta la descarga completa, la pide en trozos */
+async function pubLeerBlob(u){
+  const sep=u.includes('?')?'&':'?';let ult;
+  for(const url of [u,u+sep+'c='+Date.now()]){
+    try{const r=await fetch(url,{cache:'no-store'});if(!r.ok)throw new Error('El archivo no responde ('+r.status+')');return await r.blob()}catch(e){ult=e}
+  }
+  try{
+    const url=u+sep+'t='+Date.now(),T=2*1024*1024,partes=[];let tot=0;
+    for(let o=0;;o+=T){
+      const r=await fetch(url,{cache:'no-store',headers:{Range:'bytes='+o+'-'+(o+T-1)}});
+      if(r.status===416)break;if(!r.ok&&r.status!==206)throw new Error('trozo '+r.status);
+      const b=await r.blob();partes.push(b);
+      const m=/\/(\d+)$/.exec(r.headers.get('Content-Range')||'');tot=m?+m[1]:0;
+      if(r.status===200||!tot||o+T>=tot)break;
+    }
+    if(partes.length)return new Blob(partes,{type:partes[0].type||'image/jpeg'});
+  }catch(e){ult=e}
+  throw ult||new Error('Load failed');
+}
 async function pubMinisPreparar(onProg){
   /* de 3 en 3, y cada copia se anota en cuanto está lista: la página la usa al instante y, si se cierra a medias, no se pierde lo avanzado */
   const lista=pubMinisPendientes(),cola=[...lista];let hechos=0,mal=0,listos=0;
@@ -2764,8 +2794,7 @@ async function pubMinisPreparar(onProg){
             const rr=await fetch(u,{cache:'no-store'});if(!rr.ok)throw new Error('El archivo no responde ('+rr.status+')');
             b=await pubPrimerCuadro(new File([await rr.blob()],n,{type:'video/mp4'}))}
         }else{
-          const rr=await fetch(u,{cache:'no-store'});if(!rr.ok)throw new Error('El archivo no responde ('+rr.status+')');
-          b=await enImgRedim(await rr.blob(),PUB_LADO,.82)}
+          b=await enImgRedim(await pubLeerBlob(u),PUB_LADO,.82)}
         await matSubirKey0(new File([b],'m.jpg',{type:'image/jpeg'}),'publico',pubMiniKey(k),null);
       }
       await pubMinisAdd([u]);listos++;
@@ -4453,7 +4482,7 @@ const SUBULT={};
 const primerSub=x=>(x.tabs.find(([t])=>permiteTab(t))||x.tabs[0])[0];
 function seccionActiva(t){
   const sec=SEC_DE[t];SUBULT[sec]=t;
-  $$('.tab').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.s===sec)));
+  $$('.tab').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.s===sec)));try{const ta=document.querySelector('.tab[data-s="'+sec+'"]'),sd=ta&&ta.closest('.side');if(sd&&sd.scrollWidth>sd.clientWidth)sd.scrollTo({left:ta.offsetLeft-(sd.clientWidth-ta.offsetWidth)/2,behavior:'smooth'})}catch(e){}
   $$('.stab').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.t===t)));
   $$('.subgrp').forEach(g=>{const n=$$('.stab',g).filter(b=>!b.hidden).length;g.hidden=g.dataset.s!==sec||n<2});
 }
