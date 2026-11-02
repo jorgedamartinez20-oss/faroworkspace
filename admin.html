@@ -2757,15 +2757,24 @@ async function pubMinisPreparar(onProg){
     try{
       let existe=false;try{existe=(await fetch(FILES+'/pub/'+matKey(pubMiniKey(k)),{method:'HEAD'})).ok}catch(e){}
       if(!existe){
-        const b=PUB_VID.test(n)?await pubPrimerCuadro(u):await enImgRedim(await (await fetch(u)).blob(),PUB_LADO,.82);
+        let b;
+        if(PUB_VID.test(n)){
+          try{b=await pubPrimerCuadro(u)}
+          catch(e1){ /* si el navegador no deja leer el video directo, se baja y se lee desde el equipo */
+            const rr=await fetch(u);if(!rr.ok)throw new Error('El archivo no responde ('+rr.status+')');
+            b=await pubPrimerCuadro(new File([await rr.blob()],n,{type:'video/mp4'}))}
+        }else{
+          const rr=await fetch(u);if(!rr.ok)throw new Error('El archivo no responde ('+rr.status+')');
+          b=await enImgRedim(await rr.blob(),PUB_LADO,.82)}
         await matSubirKey0(new File([b],'m.jpg',{type:'image/jpeg'}),'publico',pubMiniKey(k),null);
       }
       await pubMinisAdd([u]);listos++;
-    }catch(e){mal++}
+    }catch(e){mal++;if(!pubMinisPreparar.err)pubMinisPreparar.err=(n+': '+(e&&e.message||e))}
     hechos++;if(onProg)onProg(hechos,lista.length);
   };
+  pubMinisPreparar.err='';
   await Promise.all(Array.from({length:Math.min(3,cola.length)},async()=>{while(cola.length)await uno(cola.shift())}));
-  return{hechos:listos,fallaron:mal,total:lista.length};
+  return{hechos:listos,fallaron:mal,total:lista.length,motivo:pubMinisPreparar.err};
 }
 /* miniatura para las vistas previas del Workspace: la copia liviana si existe (instantánea), si no el original */
 function pubMiniUrl(u){
@@ -2892,7 +2901,7 @@ function pubMinisCard(){
     b.addEventListener('click',async()=>{
       b.disabled=true;
       try{const r=await pubMinisPreparar((i,t)=>{b.textContent=' Listos '+i+' de '+t+'…'});
-        toast(r.fallaron?'Listo: '+r.hechos+' preparados, '+r.fallaron+' no se pudieron leer (se siguen viendo con el original)':'Listo: '+r.hechos+' preparados. La página ya carga más rápido.')}
+        toast(r.fallaron?'Listo: '+r.hechos+' preparados, '+r.fallaron+' no se pudieron leer ('+(r.motivo||'se siguen viendo con el original')+')':'Listo: '+r.hechos+' preparados. La página ya carga más rápido.')}
       catch(e){toast(e.message||'No se pudo preparar')}
       pintar();
     });
