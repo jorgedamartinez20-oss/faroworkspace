@@ -894,6 +894,7 @@ summary{transition:color .18s}
 <script src="subtitulos-motor.js?v=20261101b"></script>
 <script src="subtitulos-mov.js?v=20261101b"></script>
 <script src="subtitulos.js?v=20261101b"></script>
+<script src="comprimir.js?v=20261102a"></script>
 <script>
 const SB={url:'https://keivqvsgdfhthouzlqxo.supabase.co',key:'sb_publishable_5nj3M7rjQs3phGU6u2uNqw_3tjTL6PE'};
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
@@ -2750,6 +2751,38 @@ const pubMinisAdd=urls=>PUB_COLA=PUB_COLA.then(async()=>{
   const s=new Set(cur),antes=s.size;urls.forEach(u=>s.add(u));if(s.size===antes)return;
   const v=JSON.stringify([...s]);await sitioSet('minis',v);AC.cfg.minis=v;
 }).catch(()=>{});
+/* ---------- versión web comprimida de los videos (el original no se toca) ---------- */
+const pubWebKey=key=>{const i=key.lastIndexOf('/');return key.slice(0,i+1)+'_web-'+key.slice(i+1).replace(/\.[^.]+$/,'')+'.mp4'};
+const pubWebsAdd=urls=>PUB_COLA=PUB_COLA.then(async()=>{
+  let cur=[];try{cur=JSON.parse(sitioVal('webs')||'[]')||[]}catch(e){}
+  const s=new Set(cur),antes=s.size;urls.forEach(u=>s.add(u));if(s.size===antes)return;
+  const v=JSON.stringify([...s]);await sitioSet('webs',v);AC.cfg.webs=v;
+}).catch(()=>{});
+function pubWebPendientes(){
+  const base=FILES+'/pub/',hechos=new Set();try{(JSON.parse(sitioVal('webs')||'[]')||[]).forEach(u=>hechos.add(u))}catch(e){}
+  const hall=new Set();
+  Object.values(AC.cfg||{}).forEach(v=>{if(typeof v!=='string')return;(v.match(/https?:\/\/[^\s"'\\]+\/pub\/landing\/[^\s"'\\]+/g)||[]).forEach(u=>{
+    if(!u.startsWith(base)||hechos.has(u))return;const k=pubKeyDe(u),n=k.split('/').pop();
+    if(!k||/^_(mini|web)-/.test(n)||!PUB_VID.test(n))return;hall.add(u)})});
+  return [...hall];
+}
+let PUB_WEB_PARAR=false;
+async function pubWebComprimir(onProg){
+  const lista=pubWebPendientes();PUB_WEB_PARAR=false;let ok=0,mal=0,antes=0,despues=0,motivo='';
+  for(let i=0;i<lista.length;i++){
+    if(PUB_WEB_PARAR)break;
+    const u=lista[i],k=pubKeyDe(u),n=k.split('/').pop();
+    try{
+      onProg(i,lista.length,n,0);
+      const b=await pubLeerBlob(u);
+      if(b.size>1.6e9)throw new Error('pesa más de 1,6 GB');
+      const out=await faroComprimir(b,{lado:1280,kbps:1800,onProg:f=>onProg(i,lista.length,n,f),cancelar:()=>PUB_WEB_PARAR});
+      await matSubirKey0(new File([out],'w.mp4',{type:'video/mp4'}),'publico',pubWebKey(k),null);
+      await pubWebsAdd([u]);ok++;antes+=b.size;despues+=out.size;
+    }catch(e){if(PUB_WEB_PARAR)break;mal++;if(!motivo)motivo=n+': '+(e&&e.message||e)}
+  }
+  return{ok,mal,total:lista.length,antes,despues,motivo,parado:PUB_WEB_PARAR};
+}
 /* fotos y videos del landing que todavía no tienen copia liviana */
 function pubMinisPendientes(){
   const base=FILES+'/pub/',hechos=new Set();try{(JSON.parse(sitioVal('minis')||'[]')||[]).forEach(u=>hechos.add(u))}catch(e){}
@@ -2927,6 +2960,18 @@ function pubMinisCard(){
     vo.addEventListener('click',async()=>{vo.disabled=true;try{const r=await pubVideosOptimizar((i,t)=>{vo.textContent=' Revisando '+i+' de '+t+'…'});
       toast(r.arreglados?'Listo: '+r.arreglados+' video(s) acelerado(s). Recarga con Cmd+Shift+R.':'Revisados '+r.total+' videos: '+r.bien+' ya estaban bien'+(r.mal?', '+r.mal+' no se pudieron revisar':'')+(r.mb.length?' · pesan entre '+Math.min(...r.mb)+' y '+Math.max(...r.mb)+' MB':''))}
       catch(e){toast(e.message||'No se pudo')}pintar()});
+    const nw=pubWebPendientes().length;
+    const cv=el('button',{class:'btn btn-ghost',type:'button',title:'Crea una versión web muy liviana de cada video (con sonido). El original no se toca. Deja esta pestaña abierta mientras trabaja; es mejor en computadora.'},icoEl('check'),nw?' Comprimir videos para la web ('+nw+')':' Videos comprimidos');
+    if(!nw)cv.disabled=true;
+    cv.addEventListener('click',async()=>{
+      if(cv.dataset.on){PUB_WEB_PARAR=true;cv.textContent=' Deteniendo…';return}
+      cv.dataset.on='1';
+      try{const r=await pubWebComprimir((i,t,n,f)=>{cv.textContent=' Comprimiendo '+(i+1)+' de '+t+' · '+Math.round(f*100)+'% (toca para detener)'});
+        const mb=x=>(x/1048576).toFixed(0)+' MB';
+        toast(r.parado?'Detenido. Se guardó lo que ya estaba listo.':(r.ok?'Listo: '+r.ok+' video(s) comprimido(s), de '+mb(r.antes)+' a '+mb(r.despues)+'.':'No se comprimió ninguno')+(r.mal?' · '+r.mal+' no se pudieron ('+r.motivo+')':'')+' Recarga el sitio con Cmd+Shift+R.')}
+      catch(e){toast(e.message||'No se pudo comprimir')}
+      delete cv.dataset.on;pintar();
+    });
     b.addEventListener('click',async()=>{
       b.disabled=true;
       try{const r=await pubMinisPreparar((i,t)=>{b.textContent=' Listos '+i+' de '+t+'…'});
@@ -2936,7 +2981,7 @@ function pubMinisCard(){
     });
     c.append(el('h2',{},'Velocidad de carga del landing'),
       el('p',{class:'muted'},'Para que la página abra rápido, cada foto y video del landing tiene una copia chica que se muestra primero; la original (con su calidad completa, sin comprimir) se abre al verla en grande. Los archivos nuevos la crean solos al subirlos. Aquí se preparan los que ya estaban subidos.'),
-      el('div',{class:'acts'},b,rh,vo));
+      el('div',{class:'acts'},b,cv,rh,vo));
   };
   pintar();return c;
 }
