@@ -2769,6 +2769,7 @@ function pubWebPendientes(){
 let PUB_WEB_PARAR=false;
 async function pubWebComprimir(onProg){
   const lista=pubWebPendientes();PUB_WEB_PARAR=false;let ok=0,mal=0,antes=0,despues=0,motivo='';
+  let wl=null;try{if(navigator.wakeLock)wl=await navigator.wakeLock.request('screen')}catch(e){}   /* que la pantalla no se apague mientras trabaja */
   for(let i=0;i<lista.length;i++){
     if(PUB_WEB_PARAR)break;
     const u=lista[i],k=pubKeyDe(u),n=k.split('/').pop();
@@ -2781,7 +2782,31 @@ async function pubWebComprimir(onProg){
       await pubWebsAdd([u]);ok++;antes+=b.size;despues+=out.size;
     }catch(e){if(PUB_WEB_PARAR)break;mal++;if(!motivo)motivo=n+': '+(e&&e.message||e)}
   }
+  try{if(wl)await wl.release()}catch(e){}
   return{ok,mal,total:lista.length,antes,despues,motivo,parado:PUB_WEB_PARAR};
+}
+/* originales de videos que ya tienen versión web comprimida (revisa que la versión web exista y pese menos) */
+async function pubWebOriginales(){
+  let webs=[];try{webs=JSON.parse(sitioVal('webs')||'[]')||[]}catch(e){}
+  const out=[];
+  for(const u of webs){
+    const k=pubKeyDe(u);if(!k)continue;
+    try{
+      const ho=await fetch(FILES+'/pub/'+matKey(k),{method:'HEAD',cache:'no-store'});if(!ho.ok)continue;
+      const hw=await fetch(FILES+'/pub/'+matKey(pubWebKey(k)),{method:'HEAD',cache:'no-store'});if(!hw.ok)continue;
+      const to=+ho.headers.get('content-length')||0,tw=+hw.headers.get('content-length')||0;
+      if(tw>0&&tw<to)out.push({k,to,tw});
+    }catch(e){}
+  }
+  return out;
+}
+async function pubWebBorrar(lista,onProg){
+  let hechos=0,mal=0;
+  for(const x of lista){
+    try{await fjson('/api/objeto?bucket=publico&key='+encodeURIComponent(x.k),{method:'DELETE'});hechos++}catch(e){mal++}
+    onProg(hechos+mal,lista.length);
+  }
+  return{hechos,mal};
 }
 /* fotos y videos del landing que todavía no tienen copia liviana */
 function pubMinisPendientes(){
@@ -2972,6 +2997,22 @@ function pubMinisCard(){
       catch(e){toast(e.message||'No se pudo comprimir')}
       delete cv.dataset.on;pintar();
     });
+    const bo=el('button',{class:'btn btn-red',type:'button',title:'Manda a la papelera los videos originales pesados que ya tienen versión web comprimida'},icoEl('trash'),' Borrar originales pesados');
+    bo.addEventListener('click',async()=>{
+      bo.disabled=true;const t0=bo.textContent;bo.textContent=' Revisando…';
+      try{
+        const L=await pubWebOriginales(),mb=x=>(x/1048576).toFixed(0)+' MB';
+        if(!L.length){toast('No hay originales para borrar: solo se borran los que ya tienen su versión web comprimida y más liviana.')}
+        else{
+          const tot=L.reduce((a,x)=>a+x.to,0),web=L.reduce((a,x)=>a+x.tw,0);
+          if(confirm('Se mandarán a la papelera '+L.length+' video(s) original(es): '+mb(tot)+'.\nSu versión web comprimida ('+mb(web)+') se queda y es la que ve la gente.\n\nAntes de borrar, abre el sitio y revisa que los videos se vean bien.\nLos originales quedan en la papelera general y se pueden restaurar mientras no la vacíes (para liberar espacio de verdad, vacía la papelera en Almacenamiento).\n\n¿Continuar?')){
+            const r=await pubWebBorrar(L,(i,t)=>{bo.textContent=' Borrando '+i+' de '+t+'…'});
+            toast('Listo: '+r.hechos+' original(es) en la papelera'+(r.mal?' · '+r.mal+' no se pudieron mover':'')+'.');
+          }
+        }
+      }catch(e){toast(e.message||'No se pudo')}
+      bo.disabled=false;bo.textContent=t0;
+    });
     b.addEventListener('click',async()=>{
       b.disabled=true;
       try{const r=await pubMinisPreparar((i,t)=>{b.textContent=' Listos '+i+' de '+t+'…'});
@@ -2981,7 +3022,7 @@ function pubMinisCard(){
     });
     c.append(el('h2',{},'Velocidad de carga del landing'),
       el('p',{class:'muted'},'Para que la página abra rápido, cada foto y video del landing tiene una copia chica que se muestra primero; la original (con su calidad completa, sin comprimir) se abre al verla en grande. Los archivos nuevos la crean solos al subirlos. Aquí se preparan los que ya estaban subidos.'),
-      el('div',{class:'acts'},b,cv,rh,vo));
+      el('div',{class:'acts'},b,cv,bo,rh,vo));
   };
   pintar();return c;
 }
