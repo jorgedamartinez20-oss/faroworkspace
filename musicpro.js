@@ -867,6 +867,7 @@
     p.resumen = true; p.sumTop = y;
     return pags;
   }
+  const nombreRep = () => limpiar(S.cfg.nombre_reporte || 'David Martínez');
   const tituloReporte = () => 'Información de ventas, ' + MES[parte(S.mes + '-01').m - 1];
   function dibujarHoja(cv, R, pags, pi, px) {
     const pg = pags[pi], c = cv.getContext('2d'); cv.width = Math.round(PW * px); cv.height = Math.round(PH * px); c.setTransform(px, 0, 0, px, 0, 0);
@@ -879,8 +880,9 @@
     c.fillStyle = CL.navy; c.fillRect(0, 0, PW, 160);
     let tx = 44;
     if (logoImg) { const lh = 100, lw = lh * logoImg.width / logoImg.height; c.save(); rr(40, 30, lw, lh, 14); c.clip(); c.drawImage(logoImg, 40, 30, lw, lh); c.restore(); tx = 40 + lw + 34; }
-    T(tituloReporte(), tx, 68, { s: 50, w: '700', c: '#fff', mw: PW - tx - 250 });
-    T('Reporte de comisiones · Music Pro Pradera Zona 10 · ' + S.mes.slice(0, 4), tx, 118, { s: 25, c: '#C9D6EA', mw: PW - tx - 250 });
+    T(tituloReporte(), tx, 52, { s: 48, w: '700', c: '#fff', mw: PW - tx - 250 });
+    T(nombreRep(), tx, 98, { s: 34, w: '700', c: '#E2BE46', mw: PW - tx - 250 });
+    T('Reporte de comisiones · Music Pro Pradera Zona 10 · ' + S.mes.slice(0, 4), tx, 134, { s: 22, c: '#C9D6EA', mw: PW - tx - 250 });
     T('HOJA', PW - 44, 62, { s: 22, w: '700', c: '#C9D6EA', a: 'right' });
     T(pi + 1 + ' de ' + pags.length, PW - 44, 108, { s: 44, w: '700', c: '#fff', a: 'right' });
     /* tabla */
@@ -989,8 +991,8 @@
     const fl = x => [String(x.n), DIA3[parte(x.f).dow] + ' ' + fCorta(x.f), '#' + x.rec, (x.tipo === 'Anulada' ? 'ANULADA' : x.tipo) + (x.det ? ' (' + x.det + ')' : ''), x.tipo === 'Anulada' ? '—' : Q(x.monto)];
     const cab = ['N.º', 'Fecha', 'Recibo', 'Forma de pago', 'Monto'];
     const resumen = R.tipos.map(t => t + ': ' + R.cat[t].n + (R.cat[t].n === 1 ? ' factura' : ' facturas') + ' · ' + Q(R.cat[t].q)).concat(['Anuladas: ' + R.anul, 'Facturas válidas: ' + R.validas, '', 'Ventas del mes: ' + Q(R.total), 'Porcentaje: ' + R.pct + ' %', 'Comisión: ' + Q(R.bruta), 'No corresponde: ' + Q(R.nc), 'COMISIÓN A RECIBIR: ' + Q(R.com)]);
-    const txt = [tituloReporte() + ' ' + S.mes.slice(0, 4), 'Music Pro · Pradera Zona 10', '', cab.join('\t')].concat(R.filas.map(x => fl(x).join('\t')), ['', 'TOTAL (' + R.validas + ' facturas)\t\t\t\t' + Q(R.total), ''], resumen).join('\n');
-    const html = '<p><b>' + h(tituloReporte()) + ' ' + S.mes.slice(0, 4) + '</b><br>Music Pro · Pradera Zona 10</p><table border="1" cellpadding="4" style="border-collapse:collapse"><tr>' + cab.map(x => '<th>' + h(x) + '</th>').join('') + '</tr>' + R.filas.map(x => '<tr>' + fl(x).map(v => '<td>' + h(v) + '</td>').join('') + '</tr>').join('') + '<tr><td colspan="4"><b>TOTAL (' + R.validas + ' facturas)</b></td><td><b>' + h(Q(R.total)) + '</b></td></tr></table><p>' + resumen.map(h).join('<br>') + '</p>';
+    const txt = [tituloReporte() + ' ' + S.mes.slice(0, 4), nombreRep(), 'Music Pro · Pradera Zona 10', '', cab.join('\t')].concat(R.filas.map(x => fl(x).join('\t')), ['', 'TOTAL (' + R.validas + ' facturas)\t\t\t\t' + Q(R.total), ''], resumen).join('\n');
+    const html = '<p><b>' + h(tituloReporte()) + ' ' + S.mes.slice(0, 4) + '</b><br>' + h(nombreRep()) + '<br>Music Pro · Pradera Zona 10</p><table border="1" cellpadding="4" style="border-collapse:collapse"><tr>' + cab.map(x => '<th>' + h(x) + '</th>').join('') + '</tr>' + R.filas.map(x => '<tr>' + fl(x).map(v => '<td>' + h(v) + '</td>').join('') + '</tr>').join('') + '<tr><td colspan="4"><b>TOTAL (' + R.validas + ' facturas)</b></td><td><b>' + h(Q(R.total)) + '</b></td></tr></table><p>' + resumen.map(h).join('<br>') + '</p>';
     try { await navigator.clipboard.write([new ClipboardItem({ 'text/plain': new Blob([txt], { type: 'text/plain' }), 'text/html': new Blob([html], { type: 'text/html' }) })]); ctx.toast('Copiado: pégalo donde quieras'); }
     catch (e) { try { await navigator.clipboard.writeText(txt); ctx.toast('Copiado: pégalo donde quieras'); } catch (e2) { ctx.toast('Tu navegador no permite copiar'); } }
   }
@@ -998,6 +1000,10 @@
     const R = datosReporte(), pags = paginar(R);
     return el('div', { class: 'card mp-rep' }, el('h3', {}, ico('sheet'), ' Reporte de comisiones · ' + nombreMes(S.mes)),
       el('p', { class: 'muted' }, R.validas + (R.validas === 1 ? ' factura' : ' facturas') + ' en orden (fecha, recibo, monto y forma de pago) con el conteo final de la comisión para verificar. ' + pags.length + (pags.length === 1 ? ' hoja' : ' hojas') + ', cada una con el encabezado «' + tituloReporte() + '». Se actualiza con el mes que tienes arriba.'),
+      el('label', { class: 'mp-mini', style: 'display:flex;gap:8px;align-items:center;margin:6px 0 12px' }, 'Nombre en el reporte', el('input', { value: nombreRep(), 'aria-label': 'Nombre en el reporte', style: 'max-width:320px', onchange: async e => {
+        const v = limpiar(e.target.value); if (!v) return;
+        try { await send('POST', 'mp_config?on_conflict=clave', [{ clave: 'nombre_reporte', valor: v }], 'resolution=merge-duplicates,return=minimal'); S.cfg.nombre_reporte = v; ctx.toast('Nombre guardado'); repintarReporte(); } catch (er) { ctx.toast(er.message); }
+      } })),
       el('div', { class: 'mp-repw' }),
       el('div', { class: 'mp-acts' }, btn('Guardar PDF', 'down', descargarReporte, 'btn-gold'), btn('Copiar', 'copy', copiarReporte), navigator.canShare ? btn('Compartir PDF', 'out', compartirReporte) : null));
   }
