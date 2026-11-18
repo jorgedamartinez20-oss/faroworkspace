@@ -360,7 +360,7 @@
   const datosCorte = f => { const s = saldoDe(f).v, fa = facsDe(f), eg = egsDe(f); return { fecha: f, facs: fa, egs: eg, saldo: s, t: totalesDe(fa, eg, s) }; };
   function cargarLogo() {
     if (logoImg || logoCargando) return; logoCargando = true;
-    const i = new Image(); i.onload = () => { logoImg = i; logoCargando = false; repintarCorte(); }; i.onerror = () => { logoCargando = false; }; i.src = 'musicpro-logo.png';
+    const i = new Image(); i.onload = () => { logoImg = i; logoCargando = false; repintarCorte(); repintarReporte(); }; i.onerror = () => { logoCargando = false; }; i.src = 'musicpro-logo.png';
   }
   /* la imagen se redibuja sola cada vez que agregas, editas o borras algo */
   function repintarCorte() {
@@ -412,7 +412,7 @@
       else host.append(S.vista === 'corte' ? vistaCorte() : S.vista === 'caja' ? vistaCaja() : vistaDrive());
     }
     window.scrollTo({ top: y });
-    repintarCorte(); repintarLunes();
+    repintarCorte(); repintarLunes(); repintarReporte();
   }
   function avisoFalta() {
     const falla = /relation|does not exist|mp_|42P01|PGRST205/i.test(S.error || '') || /404/.test(String(S.error));
@@ -824,7 +824,122 @@
     w.append(c);
     const dw = {}; filas.filter(x => x.reg).forEach(x => { const k = parte(x.f).dow; (dw[k] = dw[k] || { n: 0, v: 0 }); dw[k].n++; dw[k].v += x.t.ventas; });
     if (filas.some(x => x.reg)) w.append(el('div', { class: 'card' }, el('h3', {}, ico('trend'), ' Por día de la semana'), el('div', { class: 'mp-dw' }, Object.keys(dw).sort((a, b) => ((+a + 6) % 7) - ((+b + 6) % 7)).map(k => el('div', { class: 'mp-dwc' }, el('small', { class: 'muted' }, DIA[k].toUpperCase()), el('b', {}, Q(dw[k].v)), el('small', { class: 'muted' }, dw[k].n + (dw[k].n === 1 ? ' día' : ' días') + ' · promedio ' + Q(dw[k].v / dw[k].n)))))));
+    w.append(cardReporte());
     return w;
+  }
+
+  /* =====================================================================
+   *  REPORTE DE COMISIONES · todas las facturas del mes en orden, para verificar y compartir en JPG
+   * ===================================================================== */
+  function datosReporte() {
+    const pct = num(S.cfg.porcentaje) || 0, nc = num(S.cfg['nc:' + S.mes]);
+    const nrec = f => { const n = parseInt(f.recibo, 10); return isFinite(n) ? n : 1e12; };
+    const fs = S.D.facs.filter(f => mesDe(f.fecha) === S.mes).sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0) || nrec(a) - nrec(b) || String(a.creado || '').localeCompare(String(b.creado || '')));
+    const cat = { Efectivo: { n: 0, q: 0 }, Tarjeta: { n: 0, q: 0 }, Depósito: { n: 0, q: 0 }, Mixto: { n: 0, q: 0 } };
+    let anul = 0;
+    const filas = fs.map((f, i) => {
+      const ef = num(f.efectivo), ta = num(f.tarjeta), de = num(f.deposito), monto = r2(ef + ta + de), partes = [ef > 0, ta > 0, de > 0].filter(Boolean).length;
+      if (esAnulada(f)) { anul++; return { n: i + 1, f: f.fecha, rec: f.recibo, monto: 0, tipo: 'Anulada', det: '' }; }
+      const tipo = partes > 1 ? 'Mixto' : ef > 0 ? 'Efectivo' : de > 0 ? 'Depósito' : 'Tarjeta';
+      cat[tipo].n++; cat[tipo].q = r2(cat[tipo].q + monto);
+      const det = partes > 1 ? [ef > 0 ? 'Efec. ' + money(ef) : '', ta > 0 ? 'Tarj. ' + money(ta) : '', de > 0 ? 'Dep. ' + money(de) : ''].filter(Boolean).join(' + ') : '';
+      return { n: i + 1, f: f.fecha, rec: f.recibo, monto, tipo, det };
+    });
+    const validas = filas.length - anul, total = r2(filas.reduce((a, x) => a + x.monto, 0)), bruta = r2(total * pct / 100);
+    return { filas, cat, anul, validas, total, pct, bruta, nc, com: r2(total * pct / 100 - nc) };
+  }
+  const RW = 1400, RRH = 58;
+  function dibujarReporte(cv, px) {
+    const R = datosReporte(), n = R.filas.length, tipos = ['Efectivo', 'Tarjeta', 'Depósito'].concat(R.cat.Mixto.n ? ['Mixto'] : []);
+    const top = 204, thH = 62, tabH = thH + Math.max(1, n) * RRH + 74, sumTop = top + tabH + 36, sumH = 76 + (tipos.length + 3) * 62 + 30, RH = sumTop + sumH + 70;
+    px = Math.min(px || 1, Math.sqrt(16e6 / (RW * RH)));   /* los celulares no aguantan imágenes de más de ~16 millones de píxeles */
+    const c = cv.getContext('2d'); cv.width = Math.round(RW * px); cv.height = Math.round(RH * px); c.setTransform(px, 0, 0, px, 0, 0);
+    c.fillStyle = '#EEF2F8'; c.fillRect(0, 0, RW, RH); c.textBaseline = 'middle';
+    const rr = (x, y, w, h, r) => { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); };
+    const caja = (x, y, w, h, fill, stroke, r, sh) => { c.save(); if (sh) { c.shadowColor = 'rgba(15,23,42,.16)'; c.shadowBlur = 18; c.shadowOffsetY = 4; } rr(x, y, w, h, r || 16); c.fillStyle = fill; c.fill(); c.restore(); if (stroke) { rr(x, y, w, h, r || 16); c.strokeStyle = stroke; c.lineWidth = 2; c.stroke(); } };
+    const T = (t, x, y, o) => { o = o || {}; let sz = o.s || 24; const wt = o.w || '400'; c.font = wt + ' ' + sz + 'px ' + FONT; if (o.mw) { const m = c.measureText(t).width; if (m > o.mw) sz = Math.max(10, sz * o.mw / m); } c.font = wt + ' ' + sz + 'px ' + FONT; c.fillStyle = o.c || CL.ink; c.textAlign = o.a || 'left'; c.fillText(t, x, y); };
+    const colTipo = { Efectivo: [CL.ef, '#fff'], Tarjeta: [CL.ta, '#fff'], Depósito: [CL.de, CL.ink], Mixto: [CL.eg, '#fff'], Anulada: ['#FBE0E3', '#C0283A'] };
+    /* encabezado */
+    c.fillStyle = CL.navy; c.fillRect(0, 0, RW, 172);
+    let tx = 44;
+    if (logoImg) { const lh = 112, lw = lh * logoImg.width / logoImg.height; c.save(); rr(40, 30, lw, lh, 14); c.clip(); c.drawImage(logoImg, 40, 30, lw, lh); c.restore(); tx = 40 + lw + 34; }
+    T('REPORTE DE COMISIONES', tx, 74, { s: 52, w: '700', c: '#fff', mw: RW - tx - 400 });
+    T('Music Pro · Pradera Zona 10 · ' + mayus(nombreMes(S.mes)), tx, 128, { s: 26, c: '#C9D6EA', mw: RW - tx - 400 });
+    T('COMISIÓN A RECIBIR', RW - 44, 60, { s: 22, w: '700', c: '#C9D6EA', a: 'right' });
+    T(Q(R.com), RW - 44, 112, { s: 54, w: '700', c: '#fff', a: 'right', mw: 340 });
+    /* tabla de facturas */
+    caja(30, top, RW - 60, tabH, '#fff', null, 18, true);
+    c.save(); rr(30, top, RW - 60, tabH, 18); c.clip();
+    c.fillStyle = CL.navy2; c.fillRect(30, top, RW - 60, thH);
+    const cx = { n: 52, f: 150, r: 420, p: 590, m: RW - 56 }, hy = top + thH / 2;
+    T('N.º', cx.n, hy, { s: 22, w: '700', c: '#fff' }); T('FECHA', cx.f, hy, { s: 22, w: '700', c: '#fff' }); T('RECIBO', cx.r, hy, { s: 22, w: '700', c: '#fff' }); T('FORMA DE PAGO', cx.p, hy, { s: 22, w: '700', c: '#fff' }); T('MONTO', cx.m, hy, { s: 22, w: '700', c: '#fff', a: 'right' });
+    if (!n) T('Todavía no hay facturas en ' + nombreMes(S.mes) + '.', RW / 2, top + thH + RRH, { s: 28, c: CL.mut, a: 'center' });
+    R.filas.forEach((x, i) => {
+      const y = top + thH + i * RRH, my = y + RRH / 2, an = x.tipo === 'Anulada', ink = an ? '#C0283A' : CL.ink;
+      if (i % 2 === 1) { c.fillStyle = CL.alt; c.fillRect(30, y, RW - 60, RRH); }
+      T(String(x.n), cx.n, my, { s: 26, w: '700', c: ink });
+      T(DIA3[parte(x.f).dow] + ' ' + fCorta(x.f), cx.f, my, { s: 26, c: ink });
+      T('#' + x.rec, cx.r, my, { s: 26, w: '700', c: ink, mw: 150 });
+      const [bg, fg] = colTipo[x.tipo]; rr(cx.p, my - 19, 150, 38, 19); c.fillStyle = bg; c.fill(); T(x.tipo === 'Anulada' ? 'ANULADA' : x.tipo, cx.p + 75, my + 1, { s: 21, w: '700', c: fg, a: 'center', mw: 130 });
+      if (x.det) T(x.det, cx.p + 166, my, { s: 20, c: CL.mut, mw: 380 });
+      T(an ? '—' : Q(x.monto), cx.m, my, { s: 27, w: '700', a: 'right', c: ink, mw: 200 });
+    });
+    const ty = top + thH + Math.max(1, n) * RRH;
+    c.fillStyle = CL.tot; c.fillRect(30, ty, RW - 60, 74);
+    T('TOTAL · ' + R.validas + (R.validas === 1 ? ' factura' : ' facturas') + (R.anul ? ' (+ ' + R.anul + (R.anul === 1 ? ' anulada' : ' anuladas') + ')' : ''), cx.n, ty + 37, { s: 26, w: '700', c: CL.navy, mw: 700 });
+    T(Q(R.total), cx.m, ty + 37, { s: 34, w: '700', a: 'right', c: CL.navy, mw: 300 });
+    c.restore();
+    /* conteo por forma de pago + cálculo de la comisión */
+    const bw = (RW - 60 - 30) / 2, lx = 30, rx = 30 + bw + 30;
+    caja(lx, sumTop, bw, sumH, '#fff', null, 18, true); caja(rx, sumTop, bw, sumH, '#fff', null, 18, true);
+    T('Conteo por forma de pago', lx + 30, sumTop + 44, { s: 28, w: '700', c: CL.navy });
+    T('Cálculo de la comisión', rx + 30, sumTop + 44, { s: 28, w: '700', c: CL.navy });
+    const fila = (x, y, w, lab, val, o) => { o = o || {}; T(lab, x + 30, y, { s: 25, w: o.w || '400', c: o.c || CL.ink, mw: w * 0.52 }); T(val, x + w - 30, y, { s: o.s || 26, w: '700', a: 'right', c: o.c || CL.ink, mw: w * 0.42 }); };
+    let y = sumTop + 76 + 31;
+    tipos.forEach(t => { const k = R.cat[t]; c.fillStyle = colTipo[t][0]; rr(lx + 30, y - 11, 22, 22, 6); c.fill(); T(t, lx + 64, y, { s: 25, mw: 150 }); T(k.n + (k.n === 1 ? ' factura' : ' facturas'), lx + 250, y, { s: 24, c: CL.mut, mw: 150 }); T(Q(k.q), lx + bw - 30, y, { s: 26, w: '700', a: 'right', mw: 190 }); y += 62; });
+    fila(lx, y, bw, 'Anuladas (sin valor)', String(R.anul), { c: R.anul ? '#C0283A' : CL.mut }); y += 62;
+    c.fillStyle = CL.line; c.fillRect(lx + 30, y - 31, bw - 60, 2);
+    fila(lx, y, bw, 'Facturas válidas', String(R.validas), { w: '700', s: 30 });
+    let ry = sumTop + 76 + 31;
+    fila(rx, ry, bw, 'Ventas del mes', Q(R.total)); ry += 62;
+    fila(rx, ry, bw, '× Porcentaje', R.pct + ' %'); ry += 62;
+    fila(rx, ry, bw, '= Comisión', Q(R.bruta)); ry += 62;
+    fila(rx, ry, bw, '− No corresponde', Q(R.nc), { c: R.nc ? '#C0283A' : CL.mut }); ry += 62;
+    caja(rx + 24, ry - 8, bw - 48, sumTop + sumH - ry - 16, CL.okbg, CL.ok, 16);
+    const by = ry - 8 + (sumTop + sumH - ry - 16) / 2;
+    T('COMISIÓN A RECIBIR', rx + 48, by, { s: 25, w: '700', c: CL.ok, mw: bw * 0.45 }); T(Q(R.com), rx + bw - 48, by, { s: 40, w: '700', a: 'right', c: CL.ok, mw: bw * 0.42 });
+    T('Generado el ' + fCorta(hoy()) + ' · Faro Workspace', RW / 2, RH - 34, { s: 20, c: CL.mut, a: 'center' });
+  }
+  let reporteTk = 0;
+  function repintarReporte() {
+    const cv = $('.mp-cvr', host); if (!cv) return; const t = ++reporteTk;
+    requestAnimationFrame(() => { if (t === reporteTk && cv.isConnected) dibujarReporte(cv, 0.8); });
+  }
+  const nombreReporte = () => 'reporte-comisiones-' + S.mes + '.jpg';
+  async function blobReporte() {
+    await (document.fonts && document.fonts.ready);
+    const cv = document.createElement('canvas'); dibujarReporte(cv, 2);   /* calidad alta: se lee bien al ampliar */
+    return new Promise(ok => cv.toBlob(ok, 'image/jpeg', 0.95));
+  }
+  async function descargarReporte() {
+    const b = await blobReporte(); if (!b) { ctx.toast('No se pudo crear la imagen'); return; }
+    const a = el('a', { href: URL.createObjectURL(b), download: nombreReporte() }); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    ctx.toast('JPG guardado · ' + nombreReporte());
+  }
+  async function compartirReporte() {
+    try {
+      const b = await blobReporte(); if (!b) { ctx.toast('No se pudo crear la imagen'); return; }
+      const file = new File([b], nombreReporte(), { type: 'image/jpeg' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: 'Reporte de comisiones · ' + nombreMes(S.mes) });
+      else { await descargarReporte(); }
+    } catch (e) { if (e && e.name !== 'AbortError') ctx.toast('No se pudo compartir; usa «Guardar JPG»'); }
+  }
+  function cardReporte() {
+    const R = datosReporte();
+    return el('div', { class: 'card mp-rep' }, el('h3', {}, ico('sheet'), ' Reporte de comisiones · ' + nombreMes(S.mes)),
+      el('p', { class: 'muted' }, R.validas + (R.validas === 1 ? ' factura' : ' facturas') + ' en orden (fecha, recibo, monto y forma de pago), con el conteo final de la comisión para verificar. Se actualiza solo con el mes que tienes arriba.'),
+      el('canvas', { class: 'mp-cv mp-cvr', 'aria-label': 'Reporte de comisiones' }),
+      el('div', { class: 'mp-acts' }, btn('Guardar JPG', 'down', descargarReporte, 'btn-gold'), navigator.canShare ? btn('Compartir', 'out', compartirReporte) : null));
   }
 
   /* =====================================================================
@@ -1169,7 +1284,7 @@
   window.FaroMusicPro = {
     async iniciar(el_, c) {
       host = el_; ctx = c; S.form = null; S.edit = null; S.draft = {}; S.calYm = null; S.hint = null; S.open = null; S.vista = 'corte'; S.Yc = {}; S.anioE = null; S.mSel = null; loadedKey = null; calKey = null;
-      if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => repintarCorte());
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { repintarCorte(); repintarReporte(); });
       if (!pegar) {
         pegar = true;
         /* lo que pegues, de donde sea, entra como texto limpio con la letra del panel */
