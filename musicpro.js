@@ -829,117 +829,177 @@
   }
 
   /* =====================================================================
-   *  REPORTE DE COMISIONES · todas las facturas del mes en orden, para verificar y compartir en JPG
+   *  REPORTE DE COMISIONES · «Información de ventas» del mes: facturas en orden, varias hojas, PDF o copiar al portapapeles
    * ===================================================================== */
+  const NOMBRES_PAGO = { e: 'Efectivo', t: 'Tarjeta', d: 'Depósito' };
   function datosReporte() {
     const pct = num(S.cfg.porcentaje) || 0, nc = num(S.cfg['nc:' + S.mes]);
     const nrec = f => { const n = parseInt(f.recibo, 10); return isFinite(n) ? n : 1e12; };
     const fs = S.D.facs.filter(f => mesDe(f.fecha) === S.mes).sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0) || nrec(a) - nrec(b) || String(a.creado || '').localeCompare(String(b.creado || '')));
-    const cat = { Efectivo: { n: 0, q: 0 }, Tarjeta: { n: 0, q: 0 }, Depósito: { n: 0, q: 0 }, Mixto: { n: 0, q: 0 } };
+    const cat = { Efectivo: { n: 0, q: 0 }, Tarjeta: { n: 0, q: 0 }, Depósito: { n: 0, q: 0 } };
     let anul = 0;
     const filas = fs.map((f, i) => {
-      const ef = num(f.efectivo), ta = num(f.tarjeta), de = num(f.deposito), monto = r2(ef + ta + de), partes = [ef > 0, ta > 0, de > 0].filter(Boolean).length;
+      const ef = num(f.efectivo), ta = num(f.tarjeta), de = num(f.deposito), monto = r2(ef + ta + de);
       if (esAnulada(f)) { anul++; return { n: i + 1, f: f.fecha, rec: f.recibo, monto: 0, tipo: 'Anulada', det: '' }; }
-      const tipo = partes > 1 ? 'Mixto' : ef > 0 ? 'Efectivo' : de > 0 ? 'Depósito' : 'Tarjeta';
-      cat[tipo].n++; cat[tipo].q = r2(cat[tipo].q + monto);
-      const det = partes > 1 ? [ef > 0 ? 'Efec. ' + money(ef) : '', ta > 0 ? 'Tarj. ' + money(ta) : '', de > 0 ? 'Dep. ' + money(de) : ''].filter(Boolean).join(' + ') : '';
+      const ps = [ef > 0 ? 'Efectivo' : '', ta > 0 ? 'Tarjeta' : '', de > 0 ? 'Depósito' : ''].filter(Boolean);
+      const tipo = ps.length < 2 ? (ps[0] || 'Tarjeta') : ps.slice(0, -1).join(', ') + ' y ' + ps[ps.length - 1].toLowerCase();
+      const k = cat[tipo] || (cat[tipo] = { n: 0, q: 0 }); k.n++; k.q = r2(k.q + monto);
+      const det = ps.length > 1 ? [ef > 0 ? 'Efec. ' + money(ef) : '', ta > 0 ? 'Tarj. ' + money(ta) : '', de > 0 ? 'Dep. ' + money(de) : ''].filter(Boolean).join(' + ') : '';
       return { n: i + 1, f: f.fecha, rec: f.recibo, monto, tipo, det };
     });
+    const tipos = Object.keys(cat).filter(t => cat[t].n > 0 || t === 'Efectivo' || t === 'Tarjeta' || t === 'Depósito');
     const validas = filas.length - anul, total = r2(filas.reduce((a, x) => a + x.monto, 0)), bruta = r2(total * pct / 100);
-    return { filas, cat, anul, validas, total, pct, bruta, nc, com: r2(total * pct / 100 - nc) };
+    return { filas, cat, tipos, anul, validas, total, pct, bruta, nc, com: r2(total * pct / 100 - nc) };
   }
-  const RW = 1400, RRH = 58;
-  function dibujarReporte(cv, px) {
-    const R = datosReporte(), n = R.filas.length, tipos = ['Efectivo', 'Tarjeta', 'Depósito'].concat(R.cat.Mixto.n ? ['Mixto'] : []);
-    const top = 204, thH = 62, tabH = thH + Math.max(1, n) * RRH + 74, sumTop = top + tabH + 36, sumH = 76 + (tipos.length + 3) * 62 + 30, RH = sumTop + sumH + 70;
-    px = Math.min(px || 1, Math.sqrt(16e6 / (RW * RH)));   /* los celulares no aguantan imágenes de más de ~16 millones de píxeles */
-    const c = cv.getContext('2d'); cv.width = Math.round(RW * px); cv.height = Math.round(RH * px); c.setTransform(px, 0, 0, px, 0, 0);
-    c.fillStyle = '#EEF2F8'; c.fillRect(0, 0, RW, RH); c.textBaseline = 'middle';
+  /* hoja tamaño carta (8.5 × 11): 1400 × 1812 de trabajo; el encabezado se repite en cada hoja */
+  const PW = 1400, PH = 1812, P_TOP = 190, P_TH = 62, P_RH = 58, P_TOT = 74, P_GAP = 36, P_LIM = PH - 70;
+  const sumAlto = R => 76 + (R.tipos.length + 3) * 62 + 30;
+  function paginar(R) {
+    const pags = []; let p, y;
+    const nueva = hdr => { p = { rows: [], hdr, total: false, resumen: false }; pags.push(p); y = P_TOP + (hdr ? P_TH : 0); };
+    nueva(true);
+    if (!R.filas.length) y += P_RH;
+    R.filas.forEach(x => { if (y + P_RH > P_LIM) nueva(true); p.rows.push(x); y += P_RH; });
+    if (y + P_TOT > P_LIM) nueva(true);
+    p.total = true; y += P_TOT; p.tabEnd = y;
+    y += P_GAP;
+    if (y + sumAlto(R) > P_LIM) { nueva(false); y = P_TOP; }
+    p.resumen = true; p.sumTop = y;
+    return pags;
+  }
+  const tituloReporte = () => 'Información de ventas, ' + MES[parte(S.mes + '-01').m - 1];
+  function dibujarHoja(cv, R, pags, pi, px) {
+    const pg = pags[pi], c = cv.getContext('2d'); cv.width = Math.round(PW * px); cv.height = Math.round(PH * px); c.setTransform(px, 0, 0, px, 0, 0);
+    c.fillStyle = '#EEF2F8'; c.fillRect(0, 0, PW, PH); c.textBaseline = 'middle';
     const rr = (x, y, w, h, r) => { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); };
     const caja = (x, y, w, h, fill, stroke, r, sh) => { c.save(); if (sh) { c.shadowColor = 'rgba(15,23,42,.16)'; c.shadowBlur = 18; c.shadowOffsetY = 4; } rr(x, y, w, h, r || 16); c.fillStyle = fill; c.fill(); c.restore(); if (stroke) { rr(x, y, w, h, r || 16); c.strokeStyle = stroke; c.lineWidth = 2; c.stroke(); } };
     const T = (t, x, y, o) => { o = o || {}; let sz = o.s || 24; const wt = o.w || '400'; c.font = wt + ' ' + sz + 'px ' + FONT; if (o.mw) { const m = c.measureText(t).width; if (m > o.mw) sz = Math.max(10, sz * o.mw / m); } c.font = wt + ' ' + sz + 'px ' + FONT; c.fillStyle = o.c || CL.ink; c.textAlign = o.a || 'left'; c.fillText(t, x, y); };
-    const colTipo = { Efectivo: [CL.ef, '#fff'], Tarjeta: [CL.ta, '#fff'], Depósito: [CL.de, CL.ink], Mixto: [CL.eg, '#fff'], Anulada: ['#FBE0E3', '#C0283A'] };
-    /* encabezado */
-    c.fillStyle = CL.navy; c.fillRect(0, 0, RW, 172);
+    const colTipo = t => t === 'Efectivo' ? [CL.ef, '#fff'] : t === 'Tarjeta' ? [CL.ta, '#fff'] : t === 'Depósito' ? [CL.de, CL.ink] : t === 'Anulada' ? ['#FBE0E3', '#C0283A'] : [CL.eg, '#fff'];
+    /* encabezado (en todas las hojas) */
+    c.fillStyle = CL.navy; c.fillRect(0, 0, PW, 160);
     let tx = 44;
-    if (logoImg) { const lh = 112, lw = lh * logoImg.width / logoImg.height; c.save(); rr(40, 30, lw, lh, 14); c.clip(); c.drawImage(logoImg, 40, 30, lw, lh); c.restore(); tx = 40 + lw + 34; }
-    T('REPORTE DE COMISIONES', tx, 74, { s: 52, w: '700', c: '#fff', mw: RW - tx - 400 });
-    T('Music Pro · Pradera Zona 10 · ' + mayus(nombreMes(S.mes)), tx, 128, { s: 26, c: '#C9D6EA', mw: RW - tx - 400 });
-    T('COMISIÓN A RECIBIR', RW - 44, 60, { s: 22, w: '700', c: '#C9D6EA', a: 'right' });
-    T(Q(R.com), RW - 44, 112, { s: 54, w: '700', c: '#fff', a: 'right', mw: 340 });
-    /* tabla de facturas */
-    caja(30, top, RW - 60, tabH, '#fff', null, 18, true);
-    c.save(); rr(30, top, RW - 60, tabH, 18); c.clip();
-    c.fillStyle = CL.navy2; c.fillRect(30, top, RW - 60, thH);
-    const cx = { n: 52, f: 150, r: 420, p: 590, m: RW - 56 }, hy = top + thH / 2;
-    T('N.º', cx.n, hy, { s: 22, w: '700', c: '#fff' }); T('FECHA', cx.f, hy, { s: 22, w: '700', c: '#fff' }); T('RECIBO', cx.r, hy, { s: 22, w: '700', c: '#fff' }); T('FORMA DE PAGO', cx.p, hy, { s: 22, w: '700', c: '#fff' }); T('MONTO', cx.m, hy, { s: 22, w: '700', c: '#fff', a: 'right' });
-    if (!n) T('Todavía no hay facturas en ' + nombreMes(S.mes) + '.', RW / 2, top + thH + RRH, { s: 28, c: CL.mut, a: 'center' });
-    R.filas.forEach((x, i) => {
-      const y = top + thH + i * RRH, my = y + RRH / 2, an = x.tipo === 'Anulada', ink = an ? '#C0283A' : CL.ink;
-      if (i % 2 === 1) { c.fillStyle = CL.alt; c.fillRect(30, y, RW - 60, RRH); }
-      T(String(x.n), cx.n, my, { s: 26, w: '700', c: ink });
-      T(DIA3[parte(x.f).dow] + ' ' + fCorta(x.f), cx.f, my, { s: 26, c: ink });
-      T('#' + x.rec, cx.r, my, { s: 26, w: '700', c: ink, mw: 150 });
-      const [bg, fg] = colTipo[x.tipo]; rr(cx.p, my - 19, 150, 38, 19); c.fillStyle = bg; c.fill(); T(x.tipo === 'Anulada' ? 'ANULADA' : x.tipo, cx.p + 75, my + 1, { s: 21, w: '700', c: fg, a: 'center', mw: 130 });
-      if (x.det) T(x.det, cx.p + 166, my, { s: 20, c: CL.mut, mw: 380 });
-      T(an ? '—' : Q(x.monto), cx.m, my, { s: 27, w: '700', a: 'right', c: ink, mw: 200 });
-    });
-    const ty = top + thH + Math.max(1, n) * RRH;
-    c.fillStyle = CL.tot; c.fillRect(30, ty, RW - 60, 74);
-    T('TOTAL · ' + R.validas + (R.validas === 1 ? ' factura' : ' facturas') + (R.anul ? ' (+ ' + R.anul + (R.anul === 1 ? ' anulada' : ' anuladas') + ')' : ''), cx.n, ty + 37, { s: 26, w: '700', c: CL.navy, mw: 700 });
-    T(Q(R.total), cx.m, ty + 37, { s: 34, w: '700', a: 'right', c: CL.navy, mw: 300 });
-    c.restore();
-    /* conteo por forma de pago + cálculo de la comisión */
-    const bw = (RW - 60 - 30) / 2, lx = 30, rx = 30 + bw + 30;
-    caja(lx, sumTop, bw, sumH, '#fff', null, 18, true); caja(rx, sumTop, bw, sumH, '#fff', null, 18, true);
-    T('Conteo por forma de pago', lx + 30, sumTop + 44, { s: 28, w: '700', c: CL.navy });
-    T('Cálculo de la comisión', rx + 30, sumTop + 44, { s: 28, w: '700', c: CL.navy });
-    const fila = (x, y, w, lab, val, o) => { o = o || {}; T(lab, x + 30, y, { s: 25, w: o.w || '400', c: o.c || CL.ink, mw: w * 0.52 }); T(val, x + w - 30, y, { s: o.s || 26, w: '700', a: 'right', c: o.c || CL.ink, mw: w * 0.42 }); };
-    let y = sumTop + 76 + 31;
-    tipos.forEach(t => { const k = R.cat[t]; c.fillStyle = colTipo[t][0]; rr(lx + 30, y - 11, 22, 22, 6); c.fill(); T(t, lx + 64, y, { s: 25, mw: 150 }); T(k.n + (k.n === 1 ? ' factura' : ' facturas'), lx + 250, y, { s: 24, c: CL.mut, mw: 150 }); T(Q(k.q), lx + bw - 30, y, { s: 26, w: '700', a: 'right', mw: 190 }); y += 62; });
-    fila(lx, y, bw, 'Anuladas (sin valor)', String(R.anul), { c: R.anul ? '#C0283A' : CL.mut }); y += 62;
-    c.fillStyle = CL.line; c.fillRect(lx + 30, y - 31, bw - 60, 2);
-    fila(lx, y, bw, 'Facturas válidas', String(R.validas), { w: '700', s: 30 });
-    let ry = sumTop + 76 + 31;
-    fila(rx, ry, bw, 'Ventas del mes', Q(R.total)); ry += 62;
-    fila(rx, ry, bw, '× Porcentaje', R.pct + ' %'); ry += 62;
-    fila(rx, ry, bw, '= Comisión', Q(R.bruta)); ry += 62;
-    fila(rx, ry, bw, '− No corresponde', Q(R.nc), { c: R.nc ? '#C0283A' : CL.mut }); ry += 62;
-    caja(rx + 24, ry - 8, bw - 48, sumTop + sumH - ry - 16, CL.okbg, CL.ok, 16);
-    const by = ry - 8 + (sumTop + sumH - ry - 16) / 2;
-    T('COMISIÓN A RECIBIR', rx + 48, by, { s: 25, w: '700', c: CL.ok, mw: bw * 0.45 }); T(Q(R.com), rx + bw - 48, by, { s: 40, w: '700', a: 'right', c: CL.ok, mw: bw * 0.42 });
-    T('Generado el ' + fCorta(hoy()) + ' · Faro Workspace', RW / 2, RH - 34, { s: 20, c: CL.mut, a: 'center' });
+    if (logoImg) { const lh = 100, lw = lh * logoImg.width / logoImg.height; c.save(); rr(40, 30, lw, lh, 14); c.clip(); c.drawImage(logoImg, 40, 30, lw, lh); c.restore(); tx = 40 + lw + 34; }
+    T(tituloReporte(), tx, 68, { s: 50, w: '700', c: '#fff', mw: PW - tx - 250 });
+    T('Reporte de comisiones · Music Pro Pradera Zona 10 · ' + S.mes.slice(0, 4), tx, 118, { s: 25, c: '#C9D6EA', mw: PW - tx - 250 });
+    T('HOJA', PW - 44, 62, { s: 22, w: '700', c: '#C9D6EA', a: 'right' });
+    T(pi + 1 + ' de ' + pags.length, PW - 44, 108, { s: 44, w: '700', c: '#fff', a: 'right' });
+    /* tabla */
+    const n = pg.rows.length, tabH = (pg.hdr ? P_TH : 0) + Math.max(n, pg.hdr && !R.filas.length ? 1 : 0) * P_RH + (pg.total ? P_TOT : 0);
+    if (pg.hdr || pg.total) {
+      caja(30, P_TOP, PW - 60, tabH, '#fff', null, 18, true);
+      c.save(); rr(30, P_TOP, PW - 60, tabH, 18); c.clip();
+      const cx = { n: 52, f: 140, r: 395, p: 530, m: PW - 56 };
+      if (pg.hdr) {
+        c.fillStyle = CL.navy2; c.fillRect(30, P_TOP, PW - 60, P_TH); const hy = P_TOP + P_TH / 2;
+        T('N.º', cx.n, hy, { s: 22, w: '700', c: '#fff' }); T('FECHA', cx.f, hy, { s: 22, w: '700', c: '#fff' }); T('RECIBO', cx.r, hy, { s: 22, w: '700', c: '#fff' }); T('FORMA DE PAGO', cx.p, hy, { s: 22, w: '700', c: '#fff' }); T('MONTO', cx.m, hy, { s: 22, w: '700', c: '#fff', a: 'right' });
+        if (!R.filas.length) T('Todavía no hay facturas en ' + nombreMes(S.mes) + '.', PW / 2, P_TOP + P_TH + P_RH / 2, { s: 28, c: CL.mut, a: 'center' });
+      }
+      pg.rows.forEach((x, i) => {
+        const y = P_TOP + P_TH + i * P_RH, my = y + P_RH / 2, an = x.tipo === 'Anulada', ink = an ? '#C0283A' : CL.ink;
+        if (x.n % 2 === 0) { c.fillStyle = CL.alt; c.fillRect(30, y, PW - 60, P_RH); }
+        T(String(x.n), cx.n, my, { s: 26, w: '700', c: ink });
+        T(DIA3[parte(x.f).dow] + ' ' + fCorta(x.f), cx.f, my, { s: 26, c: ink });
+        T('#' + x.rec, cx.r, my, { s: 26, w: '700', c: ink, mw: 125 });
+        const [bg, fg] = colTipo(x.tipo); rr(cx.p, my - 19, 250, 38, 19); c.fillStyle = bg; c.fill(); T(x.tipo === 'Anulada' ? 'ANULADA' : x.tipo, cx.p + 125, my + 1, { s: 21, w: '700', c: fg, a: 'center', mw: 230 });
+        if (x.det) T(x.det, cx.p + 266, my, { s: 20, c: CL.mut, mw: 300 });
+        T(an ? '—' : Q(x.monto), cx.m, my, { s: 27, w: '700', a: 'right', c: ink, mw: 190 });
+      });
+      if (pg.total) {
+        const ty = P_TOP + (pg.hdr ? P_TH : 0) + Math.max(n, pg.hdr && !R.filas.length ? 1 : 0) * P_RH;
+        c.fillStyle = CL.tot; c.fillRect(30, ty, PW - 60, P_TOT);
+        T('TOTAL · ' + R.validas + (R.validas === 1 ? ' factura' : ' facturas') + (R.anul ? ' (+ ' + R.anul + (R.anul === 1 ? ' anulada' : ' anuladas') + ')' : ''), 52, ty + P_TOT / 2, { s: 26, w: '700', c: CL.navy, mw: 700 });
+        T(Q(R.total), PW - 56, ty + P_TOT / 2, { s: 34, w: '700', a: 'right', c: CL.navy, mw: 300 });
+      }
+      c.restore();
+    }
+    /* conteo por forma de pago + cálculo de la comisión (última hoja) */
+    if (pg.resumen) {
+      const sumTop = pg.sumTop, sumH = sumAlto(R), bw = (PW - 60 - 30) / 2, lx = 30, rx = 30 + bw + 30;
+      caja(lx, sumTop, bw, sumH, '#fff', null, 18, true); caja(rx, sumTop, bw, sumH, '#fff', null, 18, true);
+      T('Conteo por forma de pago', lx + 30, sumTop + 44, { s: 28, w: '700', c: CL.navy });
+      T('Cálculo de la comisión', rx + 30, sumTop + 44, { s: 28, w: '700', c: CL.navy });
+      const fila = (x, y, w, lab, val, o) => { o = o || {}; T(lab, x + 30, y, { s: 25, w: o.w || '400', c: o.c || CL.ink, mw: w * 0.52 }); T(val, x + w - 30, y, { s: o.s || 26, w: '700', a: 'right', c: o.c || CL.ink, mw: w * 0.42 }); };
+      let y = sumTop + 76 + 31;
+      R.tipos.forEach(t => { const k = R.cat[t]; c.fillStyle = colTipo(t)[0]; rr(lx + 30, y - 11, 22, 22, 6); c.fill(); T(t, lx + 64, y, { s: 25, mw: 190 }); T(k.n + (k.n === 1 ? ' factura' : ' facturas'), lx + 270, y, { s: 24, c: CL.mut, mw: 120 }); T(Q(k.q), lx + bw - 30, y, { s: 26, w: '700', a: 'right', mw: 170 }); y += 62; });
+      fila(lx, y, bw, 'Anuladas (sin valor)', String(R.anul), { c: R.anul ? '#C0283A' : CL.mut }); y += 62;
+      c.fillStyle = CL.line; c.fillRect(lx + 30, y - 31, bw - 60, 2);
+      fila(lx, y, bw, 'Facturas válidas', String(R.validas), { w: '700', s: 30 });
+      let ry = sumTop + 76 + 31;
+      fila(rx, ry, bw, 'Ventas del mes', Q(R.total)); ry += 62;
+      fila(rx, ry, bw, '× Porcentaje', R.pct + ' %'); ry += 62;
+      fila(rx, ry, bw, '= Comisión', Q(R.bruta)); ry += 62;
+      fila(rx, ry, bw, '− No corresponde', Q(R.nc), { c: R.nc ? '#C0283A' : CL.mut }); ry += 62;
+      const bh = sumTop + sumH - ry - 16; caja(rx + 24, ry - 8, bw - 48, bh, CL.okbg, CL.ok, 16);
+      T('COMISIÓN A RECIBIR', rx + 48, ry - 8 + bh / 2, { s: 25, w: '700', c: CL.ok, mw: bw * 0.45 }); T(Q(R.com), rx + bw - 48, ry - 8 + bh / 2, { s: 40, w: '700', a: 'right', c: CL.ok, mw: bw * 0.42 });
+    }
+    T('Generado el ' + fCorta(hoy()) + ' · Faro Workspace', PW / 2, PH - 32, { s: 20, c: CL.mut, a: 'center' });
   }
   let reporteTk = 0;
   function repintarReporte() {
-    const cv = $('.mp-cvr', host); if (!cv) return; const t = ++reporteTk;
-    requestAnimationFrame(() => { if (t === reporteTk && cv.isConnected) dibujarReporte(cv, 0.8); });
+    const w = $('.mp-repw', host); if (!w) return; const t = ++reporteTk;
+    requestAnimationFrame(() => {
+      if (t !== reporteTk || !w.isConnected) return;
+      const R = datosReporte(), pags = paginar(R); w.replaceChildren();
+      pags.forEach((_, i) => { const cv = el('canvas', { class: 'mp-cv', 'aria-label': 'Reporte de comisiones, hoja ' + (i + 1) }); w.append(cv); dibujarHoja(cv, R, pags, i, 0.55); });
+    });
   }
-  const nombreReporte = () => 'reporte-comisiones-' + S.mes + '.jpg';
+  const nombreReporte = () => 'informacion-de-ventas-' + S.mes + '.pdf';
+  /* PDF a mano: una hoja carta por cada página dibujada (imagen JPEG de alta calidad) */
   async function blobReporte() {
     await (document.fonts && document.fonts.ready);
-    const cv = document.createElement('canvas'); dibujarReporte(cv, 2);   /* calidad alta: se lee bien al ampliar */
-    return new Promise(ok => cv.toBlob(ok, 'image/jpeg', 0.95));
+    const R = datosReporte(), pags = paginar(R), jp = [];
+    for (let i = 0; i < pags.length; i++) {
+      const cv = document.createElement('canvas'); dibujarHoja(cv, R, pags, i, 1.6);
+      const b = await new Promise(ok => cv.toBlob(ok, 'image/jpeg', 0.93)); jp.push({ u8: new Uint8Array(await b.arrayBuffer()), w: cv.width, h: cv.height });
+    }
+    const enc = new TextEncoder(), partes = [], offs = []; let len = 0;
+    const add = x => { const b = typeof x === 'string' ? enc.encode(x) : x; partes.push(b); len += b.length; };
+    const obj = (n, cab, datos) => { offs[n] = len; add(n + ' 0 obj\n' + cab); if (datos) { add('\nstream\n'); add(datos); add('\nendstream'); } add('\nendobj\n'); };
+    add('%PDF-1.4\n');
+    obj(1, '<< /Type /Catalog /Pages 2 0 R >>');
+    obj(2, '<< /Type /Pages /Kids [' + jp.map((_, i) => (3 + 3 * i) + ' 0 R').join(' ') + '] /Count ' + jp.length + ' >>');
+    jp.forEach((j, i) => {
+      const p = 3 + 3 * i, ct = 'q 612 0 0 792 0 0 cm /Im0 Do Q';
+      obj(p, '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /XObject << /Im0 ' + (p + 2) + ' 0 R >> >> /Contents ' + (p + 1) + ' 0 R >>');
+      obj(p + 1, '<< /Length ' + ct.length + ' >>', ct);
+      obj(p + 2, '<< /Type /XObject /Subtype /Image /Width ' + j.w + ' /Height ' + j.h + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + j.u8.length + ' >>', j.u8);
+    });
+    const total = 3 + 3 * jp.length, xr = len;
+    add('xref\n0 ' + total + '\n0000000000 65535 f \n' + offs.slice(1, total).map(o => String(o).padStart(10, '0') + ' 00000 n \n').join('') + 'trailer\n<< /Size ' + total + ' /Root 1 0 R >>\nstartxref\n' + xr + '\n%%EOF');
+    return new Blob(partes, { type: 'application/pdf' });
   }
   async function descargarReporte() {
-    const b = await blobReporte(); if (!b) { ctx.toast('No se pudo crear la imagen'); return; }
-    const a = el('a', { href: URL.createObjectURL(b), download: nombreReporte() }); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-    ctx.toast('JPG guardado · ' + nombreReporte());
+    ctx.toast('Creando el PDF…');
+    try {
+      const b = await blobReporte();
+      const a = el('a', { href: URL.createObjectURL(b), download: nombreReporte() }); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      ctx.toast('PDF guardado · ' + nombreReporte());
+    } catch (e) { ctx.toast('No se pudo crear el PDF'); }
   }
   async function compartirReporte() {
     try {
-      const b = await blobReporte(); if (!b) { ctx.toast('No se pudo crear la imagen'); return; }
-      const file = new File([b], nombreReporte(), { type: 'image/jpeg' });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: 'Reporte de comisiones · ' + nombreMes(S.mes) });
-      else { await descargarReporte(); }
-    } catch (e) { if (e && e.name !== 'AbortError') ctx.toast('No se pudo compartir; usa «Guardar JPG»'); }
+      const b = await blobReporte(), file = new File([b], nombreReporte(), { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: tituloReporte() });
+      else await descargarReporte();
+    } catch (e) { if (e && e.name !== 'AbortError') ctx.toast('No se pudo compartir; usa «Guardar PDF»'); }
+  }
+  /* copiar al portapapeles: texto (y tabla) listo para pegar en WhatsApp, correo o una hoja de cálculo */
+  async function copiarReporte() {
+    const R = datosReporte(), h = x => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    const fl = x => [String(x.n), DIA3[parte(x.f).dow] + ' ' + fCorta(x.f), '#' + x.rec, (x.tipo === 'Anulada' ? 'ANULADA' : x.tipo) + (x.det ? ' (' + x.det + ')' : ''), x.tipo === 'Anulada' ? '—' : Q(x.monto)];
+    const cab = ['N.º', 'Fecha', 'Recibo', 'Forma de pago', 'Monto'];
+    const resumen = R.tipos.map(t => t + ': ' + R.cat[t].n + (R.cat[t].n === 1 ? ' factura' : ' facturas') + ' · ' + Q(R.cat[t].q)).concat(['Anuladas: ' + R.anul, 'Facturas válidas: ' + R.validas, '', 'Ventas del mes: ' + Q(R.total), 'Porcentaje: ' + R.pct + ' %', 'Comisión: ' + Q(R.bruta), 'No corresponde: ' + Q(R.nc), 'COMISIÓN A RECIBIR: ' + Q(R.com)]);
+    const txt = [tituloReporte() + ' ' + S.mes.slice(0, 4), 'Music Pro · Pradera Zona 10', '', cab.join('\t')].concat(R.filas.map(x => fl(x).join('\t')), ['', 'TOTAL (' + R.validas + ' facturas)\t\t\t\t' + Q(R.total), ''], resumen).join('\n');
+    const html = '<p><b>' + h(tituloReporte()) + ' ' + S.mes.slice(0, 4) + '</b><br>Music Pro · Pradera Zona 10</p><table border="1" cellpadding="4" style="border-collapse:collapse"><tr>' + cab.map(x => '<th>' + h(x) + '</th>').join('') + '</tr>' + R.filas.map(x => '<tr>' + fl(x).map(v => '<td>' + h(v) + '</td>').join('') + '</tr>').join('') + '<tr><td colspan="4"><b>TOTAL (' + R.validas + ' facturas)</b></td><td><b>' + h(Q(R.total)) + '</b></td></tr></table><p>' + resumen.map(h).join('<br>') + '</p>';
+    try { await navigator.clipboard.write([new ClipboardItem({ 'text/plain': new Blob([txt], { type: 'text/plain' }), 'text/html': new Blob([html], { type: 'text/html' }) })]); ctx.toast('Copiado: pégalo donde quieras'); }
+    catch (e) { try { await navigator.clipboard.writeText(txt); ctx.toast('Copiado: pégalo donde quieras'); } catch (e2) { ctx.toast('Tu navegador no permite copiar'); } }
   }
   function cardReporte() {
-    const R = datosReporte();
+    const R = datosReporte(), pags = paginar(R);
     return el('div', { class: 'card mp-rep' }, el('h3', {}, ico('sheet'), ' Reporte de comisiones · ' + nombreMes(S.mes)),
-      el('p', { class: 'muted' }, R.validas + (R.validas === 1 ? ' factura' : ' facturas') + ' en orden (fecha, recibo, monto y forma de pago), con el conteo final de la comisión para verificar. Se actualiza solo con el mes que tienes arriba.'),
-      el('canvas', { class: 'mp-cv mp-cvr', 'aria-label': 'Reporte de comisiones' }),
-      el('div', { class: 'mp-acts' }, btn('Guardar JPG', 'down', descargarReporte, 'btn-gold'), navigator.canShare ? btn('Compartir', 'out', compartirReporte) : null));
+      el('p', { class: 'muted' }, R.validas + (R.validas === 1 ? ' factura' : ' facturas') + ' en orden (fecha, recibo, monto y forma de pago) con el conteo final de la comisión para verificar. ' + pags.length + (pags.length === 1 ? ' hoja' : ' hojas') + ', cada una con el encabezado «' + tituloReporte() + '». Se actualiza con el mes que tienes arriba.'),
+      el('div', { class: 'mp-repw' }),
+      el('div', { class: 'mp-acts' }, btn('Guardar PDF', 'down', descargarReporte, 'btn-gold'), btn('Copiar', 'copy', copiarReporte), navigator.canShare ? btn('Compartir PDF', 'out', compartirReporte) : null));
   }
 
   /* =====================================================================
@@ -1250,6 +1310,7 @@
 .mp-isos{width:100%;height:auto;max-height:340px;color:var(--text)}.mp-isol{display:grid;gap:10px}.mp-il{display:flex;gap:12px;align-items:center;padding:10px 14px;border-radius:14px;background:var(--soft);border:1px solid var(--line)}.mp-il i{flex:none;width:14px;height:44px;border-radius:7px}.mp-il>div{display:grid;gap:1px}.mp-il b{font-size:1.25rem}.mp-ilt{background:rgba(184,160,106,.16);border-color:var(--oro)}
 .mp-barc{display:flex;gap:8px;align-items:center}.mp-barc .mp-bar{flex:1}.mp-barc small{min-width:44px;text-align:right;color:var(--muted);font-weight:700}.mp-cero{opacity:.55}.mp-fecha input[type=month]{width:auto}
 .mp-cvl{aspect-ratio:2600/1700}
+.mp-repw{display:grid;gap:14px;max-width:760px}
 .mp-bloques{margin-top:12px}.mp-bloques .mp-grid2{margin-top:10px}
 .mp-m{min-width:96px}
 .mp-ycal{margin-bottom:14px}.mp-yh{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}.mp-yh h3{margin:0}.mp-yn{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.mp-yn>b{min-width:44px;text-align:center}
