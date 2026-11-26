@@ -816,8 +816,24 @@
         const b = await new Promise(ok => cv.toBlob(ok, 'image/png')), a = el('a', { href: URL.createObjectURL(b), download: nombre + '.png' }); document.body.append(a); a.click(); a.remove(); toast('Imagen descargada');
       } catch (e) { toast(e.message || 'No se pudo crear la imagen'); }
     };
+    /* PDF directo: una sola página continua con el ancho de carta, sin cortes en medio de las tarjetas */
+    const cargaJs = (ok, url, msg) => new Promise((res, no) => { if (ok()) return res(); const s = document.createElement('script'); s.src = url; s.onload = res; s.onerror = () => no(new Error(msg)); document.head.append(s); });
+    const pdf = async () => {
+      try {
+        toast('Creando el PDF…');
+        await cargaJs(() => window.html2canvas, 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', 'No se pudo cargar el generador de imágenes');
+        await cargaJs(() => window.jspdf, 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', 'No se pudo cargar el generador de PDF');
+        const doc = ifr.contentDocument; await doc.fonts.ready; const nodo = doc.querySelector('.hoja');
+        const cv = await window.html2canvas(nodo, { scale: 2, useCORS: true, backgroundColor: '#F5F2EE', width: 816, windowWidth: 816 });
+        const w = 612, h = Math.round(cv.height * w / cv.width);
+        const pd = new window.jspdf.jsPDF({ unit: 'pt', format: [w, h], orientation: h > w ? 'p' : 'l', compress: true });
+        pd.addImage(cv.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, w, h);
+        pd.save(nombre + '.pdf'); toast('PDF descargado');
+      } catch (e) { toast(e.message || 'No se pudo crear el PDF'); }
+    };
     modal((tipo === 'crew' ? 'Hoja de llamado · Crew' : 'Hoja de llamado · Apoyo') + ' · ' + (p.codigo || ''), '1000px', vista, [
-      btn('Imprimir / PDF', 'print', () => { try { ifr.contentWindow.focus(); ifr.contentWindow.print(); } catch (e) { toast('No se pudo abrir la impresión'); } }, 'btn-gold'),
+      btn('Descargar PDF', 'down2', pdf, 'btn-gold'),
+      btn('Imprimir', 'print', () => { try { ifr.contentWindow.focus(); ifr.contentWindow.print(); } catch (e) { toast('No se pudo abrir la impresión'); } }),
       btn('Imagen PNG', 'img', png), btn('Copiar mensaje', 'wa', async () => { try { await navigator.clipboard.writeText(window.FaroProdDoc.mensaje(p, tipo)); toast('Mensaje copiado para WhatsApp'); } catch (e) { toast('No se pudo copiar'); } })], 'c');
     ajustar();
   }
