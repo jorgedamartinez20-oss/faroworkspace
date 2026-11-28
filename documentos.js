@@ -189,9 +189,10 @@ td.n{width:14mm}td.q{width:26mm}td.t{width:34mm;white-space:nowrap}
       await new Promise(ok => setTimeout(ok, 400));
       const nodo = doc.querySelector('.pg');
       const W = 794, H = Math.max(1123, Math.ceil(nodo.scrollHeight));
-      const cv = await window.html2canvas(nodo, { scale: 2, useCORS: true, backgroundColor: '#ffffff', width: W, height: H, windowWidth: W, windowHeight: H });
+      const esc4 = Math.max(2, Math.min(4, Math.sqrt(14e6 / (W * H)))); /* nitidez máxima sin pasar el límite de memoria del navegador */
+      const cv = await window.html2canvas(nodo, { scale: esc4, useCORS: true, backgroundColor: '#ffffff', width: W, height: H, windowWidth: W, windowHeight: H });
       const pw = 595.28, ph = 841.89, pd = new window.jspdf.jsPDF({ unit: 'pt', format: 'a4', orientation: 'p', compress: true });
-      const q = 0.88;
+      const q = 0.93;
       if (H <= 1123 * 1.04) {
         /* una sola hoja A4: el documento se ajusta entero, sin segunda página casi vacía */
         pd.addImage(cv.toDataURL('image/jpeg', q), 'JPEG', 0, 0, pw, ph, undefined, 'FAST');
