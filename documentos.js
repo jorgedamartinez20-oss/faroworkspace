@@ -35,6 +35,7 @@
     copy: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>', ban: '<circle cx="12" cy="12" r="9"/><path d="m5.7 5.7 12.6 12.6"/>',
     back: '<path d="M15 18l-6-6 6-6"/>', tag: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.2"/>',
     x: '<path d="M6 6l12 12M18 6 6 18"/>', edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+    down: '<path d="M12 3v12M7 11l5 5 5-5M4 20h16"/>',
     search: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>', lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'
   };
   const ico = k => '<svg class="fd-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (IC[k] || IC.file) + '</svg>';
@@ -169,6 +170,47 @@ td.n{width:14mm}td.q{width:26mm}td.t{width:34mm;white-space:nowrap}
     f.srcdoc = docHTML(d);
   }
 
+  /* PDF directo (sin diálogo de impresión): A4, calidad alta y liviano para correo. Se arma desde el mismo documento y se descarga de una. */
+  const cargaJs = (ok, url, msg) => new Promise((res, no) => { if (ok()) return res(); const sc = document.createElement('script'); sc.src = url; sc.onload = res; sc.onerror = () => no(new Error(msg)); document.head.append(sc); });
+  async function descargarPDF(d) {
+    ctx.toast('Creando el PDF…');
+    let f = null;
+    try {
+      await cargaJs(() => window.html2canvas, 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', 'No se pudo cargar el generador de imágenes');
+      await cargaJs(() => window.jspdf, 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', 'No se pudo cargar el generador de PDF');
+      f = document.createElement('iframe');
+      f.setAttribute('aria-hidden', 'true');
+      f.style.cssText = 'position:fixed;left:-12000px;top:0;width:794px;height:1123px;border:0';
+      document.body.append(f);
+      await new Promise(ok => { f.onload = ok; f.srcdoc = docHTML(d); });
+      const doc = f.contentDocument;
+      try { await doc.fonts.ready; } catch (e) { /* sin fuentes: sigue */ }
+      await Promise.all([...doc.images].map(im => im.complete ? 0 : new Promise(ok => { im.onload = im.onerror = ok; })));
+      await new Promise(ok => setTimeout(ok, 400));
+      const nodo = doc.querySelector('.pg');
+      const W = 794, H = Math.max(1123, Math.ceil(nodo.scrollHeight));
+      const cv = await window.html2canvas(nodo, { scale: 2, useCORS: true, backgroundColor: '#ffffff', width: W, height: H, windowWidth: W, windowHeight: H });
+      const pw = 595.28, ph = 841.89, pd = new window.jspdf.jsPDF({ unit: 'pt', format: 'a4', orientation: 'p', compress: true });
+      const q = 0.88;
+      if (H <= 1123 * 1.04) {
+        /* una sola hoja A4: el documento se ajusta entero, sin segunda página casi vacía */
+        pd.addImage(cv.toDataURL('image/jpeg', q), 'JPEG', 0, 0, pw, ph, undefined, 'FAST');
+      } else {
+        const alto = Math.round(cv.width * ph / pw), n = Math.ceil(cv.height / alto);
+        for (let i = 0; i < n; i++) {
+          const t = document.createElement('canvas'); t.width = cv.width; t.height = alto;
+          const g = t.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, t.width, t.height); g.drawImage(cv, 0, -i * alto);
+          if (i) pd.addPage();
+          pd.addImage(t.toDataURL('image/jpeg', q), 'JPEG', 0, 0, pw, ph, undefined, 'FAST');
+        }
+      }
+      pd.setProperties({ title: nombreArchivo(d), author: 'Faro Studios' });
+      pd.save(nombreArchivo(d) + '.pdf');
+      ctx.toast('PDF descargado');
+    } catch (e) { ctx.toast((e && e.message) || 'No se pudo crear el PDF'); }
+    finally { if (f) f.remove(); }
+  }
+
   /* ---------- estado ---------- */
   let ctx = null, root = null, started = false, uid = 0;
   const S = { vista: 'lista', filtro: 'todos', q: '', docs: [], svs: [], err: '', cargando: false, d: null, pv: null };
@@ -280,7 +322,7 @@ td.n{width:14mm}td.q{width:26mm}td.t{width:34mm;white-space:nowrap}
       S.d = fila(g); ctx.toast('Guardado · ' + g.numero);
       if (d.cliente_id && window.fcVincularDoc) window.fcVincularDoc(g, d.cliente_id);
       const i = S.docs.findIndex(x => x.id === g.id); if (i >= 0) S.docs[i] = g; else S.docs.unshift(g);
-      if (imp) imprimir(S.d); else { S.vista = 'lista'; }
+      if (imp === 'pdf') descargarPDF(S.d); else if (imp) imprimir(S.d); else { S.vista = 'lista'; }
       pintar();
     } catch (e) { if (!e || e.message !== 'sesion') ctx.toast('No se pudo guardar. Revisa tu conexión.'); }
   }
@@ -319,7 +361,7 @@ td.n{width:14mm}td.q{width:26mm}td.t{width:34mm;white-space:nowrap}
         h('div', { class: 'nm' }, money(+x.total, x.moneda)),
         h('div', {}, h('span', { class: 'fd-tag' + (x.estado === 'anulado' ? ' an' : '') }, x.estado === 'anulado' ? 'Anulado' : 'Emitido')),
         h('div', { class: 'fd-acts' },
-          btn('edit', 'Abrir', () => abrir(fila(x))), btn('print', 'PDF', () => imprimir(fila(x))), btn('copy', 'Duplicar', () => abrir(nuevo(x.tipo, fila(x)))),
+          btn('edit', 'Abrir', () => abrir(fila(x))), btn('down', 'PDF', () => descargarPDF(fila(x))), btn('print', 'Imprimir', () => imprimir(fila(x))), btn('copy', 'Duplicar', () => abrir(nuevo(x.tipo, fila(x)))),
           x.tipo === 'cotizacion' ? btn('check', 'Confirmar', () => abrir(nuevo('confirmacion', fila(x)))) : null,
           x.tipo === 'confirmacion' && x.estado !== 'anulado' && window.FaroContratos ? btn('file', 'Contrato', () => { S.vista = 'contratos'; S.ctDoc = x; pintar(); }) : null,
           x.tipo !== 'recibo' ? btn('card', 'Recibo', () => abrir(nuevo('recibo', fila(x)))) : null,
@@ -483,8 +525,8 @@ td.n{width:14mm}td.q{width:26mm}td.t{width:34mm;white-space:nowrap}
     card.append(gt);
 
     const bar = h('div', { class: 'fd-bar' });
-    if (!lock) bar.append(btn('check', d.id ? 'Guardar cambios' : 'Guardar', () => guardar(false), 'btn-gold'), btn('print', 'Guardar e imprimir / PDF', () => guardar(true)));
-    else bar.append(btn('print', 'Imprimir / PDF', () => imprimir(d), 'btn-gold'));
+    if (!lock) bar.append(btn('check', d.id ? 'Guardar cambios' : 'Guardar', () => guardar(false), 'btn-gold'), btn('down', 'Descargar PDF', () => guardar('pdf'), 'btn-gold'), btn('print', 'Guardar e imprimir', () => guardar(true)));
+    else bar.append(btn('down', 'Descargar PDF', () => descargarPDF(d), 'btn-gold'), btn('print', 'Imprimir', () => imprimir(d)));
     if (d.id && !lock) bar.append(btn('print', 'Solo imprimir', () => imprimir(d)));
     card.append(bar);
 
