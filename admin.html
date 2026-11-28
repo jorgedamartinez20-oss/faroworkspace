@@ -1985,6 +1985,7 @@ const SECC=[
  {id:'catalogo',c:'landing',t:'Catálogo',i:'book',keys:()=>['catalogoPdf','catalogoPdf2',...CAT_PAGS.flatMap((_,i)=>['cat.'+i+'.h','cat.'+i+'.p'])],r:rCatalogo},
  {id:'recursos',c:'landing',t:'Recursos gratis',i:'pdf',keys:()=>RECS.flatMap(r=>['pdf.'+r.id,'rt.'+r.id,'rd.'+r.id]),r:rRecursos},
  {id:'resenas',c:'landing',t:'Reseñas',i:'star',keys:()=>rng('',rvN()).flatMap(n=>['rv.'+n+'.q','rv.'+n+'.n','rv.'+n+'.r','rv.'+n+'.g','rv.'+n+'.c','img.t'+n]),r:rResenas},
+ {id:'clientes',c:'landing',t:'Empresas con las que trabajamos',i:'users',keys:()=>rng('',clN()).flatMap(n=>['cl.'+n+'.n','img.cl-'+n]),r:rClientes},
  {id:'promo',c:'landing',t:'Promoción (ventana de inicio)',i:'star',dest:'landing/fotos-studios',lead:'La ventana que aparece un momento después de abrir la página, una vez al día por persona. Si no subes imagen, se dibuja con el porcentaje del título. Para quitarla pon 0 en «Mostrar».',items:[TX('promo.on','Mostrar la ventana (1 = sí, 0 = no)','1'),TX('promo.t','Título grande (el porcentaje sale en la imagen)','15% de descuento'),{k:'promo.d',l:'Texto de apoyo',t:'area'},TX('promo.b','Texto del botón','Agendar mi graduación'),TX('promo.hasta','Mostrar hasta el día (AAAA-MM-DD, opcional)','2026-10-31'),{k:'img.promo',l:'Imagen de la ventana (opcional)',t:'img'}]},
  {id:'pagos',c:'landing',t:'Logos de pago',i:'card',dest:'landing/logos',lead:'Los logos que van junto a las preguntas frecuentes. Si dejas uno vacío, la página muestra el cuadro de ejemplo.',items:[{k:'img.logo-visa',l:'Logo Visa',t:'img'},{k:'img.logo-mc',l:'Logo Mastercard',t:'img'},{k:'img.logo-bi',l:'Logo Banco Industrial',t:'img'}]},
  {id:'m-fotos',c:'musica',t:'Fotos',i:'camera',dest:'landing/academy-fotos',items:[{k:'img.music-t1',l:'Foto testimonio Música',t:'img'},...INST.map(i=>({k:'img.music-'+i[0],l:'Foto de '+i[1],t:'img'}))]},
@@ -2328,12 +2329,21 @@ function rResenas(card){
         return el('label',{class:'muted',style:'display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap'},'Aparece en',g,c)})()]}));
 }
 
+/* --- Empresas con las que hemos trabajado: nombre + logo; la web solo muestra las que tengan algo cargado --- */
+function clN(){let m=0;Object.keys(AC.cfg||{}).forEach(k=>{const x=/^cl\.(\d+)\.n$/.exec(k)||/^img\.cl-(\d+)$/.exec(k);if(x&&AC.cfg[k])m=Math.max(m,+x[1])});return Math.max(12,m+1)}
+function rClientes(card){
+  const N=clN(),sel=selDe('clientes',N),n=sel+1;
+  card.append(el('p',{class:'muted'},'Toca un espacio para escribir el nombre de la empresa y subir su logo (mejor PNG con fondo transparente). Puedes cargar solo el nombre, solo el logo o ambos. Los espacios vacíos no se ven en la página y, si no cargas ninguna empresa, la sección completa no aparece. No hay límite: al llenar el último aparece otro.'));
+  card.append(mdChips(rng('',N).map(x=>({l:sitioVal('cl.'+x+'.n')||'Espacio '+x,s:sitioVal('img.cl-'+x)?'Con logo':(sitioVal('cl.'+x+'.n')?'Solo nombre':'Vacío'),img:sitioVal('img.cl-'+x),on:!!(sitioVal('cl.'+x+'.n')||sitioVal('img.cl-'+x)),i:'users'})),sel,i=>{SIT.sel.clientes=i;renderSitio()}));
+  card.append(detalle({titulo:'Empresa '+n,dest:'landing/clientes',archivos:[{k:'img.cl-'+n,l:'Logo de la empresa',t:'img'}],textos:[TX('cl.'+n+'.n','Nombre de la empresa','Ej. Walmart')]}));
+}
+
 /* ---------- ÁREAS VISIBLES de la web: interruptores que apagan o prenden cada área (sitio_config → vis.<área> = 0/1) ---------- */
 const VIS_GRUPOS=[
  ['Studios · secciones de la página','#8B1A2B',[
   ['presentacion','Conoce lo que hacemos · video de inicio','film'],['quienes','Quiénes somos · nuestras fotos y presentación','camera'],['servicios','Servicios','camera'],['portafolio','Portafolio','image'],['porque','¿Por qué Faro?','award'],
   ['audio','Producciones musicales y locuciones','music'],['catalogo','Catálogo','book'],['descargas','Recursos para iglesias y centros de formación','pdf'],
-  ['testimonios','Reseñas: «Lo dicen nuestros clientes»','message'],['faq','Preguntas frecuentes','bulb'],['contacto','Cierre «¿Listo para contar tu historia?»','mail']]],
+  ['testimonios','Reseñas: «Lo dicen nuestros clientes»','message'],['clientes','Empresas con las que hemos trabajado','users'],['faq','Preguntas frecuentes','bulb'],['contacto','Cierre «¿Listo para contar tu historia?»','mail']]],
  ['Studios · páginas y botones','#B8A06A',[
   ['reservas','Agendar (reservas)','calendar'],['cotizar','Cotizar','clipboard'],['entregas','Entregas (acceso de clientes)','folder']]],
  ['Faro Academy','#7A7A7E',[
