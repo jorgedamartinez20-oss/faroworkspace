@@ -189,20 +189,36 @@ td.n{width:14mm}td.q{width:26mm}td.t{width:34mm;white-space:nowrap}
       await new Promise(ok => setTimeout(ok, 400));
       const nodo = doc.querySelector('.pg');
       const W = 794, H = Math.max(1123, Math.ceil(nodo.scrollHeight));
+      /* el logo y la firma NO se fotografían: se sacan de la captura y se insertan como PNG a resolución completa (siempre nítidos) */
+      const base = nodo.getBoundingClientRect(), imgs = [];
+      for (const sel of ['.hd .logo', '.ft .fi']) {
+        const n = doc.querySelector(sel); if (!n) continue;
+        const m = /url\(["']?([^"')]+)["']?\)/.exec(doc.defaultView.getComputedStyle(n).backgroundImage || ''); if (!m) continue;
+        const r = n.getBoundingClientRect();
+        const im = await new Promise(ok => { const o = new Image(); o.onload = () => ok(o); o.onerror = () => ok(null); o.src = m[1]; });
+        if (!im || !im.naturalWidth) continue;
+        const k = Math.min(r.width / im.naturalWidth, r.height / im.naturalHeight), w = im.naturalWidth * k, hh = im.naturalHeight * k;
+        const c0 = document.createElement('canvas'); c0.width = im.naturalWidth; c0.height = im.naturalHeight; c0.getContext('2d').drawImage(im, 0, 0);
+        imgs.push({ url: c0.toDataURL('image/png'), x: r.left - base.left + (r.width - w) / 2, y: r.top - base.top + (r.height - hh) / 2, w, h: hh });
+        n.style.backgroundImage = 'none';
+      }
       const esc4 = Math.max(2, Math.min(4, Math.sqrt(14e6 / (W * H)))); /* nitidez máxima sin pasar el límite de memoria del navegador */
       const cv = await window.html2canvas(nodo, { scale: esc4, useCORS: true, backgroundColor: '#ffffff', width: W, height: H, windowWidth: W, windowHeight: H });
       const pw = 595.28, ph = 841.89, pd = new window.jspdf.jsPDF({ unit: 'pt', format: 'a4', orientation: 'p', compress: true });
-      const q = 0.93;
+      const q = 0.93, fx = pw / W;
       if (H <= 1123 * 1.04) {
         /* una sola hoja A4: el documento se ajusta entero, sin segunda página casi vacía */
         pd.addImage(cv.toDataURL('image/jpeg', q), 'JPEG', 0, 0, pw, ph, undefined, 'FAST');
+        const fy = ph / H;
+        imgs.forEach(g => pd.addImage(g.url, 'PNG', g.x * fx, (g.y + g.h / 2) * fy - g.h * fx / 2, g.w * fx, g.h * fx));
       } else {
-        const alto = Math.round(cv.width * ph / pw), n = Math.ceil(cv.height / alto);
+        const alto = Math.round(cv.width * ph / pw), n = Math.ceil(cv.height / alto), hp = W * ph / pw;
         for (let i = 0; i < n; i++) {
           const t = document.createElement('canvas'); t.width = cv.width; t.height = alto;
           const g = t.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, t.width, t.height); g.drawImage(cv, 0, -i * alto);
           if (i) pd.addPage();
           pd.addImage(t.toDataURL('image/jpeg', q), 'JPEG', 0, 0, pw, ph, undefined, 'FAST');
+          imgs.forEach(m => { if (m.y >= i * hp && m.y < (i + 1) * hp) pd.addImage(m.url, 'PNG', m.x * fx, (m.y - i * hp) * fx, m.w * fx, m.h * fx); });
         }
       }
       pd.setProperties({ title: nombreArchivo(d), author: 'Faro Studios' });
