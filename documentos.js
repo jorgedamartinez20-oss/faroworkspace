@@ -307,10 +307,18 @@ td.n{width:14mm}td.q{width:26mm}td.t{width:34mm;white-space:nowrap}
     if (!d.items.some(i => (i.desc || '').trim())) { ctx.toast('Agrega al menos una línea con descripción'); return; }
     const c = calc(d);
     const { id, serie, numero, estado, ...datos } = d;
+    const num = (numero || '').trim();
+    /* del número escrito saca el consecutivo (FA12 - 2026 · FS - 0012 · RC00173 - 2026) para la columna serie y el contador */
+    const nSerie = x => { const m = /^(?:FA|FS\s*-\s*|RC)\s*0*(\d+)/i.exec(x || ''); return m ? +m[1] : null; };
     try {
       let r;
       if (id) {
-        r = await ctx.api('/rest/v1/doc_documentos?id=eq.' + id, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: { cliente: d.cliente.trim(), moneda: d.moneda, total: c.total, datos } });
+        const body = { cliente: d.cliente.trim(), moneda: d.moneda, total: c.total, datos };
+        if (num) { body.numero = num; const ns = nSerie(num); if (ns != null) body.serie = ns; }
+        r = await ctx.api('/rest/v1/doc_documentos?id=eq.' + id, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body });
+      } else if (num) {
+        const ns = nSerie(num);
+        r = await ctx.api('/rest/v1/doc_documentos', { method: 'POST', headers: { Prefer: 'return=representation' }, body: { tipo: d.tipo, serie: ns != null ? ns : 0, numero: num, cliente: d.cliente.trim(), moneda: d.moneda, total: c.total, datos } });
       } else {
         const n = await ctx.api('/rest/v1/rpc/doc_siguiente_numero', { method: 'POST', body: { p_tipo: d.tipo } });
         if (!n.ok) { ctx.toast(await ctx.errText(n)); return; }
@@ -319,6 +327,13 @@ td.n{width:14mm}td.q{width:26mm}td.t{width:34mm;white-space:nowrap}
       }
       if (!r.ok) { ctx.toast(await ctx.errText(r)); return; }
       const g = (await r.json())[0];
+      if (num && nSerie(num) != null) {
+        try {
+          const cr = await ctx.api('/rest/v1/doc_contadores?tipo=eq.' + encodeURIComponent(d.tipo) + '&select=ultimo');
+          const ult = cr.ok ? ((await cr.json())[0] || {}).ultimo : null;
+          if (ult != null && nSerie(num) > ult) await ctx.api('/rest/v1/doc_contadores?tipo=eq.' + encodeURIComponent(d.tipo), { method: 'PATCH', body: { ultimo: nSerie(num) } });
+        } catch (e) { /* el contador se ajusta la próxima vez */ }
+      }
       S.d = fila(g); ctx.toast('Guardado · ' + g.numero);
       if (d.cliente_id && window.fcVincularDoc) window.fcVincularDoc(g, d.cliente_id);
       const i = S.docs.findIndex(x => x.id === g.id); if (i >= 0) S.docs[i] = g; else S.docs.unshift(g);
@@ -377,7 +392,13 @@ td.n{width:14mm}td.q{width:26mm}td.t{width:34mm;white-space:nowrap}
     const w = h('div');
     w.append(h('div', { class: 'fd-top' },
       h('div', { class: 'fd-acts' }, btn('back', 'Volver', () => { S.vista = 'lista'; pintar(); }), h('h2', { style: 'margin:0 0 0 8px;font-size:1.7rem' }, T.n)),
-      h('div', {}, d.numero ? h('b', {}, d.numero) : h('span', { class: 'muted' }, 'El número se asigna al guardar'))));
+      (() => {
+        if (d.estado === 'anulado') return h('div', {}, d.numero ? h('b', {}, d.numero) : '');
+        const ni = h('input', { type: 'text', placeholder: 'Automático al guardar', 'aria-label': 'Número correlativo', style: 'width:min(230px,52vw);text-align:center;font-weight:700' });
+        ni.value = d.numero || '';
+        ni.addEventListener('input', () => { d.numero = ni.value.trim(); refrescar(); });
+        return h('label', { class: 'muted', style: 'display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:.9rem' }, 'Número', ni);
+      })()));
     if (d.estado === 'anulado') w.append(h('div', { class: 'msg' }, 'Este documento está anulado. Puedes verlo o imprimirlo, pero ya no se edita.'));
     const ed = h('div', { class: 'fd-ed' }), card = h('div', { class: 'card' }), pv = h('div', { class: 'fd-pv' });
     const lock = d.estado === 'anulado';
