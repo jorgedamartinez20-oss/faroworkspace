@@ -106,7 +106,7 @@ td.n{width:14mm}td.q{width:26mm}td.t{width:34mm;white-space:nowrap}
 .ft .sg{display:flex;justify-content:space-between;align-items:flex-end;margin-top:4mm;gap:8mm}
 .ft .cf{width:62mm;border-top:.3mm solid #8d8a84;padding-top:1.5mm;font-size:8pt;color:#C9C4BA}
 .ft .fm{margin-left:auto;text-align:right}
-.ft .fi{width:34.5mm;height:28.7mm;margin:0 0 -9mm auto;background:url(${abs('doc-firma.png')}) center/contain no-repeat}
+.ft .fi{width:34.5mm;height:28.7mm;margin:0 0 -9mm auto;background:url(${abs('doc-firma-hd.png')}) center/contain no-repeat}
 .ft .fm b{display:block;font-size:11pt;color:#C9B27A}
 .ft .fm span{font-size:10.5pt;color:#C9B27A}
 .ft .ct{margin-top:5mm;text-align:right;font-size:8pt;color:#C9C4BA}
